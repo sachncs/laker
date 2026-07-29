@@ -48,7 +48,9 @@ by the high-level estimator, the streaming updater, and training loops.
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
 from typing import Callable, Optional, Union, cast
 
 import torch
@@ -72,6 +74,21 @@ from laker.preconditioner import AdaptivePreconditioner, CCCPPreconditioner
 from laker.solvers import PreconditionedConjugateGradient
 
 logger = logging.getLogger(__name__)
+
+
+# Autocast context manager, enabled via the LAKER_AUTOCAST env var.
+# When on CUDA this uses float16/bfloat16 for matmuls; on CPU/MPS it
+# is a no-op (the autocast context still works but the underlying math
+# stays in float32 on those backends).
+_LAKER_AUTOCAST = os.environ.get("LAKER_AUTOCAST", "") == "1"
+
+
+def _autocast_if_enabled():
+    """Return an autocast context when ``LAKER_AUTOCAST=1``, else null context."""
+    if not _LAKER_AUTOCAST:
+        return contextlib.nullcontext()
+    # gate in autocast  # ponytail: autocast
+    return torch.amp.autocast("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class LAKERCore:
@@ -556,12 +573,13 @@ class LAKERCore:
             max_iter=self.pcg_max_iter,
             verbose=self.verbose,
         )
-        alpha = pcg.solve(
-            operator=kernel_operator.matvec,
-            preconditioner=preconditioner.apply,
-            rhs=rhs,
-            x0=x0,
-        )
+        with _autocast_if_enabled():
+            alpha = pcg.solve(
+                operator=kernel_operator.matvec,
+                preconditioner=preconditioner.apply,
+                rhs=rhs,
+                x0=x0,
+            )
         if self.verbose:
             final_res = (
                 torch.linalg.norm(kernel_operator.matvec(alpha) - rhs).item()
@@ -614,7 +632,7 @@ class LAKERCore:
         Returns:
             Predicted field values of shape ``(m,)``.
         """
-        with torch.no_grad():
+        with torch.no_grad(), _autocast_if_enabled():
             embedded_input = x.to(dtype=self.embedding_dtype)
             query_embeddings = embedding_model(embedded_input)
             if self.embedding_dtype != self.dtype:
@@ -703,7 +721,7 @@ class LAKERCore:
             Predictive variance of shape ``(m,)``, clamped to
             :math:`\\geq 0`.
         """
-        with torch.no_grad():
+        with torch.no_grad(), _autocast_if_enabled():
             embedded_input = x.to(dtype=self.embedding_dtype)
             query_embeddings = embedding_model(embedded_input)
             if self.embedding_dtype != self.dtype:
@@ -806,42 +824,43 @@ class LAKERCore:
         Returns:
             Differentiable predicted field values of shape ``(m,)``.
         """
-        embedded_input = x.to(dtype=self.embedding_dtype)
-        query_embeddings = embedding_model(embedded_input)
-        if self.embedding_dtype != self.dtype:
-            query_embeddings = query_embeddings.to(dtype=self.dtype)
-        m = query_embeddings.shape[0]
-        n = embeddings.shape[0]
+        with _autocast_if_enabled():
+            embedded_input = x.to(dtype=self.embedding_dtype)
+            query_embeddings = embedding_model(embedded_input)
+            if self.embedding_dtype != self.dtype:
+                query_embeddings = query_embeddings.to(dtype=self.dtype)
+            m = query_embeddings.shape[0]
+            n = embeddings.shape[0]
 
-        chunk_size = self.chunk_size
-        if chunk_size is None and max(m, n) > 5000:
-            chunk_size = max(1024, min(max(m, n) // 10, 8192))
+            chunk_size = self.chunk_size
+            if chunk_size is None and max(m, n) > 5000:
+                chunk_size = max(1024, min(max(m, n) // 10, 8192))
 
-        element_size = 4 if self.dtype == torch.float32 else 8
-        mem_per_chunk = (chunk_size or m) * n * element_size if chunk_size else m * n * element_size
-        if chunk_size is None or mem_per_chunk <= 64 * 1024 * 1024:
-            k_query = kernel_operator.kernel_eval(
-                query_embeddings, embeddings, chunk_size=chunk_size
-            )
-            out = k_query @ alpha
-        elif self.kernel_approx is not None:
-            k_query = kernel_operator.kernel_eval(
-                query_embeddings, embeddings, chunk_size=chunk_size
-            )
-            out = k_query @ alpha
-        else:
-            out = torch.empty(m, device=self.device, dtype=self.dtype)
-            chunk_size_local = chunk_size
-            for i_start in range(0, m, chunk_size_local):
-                i_end = min(i_start + chunk_size_local, m)
-                accum = torch.zeros(i_end - i_start, device=self.device, dtype=self.dtype)
-                e_i = query_embeddings[i_start:i_end]
-                for j_start in range(0, n, chunk_size_local):
-                    j_end = min(j_start + chunk_size_local, n)
-                    gram_block = e_i @ embeddings[j_start:j_end].T
-                    exp_safe(gram_block, out=gram_block)
-                    accum.addmv_(gram_block, alpha[j_start:j_end])
-                out[i_start:i_end] = accum
+            element_size = 4 if self.dtype == torch.float32 else 8
+            mem_per_chunk = (chunk_size or m) * n * element_size if chunk_size else m * n * element_size
+            if chunk_size is None or mem_per_chunk <= 64 * 1024 * 1024:
+                k_query = kernel_operator.kernel_eval(
+                    query_embeddings, embeddings, chunk_size=chunk_size
+                )
+                out = k_query @ alpha
+            elif self.kernel_approx is not None:
+                k_query = kernel_operator.kernel_eval(
+                    query_embeddings, embeddings, chunk_size=chunk_size
+                )
+                out = k_query @ alpha
+            else:
+                out = torch.empty(m, device=self.device, dtype=self.dtype)
+                chunk_size_local = chunk_size
+                for i_start in range(0, m, chunk_size_local):
+                    i_end = min(i_start + chunk_size_local, m)
+                    accum = torch.zeros(i_end - i_start, device=self.device, dtype=self.dtype)
+                    e_i = query_embeddings[i_start:i_end]
+                    for j_start in range(0, n, chunk_size_local):
+                        j_end = min(j_start + chunk_size_local, n)
+                        gram_block = e_i @ embeddings[j_start:j_end].T
+                        exp_safe(gram_block, out=gram_block)
+                        accum.addmv_(gram_block, alpha[j_start:j_end])
+                    out[i_start:i_end] = accum
 
         if residual_corrector is not None:
             residual_corrector.eval()
@@ -888,32 +907,33 @@ class LAKERCore:
             Differentiable predictive variance of shape ``(m,)``, clamped
             to be non-negative.
         """
-        embedded_input = x.to(dtype=self.embedding_dtype)
-        query_embeddings = embedding_model(embedded_input)
-        if self.embedding_dtype != self.dtype:
-            query_embeddings = query_embeddings.to(dtype=self.dtype)
+        with _autocast_if_enabled():
+            embedded_input = x.to(dtype=self.embedding_dtype)
+            query_embeddings = embedding_model(embedded_input)
+            if self.embedding_dtype != self.dtype:
+                query_embeddings = query_embeddings.to(dtype=self.dtype)
 
-        if self.kernel_approx == "rff" and hasattr(kernel_operator, "phi"):
-            ko = cast(RandomFeatureAttentionKernelOperator, kernel_operator)
-            proj = query_embeddings @ ko.freq
-            phi_q = torch.cat([torch.cos(proj + ko.phase), torch.sin(proj + ko.phase)], dim=1) / (
-                ko.num_features**0.5
-            )
-            a = ko.phi.T @ ko.phi
-            a_reg = a + lambda_reg * torch.eye(a.shape[0], device=self.device, dtype=self.dtype)
-            chol = torch.linalg.cholesky(a_reg)
-            m_solve = torch.cholesky_solve(
-                torch.eye(a.shape[0], device=self.device, dtype=self.dtype),
-                chol,
-            )
-            var = lambda_reg * torch.sum(phi_q @ m_solve * phi_q, dim=1)
-            return var.clamp(min=0.0)
+            if self.kernel_approx == "rff" and hasattr(kernel_operator, "phi"):
+                ko = cast(RandomFeatureAttentionKernelOperator, kernel_operator)
+                proj = query_embeddings @ ko.freq
+                phi_q = torch.cat([torch.cos(proj + ko.phase), torch.sin(proj + ko.phase)], dim=1) / (
+                    ko.num_features**0.5
+                )
+                a = ko.phi.T @ ko.phi
+                a_reg = a + lambda_reg * torch.eye(a.shape[0], device=self.device, dtype=self.dtype)
+                chol = torch.linalg.cholesky(a_reg)
+                m_solve = torch.cholesky_solve(
+                    torch.eye(a.shape[0], device=self.device, dtype=self.dtype),
+                    chol,
+                )
+                var = lambda_reg * torch.sum(phi_q @ m_solve * phi_q, dim=1)
+                return var.clamp(min=0.0)
 
-        # Differentiable proxy: soft-min distance to training embeddings
-        dists = torch.cdist(query_embeddings, embeddings) ** 2
-        weights = torch.softmax(-dists, dim=1)
-        mean_dist = (weights * dists).sum(dim=1)
-        return (lambda_reg + mean_dist).clamp(min=0.0)
+            # Differentiable proxy: soft-min distance to training embeddings
+            dists = torch.cdist(query_embeddings, embeddings) ** 2
+            weights = torch.softmax(-dists, dim=1)
+            mean_dist = (weights * dists).sum(dim=1)
+            return (lambda_reg + mean_dist).clamp(min=0.0)
 
     # ------------------------------------------------------------------
     # Diagnostics
