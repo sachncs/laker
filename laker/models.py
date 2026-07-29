@@ -37,6 +37,7 @@ solve) and to specialised helper classes:
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Optional, Union
 
 import numpy
@@ -195,7 +196,7 @@ class LAKERRegressor:
         embedding_dtype: Optional[torch.dtype] = None,
         device: Optional[Union[str, torch.device]] = None,
         dtype: Optional[torch.dtype] = None,
-        verbose: bool = True,
+        verbose: bool = os.environ.get("LAKER_VERBOSE", "1") == "1",
         residual_corrector: Optional[nn.Module] = None,
     ) -> None:
         """Initialise the LAKER regressor.
