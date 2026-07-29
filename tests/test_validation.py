@@ -79,6 +79,43 @@ def test_fit_mismatched_shapes():
         model.fit(x, y)
 
 
+def test_repr_before_and_after_fit():
+    """Test __repr__ works before and after fit."""
+    model = LAKERRegressor(verbose=False)
+    r1 = repr(model)
+    assert "not fitted" in r1
+    assert "LAKERRegressor" in r1
+    x = torch.rand(10, 2)
+    y = torch.rand(10)
+    model.fit(x, y)
+    r2 = repr(model)
+    assert "fitted" in r2
+
+
+def test_invalid_k_neighbors():
+    """Test that non-positive k_neighbors raises ValueError."""
+    with pytest.raises(ValueError, match="k_neighbors must be positive"):
+        LAKERRegressor(k_neighbors=0)
+
+
+def test_invalid_grid_size():
+    """Test that grid_size < 2 raises ValueError."""
+    with pytest.raises(ValueError, match="grid_size must be at least 2"):
+        LAKERRegressor(grid_size=1)
+
+
+def test_invalid_landmark_method():
+    """Test invalid landmark_method raises ValueError."""
+    with pytest.raises(ValueError, match="landmark_method must be"):
+        LAKERRegressor(landmark_method="invalid")
+
+
+def test_invalid_preconditioner():
+    """Test invalid preconditioner raises ValueError."""
+    with pytest.raises(ValueError, match="preconditioner must be"):
+        LAKERRegressor(preconditioner="invalid")
+
+
 def test_chunk_memory_budget_default():
     """Test default chunk budget is 64 MB."""
     from laker.backend import get_chunk_memory_budget
