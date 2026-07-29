@@ -3,6 +3,7 @@
 import pytest
 import torch
 
+from laker.kernels import AttentionKernelOperator
 from laker.models import LAKERRegressor
 
 
@@ -144,3 +145,52 @@ def test_get_set_params():
     assert model.lambda_reg == 0.1
     with pytest.raises(ValueError, match="Invalid parameter"):
         model.set_params(invalid_param=1)
+
+
+def test_kernel_operator_invalid_embeddings():
+    """Test that 1-D embeddings raises ValueError."""
+    with pytest.raises(ValueError, match="embeddings must be 2-D"):
+        AttentionKernelOperator(torch.randn(10))
+
+
+def test_kernel_operator_repr():
+    """Test AttentionKernelOperator repr shows key info."""
+    op = AttentionKernelOperator(torch.randn(10, 5), lambda_reg=0.01)
+    r = repr(op)
+    assert "n=10" in r
+    assert "embedding_dim=5" in r
+    assert "lambda_reg=0.01" in r
+    assert "AttentionKernelOperator" in r
+
+
+def test_kernel_operator_matvec_wrong_shape():
+    """Test matvec with wrong-shaped input raises ValueError."""
+    op = AttentionKernelOperator(torch.randn(10, 4))
+    with pytest.raises(ValueError, match="x must be 1-D or 2-D"):
+        op.matvec(torch.randn(10, 4, 2))
+
+
+def test_generate_radio_field_wrong_shapes():
+    """Test generate_radio_field validates input shapes."""
+    from laker.data import generate_radio_field
+    locs = torch.randn(10, 2)
+    tx = torch.randn(3, 2)
+    pwr = torch.randn(3)
+    with pytest.raises(ValueError, match="locations must be 2-D"):
+        generate_radio_field(torch.randn(10), tx, pwr)
+    with pytest.raises(ValueError, match="transmitters must be 2-D"):
+        generate_radio_field(locs, torch.randn(3), pwr)
+    with pytest.raises(ValueError, match="powers must be 1-D"):
+        generate_radio_field(locs, tx, torch.randn(3, 1))
+    with pytest.raises(ValueError, match="transmitters and powers must have same length"):
+        generate_radio_field(locs, torch.randn(4, 2), pwr)
+
+
+def test_radio_field_generator_repr():
+    """Test RadioFieldGenerator repr shows parameters."""
+    from laker.data import RadioFieldGenerator
+    gen = RadioFieldGenerator(path_loss_exponent=3.0, shadow_sigma=2.0)
+    r = repr(gen)
+    assert "path_loss_exponent=3.0" in r
+    assert "shadow_sigma=2.0" in r
+    assert "RadioFieldGenerator" in r
