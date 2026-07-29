@@ -30,7 +30,13 @@ the public setters.
 
 import logging
 import os
+import platform
 from typing import Optional, Union
+
+# Environment variable controlling torch.compile behaviour.
+# Set LAKER_COMPILE_MODE to one of "default", "reduce-overhead", or
+# "max-autotune" to enable compilation.  Unset or empty => no compile.
+_LAKER_COMPILE_MODE = os.environ.get("LAKER_COMPILE_MODE", "")
 
 import torch
 
@@ -176,36 +182,32 @@ def set_default_dtype(dtype: torch.dtype) -> None:
 def maybe_compile(func, mode: str = "reduce-overhead"):
     """Compile a function with :func:`torch.compile` when PyTorch 2.x is available.
 
-    A graceful wrapper that silently falls back to the original callable
-    on PyTorch versions older than 2.0 (where :func:`torch.compile` does
-    not exist). Deprecation warnings raised by ``torch.compile`` are
-    suppressed because they are noisy and not actionable for users who
-    have not opted into the experimental API.
+    The ``LAKER_COMPILE_MODE`` environment variable can override the
+    compilation mode globally, which is useful for users who want to
+    experiment with different modes without changing code.  When unset
+    the caller-provided *mode* is used.
+
+    Deprecation warnings raised by ``torch.compile`` are suppressed
+    because they are noisy and not actionable from the caller's perspective.
 
     Args:
-        func: Callable to compile. Typically a free function whose first
-            argument is a :class:`torch.Tensor`; closure semantics
-            inside :func:`torch.compile` apply.
-        mode: Compilation mode forwarded to :func:`torch.compile`. The
-            default ``"reduce-overhead"`` minimises per-call overhead
-            (CUDA-graph capture); use ``"default"`` for faster compile
-            times or ``"max-autotune"`` for aggressive tuning.
+        func: Callable to compile.
+        mode: Compilation mode.  Ignored when ``LAKER_COMPILE_MODE`` is
+            set.
 
     Returns:
-        Either the compiled function (PyTorch ≥ 2.0) or the original
-        callable unchanged (older versions).
+        Compiled function, or original callable when ``torch.compile``
+        is unavailable.
 
     """
-    if hasattr(torch, "compile"):
-        import warnings
+    if not hasattr(torch, "compile"):
+        return func
+    compile_mode = _LAKER_COMPILE_MODE or mode
+    import warnings
 
-        with warnings.catch_warnings():
-            # ``torch.compile`` emits DeprecationWarnings as the API
-            # matures; suppress them because they are not actionable
-            # from the caller's perspective.
-            warnings.simplefilter("ignore", DeprecationWarning)
-            return torch.compile(func, mode=mode)
-    return func
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        return torch.compile(func, mode=compile_mode)
 
 
 def to_tensor(
