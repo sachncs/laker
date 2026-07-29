@@ -196,6 +196,12 @@ class AttentionKernelOperator:
             safe_limit = 700.0
         self.skip_clamp = max_sq_norm < safe_limit
 
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}(n={self.n}, embedding_dim={self.embedding_dim}, "
+            f"lambda_reg={self.lambda_reg})"
+        )
+
     def matvec(self, x: torch.Tensor) -> torch.Tensor:
         """Apply ``(lambda I + G)`` to vector(s) ``x``.
 

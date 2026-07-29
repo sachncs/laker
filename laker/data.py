@@ -81,6 +81,13 @@ class RadioFieldGenerator:
         self.reference_distance = float(reference_distance)
         self.shadow_sigma = float(shadow_sigma)
 
+    def __repr__(self) -> str:
+        return (
+            f"RadioFieldGenerator(path_loss_exponent={self.path_loss_exponent}, "
+            f"reference_distance={self.reference_distance}, "
+            f"shadow_sigma={self.shadow_sigma})"
+        )
+
     def generate(
         self,
         locations: torch.Tensor,
