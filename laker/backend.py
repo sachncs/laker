@@ -38,6 +38,10 @@ from typing import Optional, Union
 # "max-autotune" to enable compilation.  Unset or empty => no compile.
 _LAKER_COMPILE_MODE = os.environ.get("LAKER_COMPILE_MODE", "")
 
+# Chunk memory budget in MB (default 64). Used by all chunked evaluation
+# heuristics to bound peak memory for kernel tiles.
+_LAKER_CHUNK_BUDGET_MB = int(os.environ.get("LAKER_CHUNK_MEMORY_BUDGET", "64"))
+
 import torch
 
 logger = logging.getLogger(__name__)
@@ -181,6 +185,15 @@ def set_default_dtype(dtype: torch.dtype) -> None:
     global DEFAULT_DTYPE
     DEFAULT_DTYPE = dtype
     logger.info("Default dtype set to %s", dtype)
+
+
+def get_chunk_memory_budget() -> int:
+    """Return the chunk-memory budget in bytes (default 64 MB).
+
+    Override via the ``LAKER_CHUNK_MEMORY_BUDGET`` environment variable
+    (value in megabytes).
+    """
+    return _LAKER_CHUNK_BUDGET_MB * 1024 * 1024
 
 
 def maybe_compile(func, mode: str = "reduce-overhead"):

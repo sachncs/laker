@@ -56,7 +56,7 @@ from typing import Callable, Optional, Union, cast
 import torch
 import torch.nn as nn
 
-from laker.backend import get_default_device, get_default_dtype
+from laker.backend import get_chunk_memory_budget, get_default_device, get_default_dtype
 from laker.distributed_kernels import DistributedAttentionKernelOperator
 from laker.embeddings import PositionEmbedding
 from laker.kernels import (
@@ -648,7 +648,8 @@ class LAKERCore:
             mem_per_chunk = (
                 (chunk_size or m) * n * element_size if chunk_size else m * n * element_size
             )
-            if chunk_size is None or mem_per_chunk <= 64 * 1024 * 1024:
+            chunk_budget = get_chunk_memory_budget()
+            if chunk_size is None or mem_per_chunk <= chunk_budget:
                 k_query = kernel_operator.kernel_eval(
                     query_embeddings, embeddings, chunk_size=chunk_size
                 )
@@ -746,11 +747,12 @@ class LAKERCore:
                 var = lambda_reg * torch.sum(phi_q @ m_solve * phi_q, dim=1)
                 return var.clamp(min=0.0)
 
+            chunk_budget = get_chunk_memory_budget()
             element_size = 4 if self.dtype == torch.float32 else 8
             chunk_size = self.chunk_size
             if chunk_size is None:
                 mem_needed = m * n * element_size
-                if mem_needed > 64 * 1024 * 1024:
+                if mem_needed > chunk_budget:
                     chunk_size = max(1024, min(n // 10, 8192))
 
             var = torch.empty(m, device=self.device, dtype=self.dtype)
@@ -838,7 +840,7 @@ class LAKERCore:
 
             element_size = 4 if self.dtype == torch.float32 else 8
             mem_per_chunk = (chunk_size or m) * n * element_size if chunk_size else m * n * element_size
-            if chunk_size is None or mem_per_chunk <= 64 * 1024 * 1024:
+            if chunk_size is None or mem_per_chunk <= get_chunk_memory_budget():
                 k_query = kernel_operator.kernel_eval(
                     query_embeddings, embeddings, chunk_size=chunk_size
                 )

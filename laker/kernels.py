@@ -37,7 +37,7 @@ from typing import Optional, Protocol, Tuple
 import torch
 import torch.nn as nn
 
-from laker.backend import maybe_compile
+from laker.backend import get_chunk_memory_budget, maybe_compile
 
 logger = logging.getLogger(__name__)
 
@@ -241,10 +241,10 @@ class AttentionKernelOperator:
         chunk_size_local = self.chunk_size
         n = self.n
         # Heuristic: if a single output chunk against all inputs fits comfortably
-        # in memory (<= 64 MB), use fast 1-D chunking; otherwise use 2-D tiling.
+        # in memory (default ~64 MB), use fast 1-D chunking; otherwise use 2-D tiling.
         element_size = 4 if self.dtype == torch.float32 else 8
         mem_per_chunk = chunk_size_local * n * element_size
-        if mem_per_chunk <= 64 * 1024 * 1024:
+        if mem_per_chunk <= get_chunk_memory_budget():
             for start in range(0, n, chunk_size_local):
                 end = min(start + chunk_size_local, n)
                 gram_chunk = self.embeddings[start:end] @ self.embeddings.T
@@ -346,7 +346,7 @@ class AttentionKernelOperator:
         # otherwise fall back to full 2-D tiling.
         element_size = 4 if self.dtype == torch.float32 else 8
         mem_per_chunk = chunk_size * p * element_size
-        if mem_per_chunk <= 64 * 1024 * 1024:
+        if mem_per_chunk <= get_chunk_memory_budget():
             out = torch.empty(m, p, device=self.device, dtype=self.dtype)
             for start in range(0, m, chunk_size):
                 end = min(start + chunk_size, m)
