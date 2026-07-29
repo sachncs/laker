@@ -429,7 +429,8 @@ class NystromAttentionKernelOperator:
         self.k_mm = self.compute_kernel_matrix(self.landmark_embeddings, self.landmark_embeddings)
 
         # Regularised Cholesky of K_mm for stable solves
-        k_mm_reg = self.k_mm + 1e-6 * torch.eye(self.m, device=device, dtype=dtype)
+        reg_eps = max(1e-6, self.lambda_reg * 0.1)
+        k_mm_reg = self.k_mm + reg_eps * torch.eye(self.m, device=device, dtype=dtype)
         self.k_mm_chol = torch.linalg.cholesky(k_mm_reg)
 
         # Precompute K_nm @ K_mm^{-1} for fast matvecs via Cholesky solve
