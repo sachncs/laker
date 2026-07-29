@@ -436,6 +436,8 @@ class LAKERRegressor:
             raise ValueError(f"x must be 2-D, got shape {x.shape}")
         if y.dim() != 1:
             raise ValueError(f"y must be 1-D, got shape {y.shape}")
+        if x.shape[0] == 0:
+            raise ValueError("x must have at least one row, got empty tensor")
 
         self.x_train = x
         self.y_train = y

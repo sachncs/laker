@@ -79,6 +79,13 @@ def test_fit_mismatched_shapes():
         model.fit(x, y)
 
 
+def test_fit_empty_tensor():
+    """Test that fitting with empty x raises ValueError."""
+    model = LAKERRegressor(verbose=False)
+    with pytest.raises(ValueError, match="x must have at least one row"):
+        model.fit(torch.empty(0, 2), torch.empty(0))
+
+
 def test_get_set_params():
     """Test that get_params and set_params work correctly."""
     model = LAKERRegressor(lambda_reg=0.5, verbose=False)
