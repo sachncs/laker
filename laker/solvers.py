@@ -241,7 +241,8 @@ class PreconditionedConjugateGradient:
                 * torch.linalg.norm(matrix_vector_product).item()
             ):
                 raise RuntimeError(
-                    "PCG breakdown: non-positive curvature detected (p^T A p <= 0). "
+                    f"PCG breakdown at iteration {iteration}: "
+                    "non-positive curvature detected (p^T A p <= 0). "
                     "The operator may be indefinite or the preconditioner may be unsuitable."
                 )
 
@@ -347,7 +348,8 @@ class PreconditionedConjugateGradient:
                 * torch.linalg.norm(matrix_vector_product, dim=0)
             ):
                 raise RuntimeError(
-                    "PCG breakdown: non-positive curvature detected (p^T A p <= 0). "
+                    f"PCG breakdown at iteration {iteration}: "
+                    "non-positive curvature detected (p^T A p <= 0). "
                     "The operator may be indefinite or the preconditioner may be unsuitable."
                 )
 
