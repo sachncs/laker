@@ -92,6 +92,10 @@ def _init_from_env() -> None:
     elif env_dtype == "float64":
         set_default_dtype(torch.float64)
 
+    # TF32 matmul acceleration (Ampere+ GPUs only, no-op on other hardware).
+    if os.environ.get("LAKER_TF32", "1") != "0":
+        torch.set_float32_matmul_precision("high")
+
 
 def get_default_device() -> torch.device:
     """Return the current default compute device.
