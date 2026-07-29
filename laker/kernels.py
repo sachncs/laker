@@ -530,7 +530,7 @@ class NystromAttentionKernelOperator:
         if y is None:
             y = self.embeddings
         gram = x @ y.T
-        return exp_safe(gram)
+        return exp_safe(gram, skip_clamp=self.skip_clamp)
 
 
 class RandomFeatureAttentionKernelOperator:
