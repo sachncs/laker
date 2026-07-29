@@ -103,6 +103,16 @@ def _init_from_env() -> None:
     if os.environ.get("LAKER_TF32", "1") != "0":
         torch.set_float32_matmul_precision("high")
 
+    # Thread control for CPU parallelism.
+    env_threads = os.environ.get("LAKER_NUM_THREADS")
+    if env_threads:
+        torch.set_num_threads(int(env_threads))
+
+    # Seed for reproducibility.
+    env_seed = os.environ.get("LAKER_SEED")
+    if env_seed:
+        torch.manual_seed(int(env_seed))
+
 
 def get_default_device() -> torch.device:
     """Return the current default compute device.
