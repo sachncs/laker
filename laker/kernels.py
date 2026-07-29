@@ -37,6 +37,8 @@ from typing import Optional, Protocol, Tuple
 import torch
 import torch.nn as nn
 
+from laker.backend import maybe_compile
+
 logger = logging.getLogger(__name__)
 
 
@@ -369,6 +371,15 @@ class AttentionKernelOperator:
 # ---------------------------------------------------------------------------
 
 
+def _nystrom_matvec(k_nm_kmm_inv: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    """Core matmul for the Nyström approximation (compilable hot path)."""
+    temp = k_nm_kmm_inv.T @ x
+    return k_nm_kmm_inv @ temp
+
+
+_nystrom_matvec = maybe_compile(_nystrom_matvec)
+
+
 class NystromAttentionKernelOperator:
     r"""Nyström low-rank approximation of the exponential attention kernel.
 
@@ -508,15 +519,7 @@ class NystromAttentionKernelOperator:
 
     def matvec(self, x: torch.Tensor) -> torch.Tensor:
         """Apply ``(lambda I + G_approx)`` to vector(s)."""
-        out = self.lambda_reg * x
-        if x.dim() == 1:
-            # G @ x = K_nm @ K_mm^{-1} @ K_nm^T @ x
-            temp = self.k_nm_kmm_inv.T @ x  # (m,)
-            out = out + self.k_nm_kmm_inv @ temp
-        else:
-            temp = self.k_nm_kmm_inv.T @ x  # (m, k)
-            out = out + self.k_nm_kmm_inv @ temp
-        return out
+        return self.lambda_reg * x + _nystrom_matvec(self.k_nm_kmm_inv, x)
 
     def diagonal(self) -> torch.Tensor:
         """Return diagonal of ``lambda I + G_approx``."""

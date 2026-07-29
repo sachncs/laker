@@ -180,26 +180,28 @@ def set_default_dtype(dtype: torch.dtype) -> None:
 
 
 def maybe_compile(func, mode: str = "reduce-overhead"):
-    """Compile a function with :func:`torch.compile` when PyTorch 2.x is available.
+    """Optionally compile a function with :func:`torch.compile`.
 
-    The ``LAKER_COMPILE_MODE`` environment variable can override the
-    compilation mode globally, which is useful for users who want to
-    experiment with different modes without changing code.  When unset
-    the caller-provided *mode* is used.
+    Compilation only happens when ``LAKER_COMPILE_MODE`` is set in the
+    environment — the *mode* parameter is a default that applies when the
+    env var is present but empty-valued (edge case).  When the env var is
+    unset entirely the original callable is returned unchanged, keeping
+    compilation fully opt-in.
 
-    Deprecation warnings raised by ``torch.compile`` are suppressed
-    because they are noisy and not actionable from the caller's perspective.
+    When active, deprecation warnings from ``torch.compile`` are suppressed.
 
     Args:
         func: Callable to compile.
-        mode: Compilation mode.  Ignored when ``LAKER_COMPILE_MODE`` is
-            set.
+        mode: Fallback compilation mode when ``LAKER_COMPILE_MODE`` is
+            set to an empty string.
 
     Returns:
-        Compiled function, or original callable when ``torch.compile``
-        is unavailable.
+        Compiled function (opt-in) or original callable.
 
     """
+    # Compile is opt-in: skip when the env var is not present.
+    if "LAKER_COMPILE_MODE" not in os.environ:
+        return func
     if not hasattr(torch, "compile"):
         return func
     compile_mode = _LAKER_COMPILE_MODE or mode
