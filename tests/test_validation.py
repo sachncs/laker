@@ -170,6 +170,26 @@ def test_kernel_operator_matvec_wrong_shape():
         op.matvec(torch.randn(10, 4, 2))
 
 
+def test_fit_with_search():
+    """fit_with_search should find reasonable hyperparameters."""
+    x = torch.rand(40, 2)
+    y = torch.randn(40)
+    model = LAKERRegressor(embedding_dim=4, verbose=False)
+    model.fit_with_search(
+        x, y, lambda_reg_grid=[0.01], gamma_grid=[0.1], num_probes_grid=[20]
+    )
+    assert model.alpha is not None
+
+
+def test_fit_with_bo():
+    """fit_with_bo should run Bayesian optimisation without error."""
+    x = torch.rand(30, 2)
+    y = torch.randn(30)
+    model = LAKERRegressor(embedding_dim=4, verbose=False)
+    model.fit_with_bo(x, y, n_calls=3, n_initial_points=2)
+    assert model.alpha is not None
+
+
 def test_generate_radio_field_wrong_shapes():
     """Test generate_radio_field validates input shapes."""
     from laker.data import generate_radio_field
