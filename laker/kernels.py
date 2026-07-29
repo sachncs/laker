@@ -96,7 +96,12 @@ def exp_safe(
     ``max_sq_norm``) should set this to recover the original speed.
     """
     if not skip_clamp:
-        max_val = 80.0 if gram.dtype == torch.float32 else 700.0
+        if gram.dtype == torch.float16:
+            max_val = 11.0
+        elif gram.dtype == torch.float32:
+            max_val = 80.0
+        else:
+            max_val = 700.0
         if gram.requires_grad:
             return torch.exp(gram.clamp(max=max_val))
         if out is None:
@@ -181,7 +186,12 @@ class AttentionKernelOperator:
         # Pre-compute whether gram values can ever overflow; if not we skip the
         # clamp in ``exp_safe`` and recover the original single-kernel speed.
         max_sq_norm = torch.sum(self.embeddings**2, dim=1).max().item()
-        safe_limit = 80.0 if self.dtype == torch.float32 else 700.0
+        if self.dtype == torch.float16:
+            safe_limit = 11.0
+        elif self.dtype == torch.float32:
+            safe_limit = 80.0
+        else:
+            safe_limit = 700.0
         self.skip_clamp = max_sq_norm < safe_limit
 
     def matvec(self, x: torch.Tensor) -> torch.Tensor:
