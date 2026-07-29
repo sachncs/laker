@@ -37,6 +37,20 @@ def test_generate_grid():
     assert grid[-1, 0].item() == 100.0
 
 
+def test_generate_grid_minimal_size():
+    """Test generate_grid with minimal grid_size."""
+    grid = generate_grid((0.0, 1.0, 0.0, 1.0), grid_size=2)
+    assert grid.shape == (4, 2)
+
+
+def test_generate_grid_device_dtype():
+    """Test generate_grid respects device and dtype."""
+    import torch
+    grid = generate_grid((0.0, 1.0, 0.0, 1.0), grid_size=5, device="cpu", dtype=torch.float32)
+    assert grid.dtype == torch.float32
+    assert grid.device.type == "cpu"
+
+
 def test_generate_radio_field_bad_locations():
     """1-D locations should raise ValueError."""
     import pytest
