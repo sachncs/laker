@@ -56,7 +56,7 @@ from typing import Callable, Optional, Union, cast
 import torch
 import torch.nn as nn
 
-from laker.backend import get_chunk_memory_budget, get_default_device, get_default_dtype
+from laker.backend import get_chunk_disabled, get_chunk_memory_budget, get_default_device, get_default_dtype
 from laker.distributed_kernels import DistributedAttentionKernelOperator
 from laker.embeddings import PositionEmbedding
 from laker.kernels import (
@@ -233,7 +233,7 @@ class LAKERCore:
         self.cccp_tol = cccp_tol
         self.pcg_tol = pcg_tol
         self.pcg_max_iter = pcg_max_iter
-        self.chunk_size = chunk_size
+        self.chunk_size = None if get_chunk_disabled() else chunk_size
         self.embedding_module = embedding_module
         self.kernel_approx = kernel_approx
         self.num_landmarks = num_landmarks
@@ -356,7 +356,7 @@ class LAKERCore:
         n = embeddings.shape[0]
         lambda_value = float(lambda_reg) if lambda_reg is not None else self.lambda_reg
         chunk_size_local = chunk_size
-        if chunk_size_local is None and n > 5000:
+        if chunk_size_local is None and n > 5000 and not get_chunk_disabled():
             chunk_size_local = max(1024, min(n // 10, 8192))
             if self.verbose:
                 logger.info("Auto-selected chunk_size=%d for n=%d", chunk_size_local, n)
@@ -641,7 +641,7 @@ class LAKERCore:
             n = embeddings.shape[0]
 
             chunk_size = self.chunk_size
-            if chunk_size is None and max(m, n) > 5000:
+            if chunk_size is None and max(m, n) > 5000 and not get_chunk_disabled():
                 chunk_size = max(1024, min(max(m, n) // 10, 8192))
 
             element_size = 4 if self.dtype == torch.float32 else 8
@@ -750,7 +750,7 @@ class LAKERCore:
             chunk_budget = get_chunk_memory_budget()
             element_size = 4 if self.dtype == torch.float32 else 8
             chunk_size = self.chunk_size
-            if chunk_size is None:
+            if chunk_size is None and not get_chunk_disabled():
                 mem_needed = m * n * element_size
                 if mem_needed > chunk_budget:
                     chunk_size = max(1024, min(n // 10, 8192))
@@ -835,7 +835,7 @@ class LAKERCore:
             n = embeddings.shape[0]
 
             chunk_size = self.chunk_size
-            if chunk_size is None and max(m, n) > 5000:
+            if chunk_size is None and max(m, n) > 5000 and not get_chunk_disabled():
                 chunk_size = max(1024, min(max(m, n) // 10, 8192))
 
             element_size = 4 if self.dtype == torch.float32 else 8

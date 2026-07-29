@@ -42,6 +42,9 @@ _LAKER_COMPILE_MODE = os.environ.get("LAKER_COMPILE_MODE", "")
 # heuristics to bound peak memory for kernel tiles.
 _LAKER_CHUNK_BUDGET_MB = int(os.environ.get("LAKER_CHUNK_MEMORY_BUDGET", "64"))
 
+# Set LAKER_DISABLE_CHUNK=1 to force chunk_size=None everywhere.
+_LAKER_DISABLE_CHUNK = os.environ.get("LAKER_DISABLE_CHUNK", "") == "1"
+
 import torch
 
 logger = logging.getLogger(__name__)
@@ -194,6 +197,11 @@ def get_chunk_memory_budget() -> int:
     (value in megabytes).
     """
     return _LAKER_CHUNK_BUDGET_MB * 1024 * 1024
+
+
+def get_chunk_disabled() -> bool:
+    """Return ``True`` when ``LAKER_DISABLE_CHUNK=1`` is set."""
+    return _LAKER_DISABLE_CHUNK
 
 
 def maybe_compile(func, mode: str = "reduce-overhead"):
