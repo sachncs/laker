@@ -145,3 +145,34 @@ def test_spectral_shaper_monotonicity():
     diffs = torch.diff(y)
     # All differences should be non-negative (monotonic)
     assert torch.all(diffs >= -1e-6)
+
+
+def test_kernel_diagonal():
+    """AttentionKernelOperator.diagonal should match dense diag."""
+    e = torch.randn(20, 5)
+    op = AttentionKernelOperator(e, lambda_reg=0.1)
+    diag = op.diagonal()
+    dense_diag = op.to_dense().diagonal()
+    torch.testing.assert_close(diag, dense_diag, rtol=1e-5, atol=1e-6)
+
+
+def test_kernel_matvec_2d():
+    """AttentionKernelOperator matvec with 2-D input should work."""
+    e = torch.randn(20, 5)
+    op = AttentionKernelOperator(e, lambda_reg=0.1)
+    x = torch.randn(20, 3)
+    y = op.matvec(x)
+    assert y.shape == (20, 3)
+    dense = op.to_dense()
+    y_expected = dense @ x
+    torch.testing.assert_close(y, y_expected, rtol=1e-5, atol=1e-5)
+
+
+def test_kernel_chunked_matvec_matches_dense():
+    """Chunked matvec should match dense multiplication."""
+    e = torch.randn(50, 4)
+    op = AttentionKernelOperator(e, lambda_reg=0.01, chunk_size=10)
+    x = torch.randn(50)
+    y_chunked = op.matvec(x)
+    y_dense = op.to_dense() @ x
+    torch.testing.assert_close(y_chunked, y_dense, rtol=1e-5, atol=1e-5)
