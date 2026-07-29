@@ -79,6 +79,18 @@ def test_fit_mismatched_shapes():
         model.fit(x, y)
 
 
+def test_chunk_memory_budget_default():
+    """Test default chunk budget is 64 MB."""
+    from laker.backend import get_chunk_memory_budget
+    assert get_chunk_memory_budget() == 64 * 1024 * 1024
+
+
+def test_chunk_disabled_default():
+    """Test chunk is not disabled by default."""
+    from laker.backend import get_chunk_disabled
+    assert not get_chunk_disabled()
+
+
 def test_fit_empty_tensor():
     """Test that fitting with empty x raises ValueError."""
     model = LAKERRegressor(verbose=False)
