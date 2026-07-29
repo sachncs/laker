@@ -551,6 +551,38 @@ def test_variance_exact_matches_analytical_tiny():
     assert abs(var_model - var_exact) < 1e-3
 
 
+def test_pcg_zero_rhs():
+    """PCG should return zero immediately when RHS is zero."""
+    from laker.kernels import AttentionKernelOperator
+    from laker.solvers import PreconditionedConjugateGradient
+
+    torch.manual_seed(42)
+    n, de = 10, 4
+    e = torch.randn(n, de)
+    op = AttentionKernelOperator(e, lambda_reg=1e-2)
+    pcg = PreconditionedConjugateGradient(tol=1e-6, max_iter=100)
+    x = pcg.solve(op.matvec, lambda x: x, rhs=torch.zeros(n))
+    assert torch.all(x == 0)
+    assert pcg.iterations == 0
+
+
+def test_pcg_warm_start():
+    """PCG warm start should produce same result as cold start."""
+    from laker.kernels import AttentionKernelOperator
+    from laker.solvers import PreconditionedConjugateGradient
+
+    torch.manual_seed(42)
+    n, de = 10, 4
+    e = torch.randn(n, de)
+    b = torch.randn(n)
+    op = AttentionKernelOperator(e, lambda_reg=1e-2)
+    pcg = PreconditionedConjugateGradient(tol=1e-6, max_iter=100)
+
+    x_cold = pcg.solve(op.matvec, lambda x: x, rhs=b)
+    x_warm = pcg.solve(op.matvec, lambda x: x, rhs=b, x0=torch.zeros(n))
+    torch.testing.assert_close(x_cold, x_warm, rtol=1e-5, atol=1e-5)
+
+
 def test_preconditioner_apply_linearity():
     """Preconditioner apply should be linear: P(a*u + b*v) = a*P(u) + b*P(v)."""
     from laker.kernels import AttentionKernelOperator
