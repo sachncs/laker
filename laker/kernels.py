@@ -546,6 +546,15 @@ class NystromAttentionKernelOperator:
         return exp_safe(gram, skip_clamp=self.skip_clamp)
 
 
+def _rff_matvec(phi: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    """Core matmul for RFF approximation (compilable hot path)."""
+    temp = phi.T @ x
+    return phi @ temp
+
+
+_rff_matvec = maybe_compile(_rff_matvec)
+
+
 class RandomFeatureAttentionKernelOperator:
     """Random Fourier Feature (RFF) approximation of the exponential kernel.
 
@@ -617,14 +626,7 @@ class RandomFeatureAttentionKernelOperator:
 
     def matvec(self, x: torch.Tensor) -> torch.Tensor:
         """Apply ``(lambda I + G_approx)`` to vector(s)."""
-        out = self.lambda_reg * x
-        if x.dim() == 1:
-            temp = self.phi.T @ x  # (2*r,)
-            out = out + self.phi @ temp
-        else:
-            temp = self.phi.T @ x  # (2*r, k)
-            out = out + self.phi @ temp
-        return out
+        return self.lambda_reg * x + _rff_matvec(self.phi, x)
 
     def diagonal(self) -> torch.Tensor:
         """Return diagonal of ``lambda I + G_approx``."""
@@ -1441,6 +1443,18 @@ class MonotoneSpectrumShaper(nn.Module):
         return out
 
 
+def _spectral_matvec(
+    u_matrix: torch.Tensor, spectrum: torch.Tensor, x: torch.Tensor
+) -> torch.Tensor:
+    """Core matmul for spectral-shaped kernel (compilable hot path)."""
+    coeffs = u_matrix.T @ x
+    scaled = spectrum * coeffs if coeffs.dim() == 1 else spectrum.unsqueeze(-1) * coeffs
+    return u_matrix @ scaled
+
+
+_spectral_matvec = maybe_compile(_spectral_matvec)
+
+
 class SpectralAttentionKernelOperator:
     r"""Spectral-shaped attention kernel via matrix function of the embedding Gram matrix.
 
@@ -1519,15 +1533,7 @@ class SpectralAttentionKernelOperator:
 
     def matvec(self, x: torch.Tensor) -> torch.Tensor:
         """Apply ``(lambda I + K)`` to vector(s) ``x``."""
-        out = self.lambda_reg * x
-        # U^T @ x -> (d,) or (d, k)
-        coeffs = self.u_matrix.T @ x
-        if coeffs.dim() == 1:
-            scaled = self.spectrum * coeffs
-        else:
-            scaled = self.spectrum.unsqueeze(-1) * coeffs
-        out = out + self.u_matrix @ scaled
-        return out
+        return self.lambda_reg * x + _spectral_matvec(self.u_matrix, self.spectrum, x)
 
     def diagonal(self) -> torch.Tensor:
         """Return diagonal of ``lambda I + K``."""
