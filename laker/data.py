@@ -133,10 +133,16 @@ class RadioFieldGenerator:
         """
         if locations.dim() != 2:
             raise ValueError(f"locations must be 2-D, got shape {locations.shape}")
+        if locations.shape[0] == 0:
+            raise ValueError("locations must have at least one row")
         if transmitters.dim() != 2:
             raise ValueError(f"transmitters must be 2-D, got shape {transmitters.shape}")
+        if transmitters.shape[0] == 0:
+            raise ValueError("transmitters must have at least one row")
         if powers.dim() != 1:
             raise ValueError(f"powers must be 1-D, got shape {powers.shape}")
+        if powers.shape[0] == 0:
+            raise ValueError("powers must have at least one element")
         if transmitters.shape[0] != powers.shape[0]:
             raise ValueError(
                 "transmitters and powers must have same length, "
@@ -254,7 +260,17 @@ def generate_grid(
         ``(x, y)`` coordinates of every grid point.
 
     """
+    if grid_size < 2:
+        raise ValueError(f"grid_size must be at least 2, got {grid_size}")
     x_min, x_max, y_min, y_max = bounds
+    if x_min >= x_max:
+        raise ValueError(
+            f"x_min ({x_min}) must be strictly less than x_max ({x_max})"
+        )
+    if y_min >= y_max:
+        raise ValueError(
+            f"y_min ({y_min}) must be strictly less than y_max ({y_max})"
+        )
     x = torch.linspace(x_min, x_max, grid_size, device=device, dtype=dtype)
     y = torch.linspace(y_min, y_max, grid_size, device=device, dtype=dtype)
     # ``indexing="ij"`` produces matrix-style indices so the resulting

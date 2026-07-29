@@ -215,12 +215,21 @@ class AttentionKernelOperator:
             Tensor of the same shape as ``x``.
 
         Raises:
-            ValueError: If ``x`` is not 1-D or 2-D.
+            ValueError: If ``x`` is not 1-D or 2-D, or if its first
+                dimension does not match the operator size ``n``.
 
         """
         if x.dim() == 1:
+            if x.shape[0] != self.n:
+                raise ValueError(
+                    f"x must have {self.n} rows, got {x.shape[0]}"
+                )
             return self.matvec_impl(x)
         if x.dim() == 2:
+            if x.shape[0] != self.n:
+                raise ValueError(
+                    f"x must have {self.n} rows, got {x.shape[0]}"
+                )
             return self.matvec_impl(x)
         raise ValueError(f"x must be 1-D or 2-D, got shape {x.shape}")
 

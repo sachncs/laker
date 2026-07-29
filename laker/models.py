@@ -495,6 +495,12 @@ class LAKERRegressor:
         x = to_tensor(x, device=self.device, dtype=self.dtype)
         if x.dim() != 2:
             raise ValueError(f"x must be 2-D, got shape {x.shape}")
+        if self.embedding_model is not None and hasattr(self.embedding_model, "input_dim"):
+            if x.shape[1] != self.embedding_model.input_dim:
+                raise ValueError(
+                    f"x has {x.shape[1]} features but model expects "
+                    f"{self.embedding_model.input_dim}"
+                )
 
         return self.core.predict(
             x,

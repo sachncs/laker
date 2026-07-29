@@ -234,3 +234,60 @@ def test_radio_field_generator_repr():
     assert "path_loss_exponent=3.0" in r
     assert "shadow_sigma=2.0" in r
     assert "RadioFieldGenerator" in r
+
+
+def test_matvec_wrong_size():
+    """AttentionKernelOperator matvec should reject mismatched n."""
+    op = AttentionKernelOperator(torch.randn(10, 5))
+    with pytest.raises(ValueError, match="must have"):
+        op.matvec(torch.randn(5))
+
+
+def test_matvec_wrong_size_2d():
+    """AttentionKernelOperator matvec 2-D should reject mismatched n."""
+    op = AttentionKernelOperator(torch.randn(10, 5))
+    with pytest.raises(ValueError, match="must have"):
+        op.matvec(torch.randn(5, 3))
+
+
+def test_generate_grid_small():
+    """generate_grid should reject grid_size < 2."""
+    from laker.data import generate_grid
+    with pytest.raises(ValueError, match="grid_size must be at least 2"):
+        generate_grid((0.0, 1.0, 0.0, 1.0), 1)
+
+
+def test_generate_grid_reversed_x():
+    """generate_grid should reject reversed x bounds."""
+    from laker.data import generate_grid
+    with pytest.raises(ValueError, match="x_min"):
+        generate_grid((1.0, 0.0, 0.0, 1.0), 5)
+
+
+def test_generate_grid_reversed_y():
+    """generate_grid should reject reversed y bounds."""
+    from laker.data import generate_grid
+    with pytest.raises(ValueError, match="y_min"):
+        generate_grid((0.0, 1.0, 1.0, 0.0), 5)
+
+
+def test_generate_radio_field_empty_locations():
+    """generate_radio_field should reject empty locations."""
+    from laker.data import generate_radio_field
+    with pytest.raises(ValueError, match="at least one"):
+        generate_radio_field(torch.empty(0, 2), torch.randn(1, 2), torch.randn(1))
+
+
+def test_generate_radio_field_empty_transmitters():
+    """generate_radio_field should reject empty transmitters."""
+    from laker.data import generate_radio_field
+    with pytest.raises(ValueError, match="at least one"):
+        generate_radio_field(torch.randn(5, 2), torch.empty(0, 2), torch.empty(0))
+
+
+def test_predict_wrong_features():
+    """predict should reject wrong feature dimension."""
+    model = LAKERRegressor(embedding_dim=4, verbose=False)
+    model.fit(torch.rand(20, 2), torch.randn(20))
+    with pytest.raises(ValueError, match="features"):
+        model.predict(torch.rand(5, 3))
