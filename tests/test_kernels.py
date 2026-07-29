@@ -176,3 +176,31 @@ def test_kernel_chunked_matvec_matches_dense():
     y_chunked = op.matvec(x)
     y_dense = op.to_dense() @ x
     torch.testing.assert_close(y_chunked, y_dense, rtol=1e-5, atol=1e-5)
+
+
+def test_kernel_float64():
+    """AttentionKernelOperator should work with float64."""
+    e = torch.randn(20, 5, dtype=torch.float64)
+    op = AttentionKernelOperator(e, lambda_reg=0.1, dtype=torch.float64)
+    x = torch.randn(20, dtype=torch.float64)
+    y = op.matvec(x)
+    assert y.dtype == torch.float64
+
+
+def test_kernel_eval_consistency():
+    """kernel_eval should match matvec on training points."""
+    e = torch.randn(20, 5)
+    op = AttentionKernelOperator(e, lambda_reg=0.1)
+    x = torch.randn(10, 5)
+    k = op.kernel_eval(x)
+    assert k.shape == (10, 20)
+
+
+def test_kernel_eval_cross():
+    """kernel_eval between different sets should work."""
+    e = torch.randn(20, 5)
+    op = AttentionKernelOperator(e, lambda_reg=0.1)
+    x = torch.randn(10, 5)
+    y = torch.randn(5, 5)
+    k = op.kernel_eval(x, y)
+    assert k.shape == (10, 5)
