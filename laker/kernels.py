@@ -438,6 +438,8 @@ class NystromAttentionKernelOperator:
 
         m = num_landmarks if num_landmarks is not None else max(50, int(self.n**0.5))
         self.m = min(m, self.n)
+        if self.m != m:
+            logger.warning("num_landmarks clamped to n=%d (was %d)", self.n, m)
 
         # Landmark norms bounded by training embedding norms — skip clamp.
         self.skip_clamp = True
