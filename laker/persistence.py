@@ -167,7 +167,7 @@ class ModelPersistence:
             >>> reg = LAKERRegressor.load("model.pt")
             >>> reg.predict(x_test)
         """
-        state = torch.load(path, weights_only=False)
+        state = torch.load(path, weights_only=True)
         dtype = torch.float32 if "float32" in state["dtype"] else torch.float64
         embedding_dtype = (
             torch.float32
