@@ -190,6 +190,26 @@ def test_fit_with_bo():
     assert model.alpha is not None
 
 
+def test_fit_learned_embeddings():
+    """fit_learned_embeddings should run without error."""
+    x = torch.rand(30, 2)
+    y = torch.randn(30)
+    model = LAKERRegressor(embedding_dim=4, verbose=False)
+    model.fit(x, y)
+    model.fit_learned_embeddings(x, y, epochs=3, lr=0.01)
+    assert model.alpha is not None
+
+
+def test_fit_residual_corrector():
+    """fit_residual_corrector should run without error."""
+    x = torch.rand(30, 2)
+    y = torch.randn(30)
+    model = LAKERRegressor(embedding_dim=4, verbose=False)
+    model.fit(x, y)
+    model.fit_residual_corrector(x, y, epochs=10, patience=5)
+    assert model.predict(torch.rand(5, 2)).shape == (5,)
+
+
 def test_generate_radio_field_wrong_shapes():
     """Test generate_radio_field validates input shapes."""
     from laker.data import generate_radio_field
