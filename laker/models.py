@@ -340,6 +340,15 @@ class LAKERRegressor:
 
     # ------------------------------------------------------------------
     # Hyperparameter delegation
+    def __repr__(self) -> str:
+        """Return a compact string representation."""
+        fitted = "fitted" if getattr(self, "embeddings", None) is not None else "not fitted"
+        try:
+            core = object.__getattribute__(self, "core")
+            return f"LAKERRegressor(embedding_dim={core.embedding_dim}, lambda_reg={core.lambda_reg}, {fitted})"
+        except AttributeError:
+            return f"LAKERRegressor(uninitialized)"
+
     # ------------------------------------------------------------------
     def __getattr__(self, name: str) -> Any:
         """Delegate hyperparameter access to the core.
