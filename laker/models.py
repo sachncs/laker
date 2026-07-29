@@ -40,7 +40,6 @@ import logging
 import os
 from typing import Any, Optional, Union
 
-import numpy
 import torch
 import torch.nn as nn
 

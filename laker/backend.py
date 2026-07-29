@@ -30,7 +30,6 @@ the public setters.
 
 import logging
 import os
-import platform
 from typing import Optional, Union
 
 # Environment variable controlling torch.compile behaviour.
