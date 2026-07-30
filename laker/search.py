@@ -34,6 +34,8 @@ from typing import TYPE_CHECKING, Optional
 import numpy
 import torch
 
+from laker.backend import to_tensor
+
 if TYPE_CHECKING:
     from laker.core import LAKERCore
     from laker.models import LAKERRegressor
@@ -442,3 +444,63 @@ class HyperparameterSearch:
         except (RuntimeError, ValueError):
             logger.debug("bo_eval failed", exc_info=True)
             return float("inf")
+
+
+class Search:
+    """Validation-based hyperparameter search helpers (static API)."""
+
+    @staticmethod
+    def grid(
+        regressor,
+        x,
+        y,
+        val_fraction: float = 0.2,
+        regularizations=None,
+        gammas=None,
+        probes=None,
+        warm_start: bool = True,
+    ):
+        """Grid-search wrapper that delegates to ``HyperparameterSearch``."""
+        x = to_tensor(x, device=regressor.device, dtype=regressor.dtype)
+        y_t = to_tensor(y, device=regressor.device, dtype=regressor.dtype)
+        if y_t.dim() == 2:
+            y_t = y_t.squeeze(-1)
+        helper = HyperparameterSearch(regressor.core)
+        return helper.fit_with_search(
+            regressor, x, y_t,
+            val_fraction, regularizations, gammas, probes, warm_start,
+        )
+
+    @staticmethod
+    def bayes(
+        regressor,
+        x,
+        y,
+        val_fraction: float = 0.2,
+        n_calls: int = 15,
+        n_initial_points: int = 5,
+        regularization_bounds=(1e-4, 1.0),
+        gamma_bounds=(0.0, 2.0),
+        probes_bounds=(20, 300),
+    ):
+        """Bayesian-Optimisation wrapper."""
+        x = to_tensor(x, device=regressor.device, dtype=regressor.dtype)
+        y_t = to_tensor(y, device=regressor.device, dtype=regressor.dtype)
+        if y_t.dim() == 2:
+            y_t = y_t.squeeze(-1)
+        helper = HyperparameterSearch(regressor.core)
+        return helper.fit_with_bo(
+            regressor, x, y_t,
+            val_fraction, n_calls, n_initial_points,
+            regularization_bounds, gamma_bounds, probes_bounds,
+        )
+
+    @staticmethod
+    def gpsurrogate():
+        """Construct a default ``GPSurrogate`` for direct use."""
+        from laker.utils import GPSurrogate
+        return GPSurrogate()
+
+
+# Always alias Search to a single class so static-method tests work.
+Search.__module__ = "laker.search"

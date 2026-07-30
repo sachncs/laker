@@ -1597,3 +1597,47 @@ class SpectralAttentionKernelOperator:
         # K = C_x @ diag(spectrum) @ C_y^T
         k = (cx * self.spectrum.unsqueeze(0)) @ cy.T
         return k
+
+
+# Module-level single-class wrappers around the kernel hierarchy to
+# preserve the public API for downstream code. New code should depend
+# on ``laker.kernel`` (a future subpackage); these aliases remain for
+# backward compatibility.
+class _KernelNamespace:
+    """Single public class exposing the full operator API."""
+
+    @staticmethod
+    def exact(*args, **kwargs):
+        return AttentionKernelOperator(*args, **kwargs)
+
+    @staticmethod
+    def nystrom(*args, **kwargs):
+        return NystromAttentionKernelOperator(*args, **kwargs)
+
+    @staticmethod
+    def fourier(*args, **kwargs):
+        return RandomFeatureAttentionKernelOperator(*args, **kwargs)
+
+    @staticmethod
+    def neighbors(*args, **kwargs):
+        return SparseKNNAttentionKernelOperator(*args, **kwargs)
+
+    @staticmethod
+    def grid(*args, **kwargs):
+        return SKIAttentionKernelOperator(*args, **kwargs)
+
+    @staticmethod
+    def hybrid(*args, **kwargs):
+        return TwoScaleAttentionKernelOperator(*args, **kwargs)
+
+    @staticmethod
+    def spectrum(*args, **kwargs):
+        return SpectralAttentionKernelOperator(*args, **kwargs)
+
+    @staticmethod
+    def distribute(*args, **kwargs):
+        from laker.distributed_kernels import DistributedAttentionKernelOperator
+        return DistributedAttentionKernelOperator(*args, **kwargs)
+
+
+Kernel = _KernelNamespace

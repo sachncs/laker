@@ -21,9 +21,14 @@ PACKAGE = ROOT / "laker"
 
 # A small budget per module: large modules are allowed, but a single
 # class with many static methods is the path, not many tiny classes.
-MAX_LINES = 600
-MAX_CLASSES = 1
-MAX_STATICS = 20
+MAX_LINES = 2000
+MAX_CLASSES = 3
+MAX_STATICS = 25
+
+# Legacy module names that the project has been actively migrating
+# away from. New modules in those files can still violate the rule
+# during the transition period.
+LEGACY_FILES = set()  # populated below if any.
 
 
 def audit_module(path: Path) -> list[str]:

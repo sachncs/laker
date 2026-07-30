@@ -22,11 +22,20 @@ The public surface of LAKER is a single class — :class:`Laker` —
 importable as ``from laker import Laker``. Secondary classes live under
 their module names (see ``NAMING.md``):
 
-- ``laker.kernel.{Exact, Nystrom, Fourier, Neighbors, Grid, Hybrid, Spectrum, Distribute}``
-- ``laker.preconditioner.{CCCP, Adaptive, Jacobi}``
-- ``laker.solve.{PCG, Descent}``
-- ``laker.embed.{Position, Visual}``
-- ``laker.{search, fit, stream, implicit, plot, data, helpers, backend, base, cli}.<ClassName>``
+- ``laker.helpers.Helpers``
+- ``laker.backend.Backend``
+- ``laker.base.Base``
+- ``laker.embed.Position``, ``laker.embed.Visual``, ``laker.embed.Embed``
+- ``laker.data.Data``
+- ``laker.plot.Plot``
+- ``laker.preconditioner.Preconditioner`` (and ``.cccp``, ``.adaptive``, ``.jacobi``)
+- ``laker.solve.Solve`` (and ``.pcg``, ``.descent``, ``.jacobi``)
+- ``laker.kernel.Kernel`` (and ``.exact``, ``.nystrom``, ``.fourier``, ``.neighbors``, ``.grid``, ``.spectrum``, ``.hybrid``, ``.distribute``)
+- ``laker.search.Search``
+- ``laker.fit.Fit``
+- ``laker.stream.Stream``
+- ``laker.implicit.Implicit``
+- ``laker.cli.CLI``
 
 The default numerical configuration is single-precision
 (``torch.float32``); switching to ``dtype=torch.float64`` is recommended
