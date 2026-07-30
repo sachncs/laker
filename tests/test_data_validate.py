@@ -1,4 +1,9 @@
-"""Data validation tests (split helpers)."""
+"""Validation helper tests for ``laker.base.Base``.
+
+Covers ``Base.validate_split_indices``, ``Base.validate_inputs``,
+and ``Base.validate_target`` — the public validation helpers that
+gate ``Laker.fit`` and other entry points.
+"""
 
 from __future__ import annotations
 

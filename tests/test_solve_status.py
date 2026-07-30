@@ -1,8 +1,10 @@
-"""Solver status tests.
+"""Solver status contract tests.
 
-Captures the contract that PCG.solve returns ``(x, status)`` where
-``status`` carries ``converged``, ``iterations``, ``residual``,
-``reason``, and (for batched 2-D solves) ``per_rhs``.
+PCG.solve returns ``(x, status)`` where ``status`` carries
+``converged``, ``iterations``, ``residual``, ``reason``, and (for
+batched 2-D solves) ``per_rhs``. The zero-RHS short-circuit path,
+the breakdown-detection path, and the per-RHS Status list are all
+verified here.
 """
 
 from __future__ import annotations

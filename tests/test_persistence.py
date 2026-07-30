@@ -1,7 +1,9 @@
 """Precision and behavioural tests for ``laker.persistence.ModelPersistence``.
 
-Every save/load cycle is verified bit-identically (or `allclose`-tight),
-across every supported kernel strategy.
+Every save/load cycle is verified bit-identically (or `allclose`-tight)
+across every supported kernel strategy. Preconditioner state must
+round-trip too: ``predict_variance`` depends on the preconditioner
+matrices being present and correct.
 """
 
 from __future__ import annotations

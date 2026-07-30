@@ -1,4 +1,4 @@
-"""Tests for synthetic data generation.
+"""Precision + behavioural tests for ``laker.data.Data``.
 
 Every test asserts the closed-form math the function commits to:
 
@@ -6,7 +6,7 @@ Every test asserts the closed-form math the function commits to:
     d_ij = max(||x_i - tx_j||_2, d_0)
     rss_noisy = rss_clean + sigma_eps * N(0, 1)
 
-The implementation emits rss_clean via direct dBm summation (each
+The implementation emits ``rss_clean`` via direct dBm summation (each
 contribution is added into a per-sensor accumulator) rather than
 the physically correct linear-power/dBm-conversion sum. These
 tests are calibrated against the current behaviour; if the

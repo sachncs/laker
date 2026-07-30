@@ -1,6 +1,15 @@
 """Operator invariant tests.
 
-Captures the contracts every kernel operator must satisfy.
+Captures the contracts every kernel operator must satisfy:
+
+- ``matvec(v) == to_dense() @ v`` for the exact kernel
+  (matvec differs from dense for low-rank kernels; those are
+  flagged with a documented audit note).
+- ``diagonal() == diag(to_dense())`` for every kernel — the
+  strongest invariant; holds for exact, Nyström, Fourier, kNN,
+  SKI, and spectral.
+- ``kernel_eval(train, train) == exp(E Eᵀ)[:k, :n]`` (submatrix of
+  the dense Gram matrix; matches for any kernel class).
 """
 
 from __future__ import annotations

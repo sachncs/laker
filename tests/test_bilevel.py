@@ -1,4 +1,10 @@
-"""Bilevel test — verifies that ``Laker.tune`` changes regularization."""
+"""Bilevel tune contract.
+
+Laker.tune runs the bilevel inner loop plus a log-space regularisation
+search and writes back the best validation score. These tests pin
+down that the public ``regularization`` attribute actually moves
+when tune is called.
+"""
 
 from __future__ import annotations
 

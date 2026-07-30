@@ -1,10 +1,10 @@
-"""End-to-end behavioural + precision tests.
+"""End-to-end behavioural + precision tests for the public ``Laker`` API.
 
-Each test fits a Laker model on a synthesised signal (sin/cos
-or polynomial), asserts behavioural properties (correct shape,
-correct alpha, save/load parity) AND precision properties (train
-residual below a known threshold, R^2 above a baseline, RMSE
-against ground truth).
+Each test fits ``Laker`` on a synthesised signal (sin/cos or
+polynomial), then asserts both behavioural contracts (correct
+shape, fitted-state presence, save/load round-trip identity) AND
+precision contracts (in-sample RMSE below a documented threshold,
+``R²`` above a baseline, save/load ``torch.equal`` agreement).
 
 No test here only asserts shapes. Where shape is the only thing
 the model commits to, the test reads at least one prediction and

@@ -1,4 +1,11 @@
-"""Tests for input validation and edge cases."""
+"""Tests for input validation and edge cases.
+
+Covers the constructor's argument-validation contract on
+``LAKERRegressor``: every documented parameter range raises
+``ValueError`` outside its bounds, and the fit / predict pipeline
+rejects malformed inputs (wrong dimensionality, mismatched sample
+counts, non-finite values) before consuming any compute.
+"""
 
 import pytest
 import torch

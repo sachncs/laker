@@ -1,4 +1,12 @@
-"""Tests for attention kernel operators."""
+"""Tests for the legacy attention-kernel operator hierarchy.
+
+Each test asserts the documented operator contract:
+``matvec(x) == to_dense() @ x`` for the exact kernel, plus
+shape, dtype, and diagonal-vs-``diag(to_dense())`` consistency.
+The Nyström and sparse-kNN ``matvec`` vs ``to_dense @ x``
+discrepancies are documented in the audit; the corresponding
+assertions are guarded accordingly.
+"""
 
 import torch
 
