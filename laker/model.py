@@ -403,8 +403,40 @@ class Laker:
             raise ValueError("x must have at least one row, got empty tensor")
 
         if not self._warm_start and self._fit_called:
-            self._legacy = type(self._legacy)(
-                **self._legacy.get_params()
+            # Atomic refit: drop fitted state by reconstructing with the
+            # canonical parameter set (the legacy ``get_params`` returns
+            # stringified dtypes, so we read state from ``self`` instead).
+            from laker.models import LAKERRegressor
+
+            params = self.get_params()
+            dtype_str = str(params["dtype"])
+            embed_dtype_str = params["embedding_dtype"]
+            if dtype_str and "float64" in dtype_str:
+                dtype = torch.float64
+            else:
+                dtype = torch.float32
+            if embed_dtype_str:
+                if "float64" in embed_dtype_str:
+                    embed_dtype = torch.float64
+                elif "bfloat16" in embed_dtype_str:
+                    embed_dtype = torch.bfloat16
+                elif "float16" in embed_dtype_str:
+                    embed_dtype = torch.float16
+                else:
+                    embed_dtype = torch.float32
+            else:
+                embed_dtype = None
+            self._legacy = LAKERRegressor(
+                embedding_dim=params["embedding_dim"],
+                lambda_reg=params["regularization"],
+                gamma=params["gamma"],
+                num_probes=params["probes"],
+                pcg_tol=params["pcg_tol"],
+                pcg_max_iter=params["pcg_max_iter"],
+                embedding_dtype=embed_dtype,
+                device=params["device"],
+                dtype=dtype,
+                verbose=params["verbose"],
             )
         self._legacy.fit(x, y, x0=x0, seed=seed)
         self._fit_called = True

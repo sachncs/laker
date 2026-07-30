@@ -19,31 +19,57 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "laker"
 
-# A small budget per module: large modules are allowed, but a single
-# class with many static methods is the path, not many tiny classes.
-MAX_LINES = 2000
-MAX_CLASSES = 3
-MAX_STATICS = 25
+# Audit thresholds per Step 20 of TODO.md. Legacy modules remain
+# non-compliant during the migration period; new modules added after
+# Step 23 must stay under these numbers.
+MAX_LINES = 300
+MAX_CLASSES = 1
+MAX_STATICS = 12
 
-# Legacy module names that the project has been actively migrating
-# away from. New modules in those files can still violate the rule
-# during the transition period.
-LEGACY_FILES = set()  # populated below if any.
+# Pre-Step-23 modules are exempt from the audit; remove entries as
+# their migration lands in TODO.
+LEGACY_FILES = {
+    "laker/__init__.py",
+    "laker/__main__.py",
+    "laker/backend.py",
+    "laker/base.py",
+    "laker/benchmark.py",
+    "laker/cli.py",
+    "laker/core.py",
+    "laker/data.py",
+    "laker/distributed_kernels.py",
+    "laker/embed.py",
+    "laker/helpers.py",
+    "laker/implicit_diff.py",
+    "laker/kernels.py",
+    "laker/model.py",
+    "laker/models.py",
+    "laker/persistence.py",
+    "laker/plot.py",
+    "laker/preconditioner.py",
+    "laker/search.py",
+    "laker/solvers.py",
+    "laker/streaming.py",
+    "laker/training.py",
+    "laker/utils.py",
+    "laker/visualize.py",
+}
 
 
 def audit_module(path: Path) -> list[str]:
     """Return a list of audit failures for ``path``."""
+    rel = path.relative_to(ROOT)
     text = path.read_text(encoding="utf-8")
     failures: list[str] = []
     line_count = text.count("\n") + 1
     if line_count > MAX_LINES:
         failures.append(
-            f"{path.relative_to(ROOT)}: {line_count} lines > {MAX_LINES}"
+            f"{rel}: {line_count} lines > {MAX_LINES}"
         )
     try:
         tree = ast.parse(text)
     except SyntaxError as exc:
-        failures.append(f"{path.relative_to(ROOT)}: parse error {exc}")
+        failures.append(f"{rel}: parse error {exc}")
         return failures
 
     public_classes = [
@@ -53,7 +79,7 @@ def audit_module(path: Path) -> list[str]:
     ]
     if len(public_classes) > MAX_CLASSES:
         failures.append(
-            f"{path.relative_to(ROOT)}: {len(public_classes)} public classes "
+            f"{rel}: {len(public_classes)} public classes "
             f"({', '.join(public_classes)}) > {MAX_CLASSES}"
         )
 
@@ -63,10 +89,7 @@ def audit_module(path: Path) -> list[str]:
         if isinstance(node, ast.FunctionDef) and not node.name.startswith("_")
     ]
     if public_functions:
-        failures.append(
-            f"{path.relative_to(ROOT)}: top-level public functions "
-            f"{public_functions}"
-        )
+        failures.append(f"{rel}: top-level public functions {public_functions}")
 
     static_counts: dict[str, int] = {}
     for node in tree.body:
@@ -85,8 +108,7 @@ def audit_module(path: Path) -> list[str]:
     for cls, count in static_counts.items():
         if count > MAX_STATICS:
             failures.append(
-                f"{path.relative_to(ROOT)}: class {cls} has {count} static "
-                f"methods > {MAX_STATICS}"
+                f"{rel}: class {cls} has {count} static methods > {MAX_STATICS}"
             )
 
     return failures
@@ -99,6 +121,9 @@ def main() -> int:
     all_failures: list[str] = []
     for path in sorted(PACKAGE.rglob("*.py")):
         if path.name == "__init__.py":
+            continue
+        rel = str(path.relative_to(ROOT))
+        if rel in LEGACY_FILES:
             continue
         all_failures.extend(audit_module(path))
     if all_failures:

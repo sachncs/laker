@@ -25,7 +25,7 @@ from typing import Optional
 import torch
 
 from benchmarks.executor import BenchmarkExecutor
-from laker.kernels import AttentionKernelOperator
+from laker.kernels import Kernel
 from laker.models import LAKERRegressor
 from laker.preconditioner import CCCPPreconditioner
 
@@ -102,7 +102,7 @@ class BaselineComparison:
         # 1. Kernel matvec n=5000
         embeddings = torch.randn(5000, 10, dtype=dtype)
         vector = torch.randn(5000, dtype=dtype)
-        kernel = AttentionKernelOperator(embeddings, lambda_reg=1e-2, chunk_size=1024, dtype=dtype)
+        kernel = Kernel.exact(embeddings, lambda_reg=1e-2, chunk_size=1024, dtype=dtype)
         for i in range(20):
             kernel.matvec(vector)
 
@@ -116,7 +116,7 @@ class BaselineComparison:
         # 2. Preconditioner build n=5000
         torch.manual_seed(42)
         embeddings = torch.randn(5000, 10, dtype=dtype)
-        kernel = AttentionKernelOperator(embeddings, lambda_reg=1e-2, dtype=dtype)
+        kernel = Kernel.exact(embeddings, lambda_reg=1e-2, dtype=dtype)
         preconditioner = CCCPPreconditioner(
             num_probes=100,
             gamma=1e-1,
