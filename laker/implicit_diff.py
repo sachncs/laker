@@ -113,7 +113,7 @@ def hypergradient(
         max_iter=pcg_max_iter,
         verbose=verbose,
     )
-    v = pcg.solve(
+    v, _status = pcg.solve(
         operator=operator_fn,
         preconditioner=preconditioner_fn,
         rhs=dL_dalpha,

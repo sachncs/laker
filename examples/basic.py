@@ -3,7 +3,7 @@
 Three hand-crafted embeddings and observations yield a 3x3 kernel
 system. The example verifies that :class:`laker.Laker` recovers the
 exact solve ``alpha = (K + lambda I)^{-1} y`` (Eq. 53) and that the
-kernel matrix produced by the ``AttentionKernelOperator`` matches the
+kernel matrix produced by the ``Kernel.Exact`` operator matches the
 reference exponential dot-product kernel.
 
 Run:
@@ -14,7 +14,7 @@ from __future__ import annotations
 import torch
 
 from laker import Laker
-from laker.kernels import AttentionKernelOperator
+from laker.kernel import Exact
 
 
 class PaperExample:
@@ -66,7 +66,7 @@ class PaperExample:
 
         # Verify the kernel matrix used by the operator matches
         # Eq. (53): k(x, x') = exp(x @ x'.T).
-        op = AttentionKernelOperator(cls.EMBEDDINGS, lambda_reg=cls.REGULARIZATION)
+        op = Exact(cls.EMBEDDINGS, lambda_reg=cls.REGULARIZATION)
         kernel_train = op.kernel_eval(cls.EMBEDDINGS, cls.EMBEDDINGS)
         kernel_query_train = op.kernel_eval(cls.QUERY, cls.EMBEDDINGS)
 

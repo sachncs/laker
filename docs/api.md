@@ -13,7 +13,7 @@ from laker.plot import Plot
 from laker.data import Data
 ```
 
-Module map is defined in `NAMING.md`.
+Module map is defined in CONTRIBUTING.md ("Module Conventions").
 
 ---
 

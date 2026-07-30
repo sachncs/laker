@@ -67,9 +67,9 @@ class SolverBenchmark:
 
         start = time.perf_counter()
         if self.preconditioner is not None:
-            solution = pcg.solve(self.operator, self.preconditioner, self.rhs)
+            solution, _status = pcg.solve(self.operator, self.preconditioner, self.rhs)
         else:
-            solution = pcg.solve(self.operator, lambda x: x, self.rhs)
+            solution, _status = pcg.solve(self.operator, lambda x: x, self.rhs)
         elapsed = time.perf_counter() - start
 
         rhs_norm = torch.linalg.norm(self.rhs).item()

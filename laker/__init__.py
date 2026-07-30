@@ -20,7 +20,7 @@ convergence.
 
 The public surface of LAKER is a single class — :class:`Laker` —
 importable as ``from laker import Laker``. Secondary classes live under
-their module names (see ``NAMING.md``):
+their module-qualified names:
 
 - ``laker.helpers.Helpers``
 - ``laker.backend.Backend``

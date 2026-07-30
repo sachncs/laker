@@ -228,7 +228,7 @@ class PerformanceBenchmarkSuite:
 
         result = self.executor.run_once(
             f"pcg_solve_n{n}",
-            lambda: pcg.solve(kernel.matvec, preconditioner.apply, rhs),
+            lambda: pcg.solve_x(kernel.matvec, preconditioner.apply, rhs),
         )
         return {
             "n": n,

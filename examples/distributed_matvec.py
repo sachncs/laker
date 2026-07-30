@@ -12,8 +12,10 @@ import argparse
 
 import torch
 
-from laker.distributed_kernels import DistributedAttentionKernelOperator
-from laker.kernels import AttentionKernelOperator
+from laker.kernel import Distribute, Exact
+
+
+__all__ = ["Distributed"]
 
 
 class Distributed:
@@ -29,15 +31,9 @@ class Distributed:
         device_ids = [int(d) for d in devices.split(",") if d]
         torch.manual_seed(0)
         embeddings = torch.randn(n, 8)
-        target = torch.randn(n)
 
-        single = AttentionKernelOperator(embeddings, regularization=regularization)
-        distributed = DistributedAttentionKernelOperator(
-            embeddings,
-            regularization=regularization,
-            master_device="cuda",
-            devices=device_ids,
-        )
+        single = Exact(embeddings, regularization=regularization)
+        distributed = Distribute(embeddings, regularization=regularization)
 
         for name in ("matvec", "diagonal"):
             v = torch.randn(n)

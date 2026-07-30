@@ -574,7 +574,7 @@ class LAKERCore:
             verbose=self.verbose,
         )
         with _autocast_if_enabled():
-            alpha = pcg.solve(
+            alpha, _status = pcg.solve(
                 operator=kernel_operator.matvec,
                 preconditioner=preconditioner.apply,
                 rhs=rhs,
@@ -766,7 +766,7 @@ class LAKERCore:
                 k_train_query = kernel_operator.kernel_eval(embeddings, query_embeddings)
                 if k_train_query.is_sparse:
                     k_train_query = k_train_query.to_dense()
-                v = pcg.solve(
+                v, _status = pcg.solve(
                     operator=kernel_operator.matvec,
                     preconditioner=preconditioner.apply,
                     rhs=k_train_query,
@@ -783,7 +783,7 @@ class LAKERCore:
                     k_train_chunk = kernel_operator.kernel_eval(embeddings, q_chunk)
                     if k_train_chunk.is_sparse:
                         k_train_chunk = k_train_chunk.to_dense()
-                    v_chunk = pcg.solve(
+                    v_chunk, _status = pcg.solve(
                         operator=kernel_operator.matvec,
                         preconditioner=preconditioner.apply,
                         rhs=k_train_chunk,
@@ -977,7 +977,7 @@ class LAKERCore:
         v = v / torch.linalg.norm(v)
         pcg = PreconditionedConjugateGradient(tol=1e-6, max_iter=50, verbose=False)
         for _ in range(5):
-            v = pcg.solve(
+            v, _status = pcg.solve(
                 operator=preconditioned_operator,
                 preconditioner=lambda x: x,
                 rhs=v,

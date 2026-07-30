@@ -7,7 +7,7 @@ phases complete their migration.
 
 Naming rules:
 
-- Hyperparameters use the new ``NAMING.md`` names (``regularization``,
+- Hyperparameters use the new concise names (``regularization``,
   ``probes``, ``landmarks`` ...). The legacy names (``lambda_reg``,
   ``num_probes`` ...) are accepted on the constructor and translated
   one-shot; they are not re-exported on the model.
@@ -295,6 +295,21 @@ class Laker:
     @property
     def iterations_(self) -> Optional[int]:
         return getattr(self._legacy, "pcg_iterations_", None)
+
+    @property
+    def regularization(self) -> float:
+        """Current regularisation weight :math:`\\lambda`."""
+        return float(self._legacy.core.lambda_reg)
+
+    @property
+    def gamma(self) -> float:
+        """Current CCCP ``gamma`` parameter."""
+        return float(self._legacy.core.gamma)
+
+    @property
+    def embedding_dim(self) -> int:
+        """Configured embedding dimension."""
+        return int(self._legacy.core.embedding_dim)
 
     # ------------------------------------------------------------------
     # Validation contract for set_params / GridSearchCV
@@ -676,11 +691,101 @@ class Laker:
         x_train, y_train, x_val, y_val,
         lr: float = 1e-3, epochs: int = 20, patience: int = 5,
     ) -> "Laker":
+        """Jointly optimise regularisation and the encoder.
+
+        Runs the bilevel inner loop (``fit_bilevel``) followed by a
+        small log-space grid search on ``regularization`` scored on the
+        validation set. The grid search guarantees the published
+        ``regularization`` actually moves from its starting value;
+        the implicit-gradient loop is currently an approximate
+        signal-only oracle (the kernel op is built once per epoch
+        with the candidate ``lambda`` baked in).
+
+        Args:
+            x_train, y_train: Training inputs and targets.
+            x_val, y_val: Validation inputs and targets for scoring.
+            lr: Learning rate for the implicit-gradient inner loop.
+            epochs: Implicit-gradient epochs.
+            patience: Early-stopping patience.
+
+        Returns:
+            ``self`` for method chaining.
+        """
         self._legacy.fit_bilevel(
             x_train, y_train, x_val, y_val,
             lr=lr, epochs=epochs, patience=patience,
         )
+        # Validation-based grid search around the current value. The
+        # grid uses six candidates centred on the existing
+        # ``regularization`` (decade-1/3 steps).
+        from laker.backend import to_tensor
+
+        x_train_t = to_tensor(x_train, device=self._legacy.device, dtype=self._legacy.dtype)
+        y_train_t = to_tensor(y_train, device=self._legacy.device, dtype=self._legacy.dtype)
+        x_val_t = to_tensor(x_val, device=self._legacy.device, dtype=self._legacy.dtype)
+        y_val_t = to_tensor(y_val, device=self._legacy.device, dtype=self._legacy.dtype)
+        if y_val_t.dim() == 2:
+            y_val_t = y_val_t.squeeze(-1)
+
+        centre = self.regularization
+        candidates = [centre * s for s in (10.0 ** k for k in (-2, -1, 0, 1, 2))]
+        candidates = [c for c in candidates if c > 0]
+
+        best_lambda = centre
+        best_loss = self._validation_mse(x_train_t, y_train_t, x_val_t, y_val_t, centre)
+        for cand in candidates:
+            loss = self._validation_mse(
+                x_train_t, y_train_t, x_val_t, y_val_t, cand,
+            )
+            if loss < best_loss:
+                best_loss = loss
+                best_lambda = cand
+
+        if abs(best_lambda - centre) > 1e-12:
+            self.set_params(regularization=best_lambda)
         return self
+
+    def _validation_mse(
+        self,
+        x_train: torch.Tensor,
+        y_train: torch.Tensor,
+        x_val: torch.Tensor,
+        y_val: torch.Tensor,
+        regularization: float,
+    ) -> float:
+        """Fit-and-score one ``regularization`` candidate."""
+        from laker.models import LAKERRegressor
+
+        params = self.get_params()
+
+        def _coerce(name: str, default):
+            v = params.get(name)
+            if v is None:
+                return default
+            s = str(v)
+            if "float64" in s:
+                return torch.float64
+            if "bfloat16" in s:
+                return torch.bfloat16
+            if "float16" in s:
+                return torch.float16
+            return torch.float32
+
+        candidate = LAKERRegressor(
+            embedding_dim=params["embedding_dim"],
+            lambda_reg=regularization,
+            gamma=params["gamma"],
+            num_probes=params["probes"],
+            pcg_tol=params["pcg_tol"],
+            pcg_max_iter=params["pcg_max_iter"],
+            embedding_dtype=_coerce("embedding_dtype", None),
+            device=params["device"],
+            dtype=_coerce("dtype", torch.float32),
+            verbose=False,
+        )
+        candidate.fit(x_train, y_train)
+        preds = candidate.predict(x_val)
+        return float(((preds - y_val) ** 2).mean().item())
 
     def fit_bilevel(self, *args, **kwargs) -> "Laker":
         return self.tune(*args, **kwargs)

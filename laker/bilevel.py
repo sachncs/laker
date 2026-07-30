@@ -175,6 +175,15 @@ class BilevelOptimizer:
         for epoch in range(self.epochs):
             optimizer.zero_grad()
 
+            # Push the current ``lambda_logit`` back into the regressor
+            # so ``build_kernel_operator`` uses the optimisable value.
+            if hyperparameters is not None and len(hyperparameters) == 1:
+                lambda_logit = hyperparameters[0]
+                with torch.no_grad():
+                    candidate_lambda = float(torch.exp(lambda_logit).item())
+                candidate_lambda = max(candidate_lambda, 1e-8)
+                self.core.lambda_reg = candidate_lambda
+
             # ---- inner solve (detach alpha) --------------------------------
             embeddings, model = self.core.compute_embeddings(x_train)
             regressor.embedding_model = model
@@ -254,4 +263,19 @@ class BilevelOptimizer:
         # Final fit with best hyperparameters on full data
         if self.verbose:
             logger.info("Bilevel complete. Refitting on full training set.")
+        # Pull the final value of any learnable ``lambda`` logit into
+        # the regressor's published configuration so downstream
+        # ``score``/``predict`` use it. The hypergradient path is
+        # currently approximate (the kernel_op is built with the value
+        # at construction time, so the gradient through the matvec is
+        # not propagated); this hook keeps the parameter honest.
+        candidate_lambdas: list[float] = []
+        if hyperparameters is not None and len(hyperparameters) == 1:
+            with torch.no_grad():
+                candidate_lambdas.append(
+                    float(torch.exp(hyperparameters[0]).item())
+                )
+        if candidate_lambdas:
+            self.core.lambda_reg = max(min(candidate_lambdas[0], 1e3), 1e-8)
+            regressor.set_params(lambda_reg=self.core.lambda_reg)
         return regressor.fit(x_train, y_train)

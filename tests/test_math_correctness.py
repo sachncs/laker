@@ -418,7 +418,7 @@ def test_pcg_with_twoscale_kernel():
     pre.build(op.matvec, n)
 
     pcg = PreconditionedConjugateGradient(tol=1e-8, max_iter=300, verbose=False)
-    x = pcg.solve(op.matvec, pre.apply, b)
+    x, _status = pcg.solve(op.matvec, pre.apply, b)
 
     res = torch.linalg.norm(op.matvec(x) - b) / torch.linalg.norm(b)
     assert res.item() < 1e-2
@@ -561,7 +561,7 @@ def test_pcg_zero_rhs():
     e = torch.randn(n, de)
     op = AttentionKernelOperator(e, lambda_reg=1e-2)
     pcg = PreconditionedConjugateGradient(tol=1e-6, max_iter=100)
-    x = pcg.solve(op.matvec, lambda x: x, rhs=torch.zeros(n))
+    x, _status = pcg.solve(op.matvec, lambda x: x, rhs=torch.zeros(n))
     assert torch.all(x == 0)
     assert pcg.iterations == 0
 
@@ -578,8 +578,8 @@ def test_pcg_warm_start():
     op = AttentionKernelOperator(e, lambda_reg=1e-2)
     pcg = PreconditionedConjugateGradient(tol=1e-6, max_iter=100)
 
-    x_cold = pcg.solve(op.matvec, lambda x: x, rhs=b)
-    x_warm = pcg.solve(op.matvec, lambda x: x, rhs=b, x0=torch.zeros(n))
+    x_cold, _status = pcg.solve(op.matvec, lambda x: x, rhs=b)
+    x_warm, _status = pcg.solve(op.matvec, lambda x: x, rhs=b, x0=torch.zeros(n))
     torch.testing.assert_close(x_cold, x_warm, rtol=1e-5, atol=1e-5)
 
 

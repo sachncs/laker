@@ -38,11 +38,35 @@ Performance and numerical notes:
 """
 
 import logging
-from typing import Callable, Optional
+from dataclasses import dataclass
+from typing import Callable, List, Optional
 
 import torch
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Status:
+    """Convergence result returned alongside the solver's iterate.
+
+    Attributes:
+        converged: ``True`` when the relative residual met ``tol``.
+        iterations: Number of iterations actually performed.
+        residual: Final ``||r|| / ||b||`` (always finite; ``0.0`` for the
+            zero-RHS short-circuit).
+        reason: Short token describing why the iteration stopped. One of
+            ``"converged"``, ``"max_iter"``, ``"zero_rhs"``,
+            ``"breakdown"``, ``"nonfinite"``.
+        per_rhs: Per-RHS statuses for the batched 2-D path. ``None`` for
+            1-D solves.
+    """
+
+    converged: bool
+    iterations: int
+    residual: float
+    reason: str
+    per_rhs: Optional[List["Status"]] = None
 
 
 class PreconditionedConjugateGradient:
@@ -133,7 +157,7 @@ class PreconditionedConjugateGradient:
         preconditioner: Callable[[torch.Tensor], torch.Tensor],
         rhs: torch.Tensor,
         x0: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, Status]:
         """Solve ``A x = b`` using PCG.
 
         Args:
@@ -179,7 +203,15 @@ class PreconditionedConjugateGradient:
         # zero regardless of ``A``. Returning early avoids division by
         # zero in the relative-residual check below.
         if rhs_norm.item() == 0:
-            return x
+            self.iterations = 0
+            self.residual_norm = 0.0
+            status = Status(
+                converged=True,
+                iterations=0,
+                residual=0.0,
+                reason="zero_rhs",
+            )
+            return x, status
 
         if rhs.dim() == 1:
             return self.solve_1d(operator, preconditioner, rhs, x, r, z, p, rhs_norm, max_iter)
@@ -275,7 +307,12 @@ class PreconditionedConjugateGradient:
                         self.iterations,
                         relative_residual,
                     )
-                return x
+                return x, Status(
+                    converged=True,
+                    iterations=self.iterations,
+                    residual=relative_residual,
+                    reason="converged",
+                )
 
             z = preconditioner(r)
             residual_z_new = torch.dot(r, z).item()
@@ -293,7 +330,12 @@ class PreconditionedConjugateGradient:
                 max_iter,
                 relative_residual,
             )
-        return x
+        return x, Status(
+            converged=False,
+            iterations=self.iterations,
+            residual=relative_residual,
+            reason="max_iter",
+        )
 
     def solve_2d(
         self,
@@ -375,7 +417,21 @@ class PreconditionedConjugateGradient:
                         self.iterations,
                         relative_residual,
                     )
-                return x
+                return x, Status(
+                    converged=True,
+                    iterations=self.iterations,
+                    residual=relative_residual,
+                    reason="converged",
+                    per_rhs=[
+                        Status(
+                            converged=True,
+                            iterations=self.iterations,
+                            residual=float(relative_residual),
+                            reason="converged",
+                        )
+                        for _ in range(rhs.shape[1])
+                    ],
+                )
 
             z = preconditioner(r)
             residual_z_new = torch.sum(r * z, dim=0)
@@ -393,7 +449,21 @@ class PreconditionedConjugateGradient:
                 max_iter,
                 relative_residual,
             )
-        return x
+        return x, Status(
+            converged=False,
+            iterations=self.iterations,
+            residual=relative_residual,
+            reason="max_iter",
+            per_rhs=[
+                Status(
+                    converged=False,
+                    iterations=self.iterations,
+                    residual=float(relative_residual),
+                    reason="max_iter",
+                )
+                for _ in range(rhs.shape[1])
+            ],
+        )
 
 
 class GradientDescent:

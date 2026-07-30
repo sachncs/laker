@@ -25,7 +25,7 @@ def test_pcg_solves_exactly():
         return torch.linalg.solve(a_dense, v)
 
     pcg = PreconditionedConjugateGradient(tol=1e-12, max_iter=n, verbose=False)
-    x = pcg.solve(op, pre, b)
+    x, _status = pcg.solve(op, pre, b)
     torch.testing.assert_close(x, x_exact, rtol=1e-5, atol=1e-6)
 
 
@@ -50,7 +50,7 @@ def test_pcg_with_learned_preconditioner():
     pre.build(op.matvec, n)
 
     pcg = PreconditionedConjugateGradient(tol=1e-8, max_iter=200, verbose=False)
-    x = pcg.solve(op.matvec, pre.apply, b)
+    x, _status = pcg.solve(op.matvec, pre.apply, b)
 
     res = torch.linalg.norm(op.matvec(x) - b) / torch.linalg.norm(b)
     assert res.item() < 5e-2
@@ -67,7 +67,7 @@ def test_jacobi_pcg():
 
     jac = JacobiPreconditioner(op.diagonal())
     pcg = PreconditionedConjugateGradient(tol=1e-8, max_iter=200, verbose=False)
-    x = pcg.solve(op.matvec, jac.apply, b)
+    x, _status = pcg.solve(op.matvec, jac.apply, b)
 
     res = torch.linalg.norm(op.matvec(x) - b) / torch.linalg.norm(b)
     assert res.item() < 1e-5

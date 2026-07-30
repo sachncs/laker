@@ -114,8 +114,8 @@ find yourself reaching for a wrapper, inline the call site or add a
   ``PascalCase``. Top-level classes follow ``<Module>`` naming
   (``Laker``, ``Data``, ``Plot``, ``Embed`` etc.); secondary classes
   follow the same PascalCase (``Nystrom``, ``PCG``, ``Adaptive``).
-- **Single source of truth**: every renames lives in `NAMING.md`.
-  Names change in lock-step with code; no deprecation layer.
+- **Single source of truth**: every rename changes names in
+  lock-step with code; no deprecation layer.
 
 ---
 

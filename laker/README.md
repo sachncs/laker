@@ -64,7 +64,7 @@ model.fit(locations, measurements)
 - **Module-qualified names**: secondary classes live behind their
   parent module (`laker.kernel.Nystrom`, `laker.solve.PCG`).
 - **No legacy aliases**: clean-break renames between releases;
-  see `NAMING.md`.
+  see `CONTRIBUTING.md`.
 - **No semi-private naming**: no leading-underscore modules in the
   public surface.
 - **Logging over prints**: all diagnostic output goes through
