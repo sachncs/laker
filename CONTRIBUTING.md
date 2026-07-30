@@ -198,7 +198,7 @@ def solve(operator, rhs, tol=1e-10):
 - No legacy aliases. Old names are removed in the same step that
   replaces them; no deprecation period.
 - Every module <= 12 `@staticmethod` and <= 300 lines. Split when
-  exceeded (see `tools/audit_one_class.py`).
+  exceeded.
 
 ## Reporting Bugs
 

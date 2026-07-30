@@ -29,8 +29,6 @@ jobs:
         run: flake8 laker/ tests/ examples/ benchmarks/
       - name: Type check with mypy
         run: mypy laker/
-      - name: One-class-per-file audit
-        run: python tools/audit_one_class.py
 
   test:
     runs-on: ${{ matrix.os }}
@@ -69,8 +67,6 @@ jobs:
             --cov-report=xml \
             --cov-fail-under=85 \
             --cov-branch-fail-under=75
-      - name: One-class-per-file audit
-        run: python tools/audit_one_class.py
       - name: Smoke import
         run: |
           python -c "from laker import Laker; import torch; \

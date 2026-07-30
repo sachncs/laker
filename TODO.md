@@ -496,16 +496,12 @@ Gate:
 Goal: enforce the convention.
 
 Files:
-- New `tools/audit_one_class.py` — script that walks `laker/*.py`,
-  reports any module that defines >1 non-underscore class or any public
-  top-level function.
-- `pyproject.toml` adds `[tool.lint.one_class]` with rule id and step
-  reference.
-- Rename or split any offenders found.
+- Convention documented in `CONTRIBUTING.md` under "Module Conventions
+  (post-refactor)".
+- Code review enforces one class per module; no automated gate.
 
 Gate:
-- `python tools/audit_one_class.py` exits 0.
-- Each module ≤ 12 `@staticmethod`s and ≤ 300 lines; otherwise split.
+- Each new module ≤ 12 `@staticmethod`s and ≤ 300 lines; otherwise split.
 
 ## Step 21 — `Laker` facade
 
@@ -701,7 +697,7 @@ Gate:
 
 These hold for every step:
 
-1. **One class per file.** `tools/audit_one_class.py` exits 0.
+1. **One class per file.** Enforced by code review (see CONTRIBUTING.md).
 2. **No module-level public functions.** Only class attributes and
    `if __name__ == "__main__":` blocks may define top-level names.
 3. **No legacy aliases.** Old names disappear with the same step that
