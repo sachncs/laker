@@ -8,6 +8,7 @@ Run::
 
     python -m examples.simple
 """
+
 from __future__ import annotations
 
 import argparse
@@ -37,10 +38,7 @@ class Simple:
         """
         torch.manual_seed(seed)
         x = torch.rand(n, 2, dtype=torch.float64) * area
-        y = (
-            torch.sin(torch.pi * x[:, 0] / area)
-            * torch.cos(torch.pi * x[:, 1] / area)
-        )
+        y = torch.sin(torch.pi * x[:, 0] / area) * torch.cos(torch.pi * x[:, 1] / area)
 
         model = Laker(
             embedding_dim=embedding_dim,
@@ -85,19 +83,13 @@ class Simple:
 
         # ---- Behavioural + precision assertions ------------------------------
         assert (
-            preds.shape == grid.shape[:-1]
-            if preds.dim() == 1
-            else preds.shape == (grid.shape[0],)
+            preds.shape == grid.shape[:-1] if preds.dim() == 1 else preds.shape == (grid.shape[0],)
         ), f"predict: shape mismatch ({preds.shape})"
         assert torch.isfinite(preds).all(), "predict: NaN / Inf"
         assert torch.isfinite(var).all(), "variance: NaN / Inf"
         assert (var >= 0).all(), "variance: must be non-negative"
-        assert torch.equal(
-            preds, loaded_pred
-        ), "save/load: predictions must be bit-identical"
-        assert train_r2 > 0.95, (
-            f"target is smooth; R^2={train_r2:.4f} too low for default Laker"
-        )
+        assert torch.equal(preds, loaded_pred), "save/load: predictions must be bit-identical"
+        assert train_r2 > 0.95, f"target is smooth; R^2={train_r2:.4f} too low for default Laker"
 
 
 if __name__ == "__main__":

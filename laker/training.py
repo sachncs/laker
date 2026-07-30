@@ -632,5 +632,3 @@ class EmbeddingTrainer:
             kernel_operator, preconditioner, y
         )
         return regressor
-
-

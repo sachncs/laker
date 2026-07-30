@@ -19,12 +19,14 @@ Naming rules:
 - All sklearn-style parameters are validated against the public
   parameter set (no arbitrary attribute writes).
 """
+
 from __future__ import annotations
 
 import logging
 import os
 from typing import Any, Optional, Union
 
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -210,17 +212,13 @@ class Laker:
         if not 0.0 <= blend <= 1.0:
             raise ValueError(f"blend must be in [0, 1], got {blend}")
         if selection not in ("greedy", "leverage"):
-            raise ValueError(
-                f"selection must be 'greedy' or 'leverage', got {selection!r}"
-            )
+            raise ValueError(f"selection must be 'greedy' or 'leverage', got {selection!r}")
         if pilot <= 0:
             raise ValueError(f"pilot must be positive, got {pilot}")
         if knots <= 0:
             raise ValueError(f"knots must be positive, got {knots}")
         if preconditioner not in ("cccp", "adaptive"):
-            raise ValueError(
-                f"preconditioner must be 'cccp' or 'adaptive', got {preconditioner!r}"
-            )
+            raise ValueError(f"preconditioner must be 'cccp' or 'adaptive', got {preconditioner!r}")
 
         self._legacy = LAKERRegressor(
             embedding_dim=embedding_dim,
@@ -342,7 +340,7 @@ class Laker:
         self._legacy.set_params(**legacy_kwargs)
         return self
 
-    def get_params(self, deep: bool = True) -> dict:
+    def get_params(self) -> dict:
         legacy = self._legacy.get_params()
         return {
             "embedding_dim": legacy["embedding_dim"],
@@ -383,8 +381,8 @@ class Laker:
     # ------------------------------------------------------------------
     def fit(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         x0: Optional[torch.Tensor] = None,
         seed: Optional[int] = None,
     ) -> "Laker":
@@ -392,14 +390,10 @@ class Laker:
         y = to_tensor(y, device=self._legacy.device, dtype=self._legacy.dtype)
         # Accept (n,) or (n, 1); reject 0-D scalars.
         if y.dim() == 0:
-            raise ValueError(
-                f"y must be 1-D (n,) or 2-D (n, 1), got scalar shape {tuple(y.shape)}"
-            )
+            raise ValueError(f"y must be 1-D (n,) or 2-D (n, 1), got scalar shape {tuple(y.shape)}")
         if y.dim() == 2:
             if y.shape[-1] != 1:
-                raise ValueError(
-                    f"y must have shape (n,) or (n, 1), got {tuple(y.shape)}"
-                )
+                raise ValueError(f"y must have shape (n,) or (n, 1), got {tuple(y.shape)}")
             y = y.squeeze(-1)
         if not torch.isfinite(x).all():
             raise ValueError("x contains non-finite values (NaN or Inf)")
@@ -459,7 +453,7 @@ class Laker:
 
     def predict(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
     ) -> torch.Tensor:
         """Predict at query locations.
 
@@ -478,14 +472,13 @@ class Laker:
         if encoder is not None and hasattr(encoder, "input_dim"):
             if x.shape[1] != encoder.input_dim:
                 raise ValueError(
-                    f"x has {x.shape[1]} features but model expects "
-                    f"{encoder.input_dim}"
+                    f"x has {x.shape[1]} features but model expects " f"{encoder.input_dim}"
                 )
         return self._legacy.predict(x)
 
     def variance(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
     ) -> torch.Tensor:
         """Predictive posterior variance at query locations.
 
@@ -500,14 +493,14 @@ class Laker:
     # Aliases mirroring the previous public surface.
     def predict_variance(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
     ) -> torch.Tensor:
         return self.variance(x)
 
     def score(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
     ) -> float:
         """Coefficient of determination (R²).
 
@@ -542,8 +535,8 @@ class Laker:
     def search(
         self,
         method: str,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         val_fraction: float = 0.2,
         lambda_reg_grid: Optional[list[float]] = None,
         gamma_grid: Optional[list[float]] = None,
@@ -558,7 +551,8 @@ class Laker:
     ) -> "Laker":
         if method == "grid":
             self._legacy.fit_with_search(
-                x, y,
+                x,
+                y,
                 val_fraction=val_fraction,
                 lambda_reg_grid=regularizations or lambda_reg_grid,
                 gamma_grid=gamma_grid,
@@ -567,7 +561,8 @@ class Laker:
             )
         elif method == "bayes":
             self._legacy.fit_with_bo(
-                x, y,
+                x,
+                y,
                 val_fraction=val_fraction,
                 n_calls=n_calls,
                 n_initial_points=n_initial_points,
@@ -576,18 +571,24 @@ class Laker:
                 num_probes_bounds=num_probes_bounds,
             )
         else:
-            raise ValueError(
-                f"search method must be 'grid' or 'bayes', got {method!r}"
-            )
+            raise ValueError(f"search method must be 'grid' or 'bayes', got {method!r}")
         return self
 
     def fit_with_search(
-        self, x, y, val_fraction=0.2,
-        lambda_reg_grid=None, gamma_grid=None, num_probes_grid=None,
+        self,
+        x,
+        y,
+        val_fraction=0.2,
+        lambda_reg_grid=None,
+        gamma_grid=None,
+        num_probes_grid=None,
         warm_start=True,
     ) -> "Laker":
         return self.search(
-            "grid", x, y, val_fraction=val_fraction,
+            "grid",
+            x,
+            y,
+            val_fraction=val_fraction,
             lambda_reg_grid=lambda_reg_grid,
             gamma_grid=gamma_grid,
             num_probes_grid=num_probes_grid,
@@ -599,13 +600,14 @@ class Laker:
 
     def update(
         self,
-        x_new: Union[torch.Tensor, "numpy.ndarray"],
-        y_new: Union[torch.Tensor, "numpy.ndarray"],
+        x_new: Union[torch.Tensor, np.ndarray],
+        y_new: Union[torch.Tensor, np.ndarray],
         forgetting_factor: float = 1.0,
         rebuild_threshold: int = 100,
     ) -> "Laker":
         self._legacy.partial_fit(
-            x_new, y_new,
+            x_new,
+            y_new,
             forgetting_factor=forgetting_factor,
             rebuild_threshold=rebuild_threshold,
         )
@@ -616,8 +618,8 @@ class Laker:
 
     def path(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         regularizations: list[float],
         reuse_precond: bool = True,
     ) -> dict:
@@ -628,16 +630,14 @@ class Laker:
 
     def continuation(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         lambda_max: Optional[float] = None,
         lambda_min: Optional[float] = None,
         n_stages: int = 5,
         reuse_precond: bool = True,
     ) -> "Laker":
-        self._legacy.fit_continuation(
-            x, y, lambda_max, lambda_min, n_stages, reuse_precond
-        )
+        self._legacy.fit_continuation(x, y, lambda_max, lambda_min, n_stages, reuse_precond)
         return self
 
     def fit_continuation(self, *args, **kwargs) -> "Laker":
@@ -645,12 +645,20 @@ class Laker:
 
     def learn(
         self,
-        x, y, lr: float = 1e-3, epochs: int = 50,
-        rebuild_freq: int = 10, patience: int = 5,
+        x,
+        y,
+        lr: float = 1e-3,
+        epochs: int = 50,
+        rebuild_freq: int = 10,
+        patience: int = 5,
     ) -> "Laker":
         self._legacy.fit_learned_embeddings(
-            x, y, lr=lr, epochs=epochs,
-            rebuild_freq=rebuild_freq, patience=patience,
+            x,
+            y,
+            lr=lr,
+            epochs=epochs,
+            rebuild_freq=rebuild_freq,
+            patience=patience,
         )
         return self
 
@@ -659,12 +667,22 @@ class Laker:
 
     def correct(
         self,
-        x, y, val_fraction: float = 0.2, epochs: int = 200,
-        patience: int = 10, weight_decay: float = 1e-2, lr: float = 1e-3,
+        x,
+        y,
+        val_fraction: float = 0.2,
+        epochs: int = 200,
+        patience: int = 10,
+        weight_decay: float = 1e-2,
+        lr: float = 1e-3,
     ) -> "Laker":
         self._legacy.fit_residual_corrector(
-            x, y, val_fraction=val_fraction, epochs=epochs,
-            patience=patience, weight_decay=weight_decay, lr=lr,
+            x,
+            y,
+            val_fraction=val_fraction,
+            epochs=epochs,
+            patience=patience,
+            weight_decay=weight_decay,
+            lr=lr,
         )
         return self
 
@@ -673,13 +691,22 @@ class Laker:
 
     def calibrate(
         self,
-        x, y, lr: float = 1e-3, epochs: int = 50,
-        beta: float = 0.1, variance_subset: float = 0.2,
+        x,
+        y,
+        lr: float = 1e-3,
+        epochs: int = 50,
+        beta: float = 0.1,
+        variance_subset: float = 0.2,
         patience: int = 5,
     ) -> "Laker":
         self._legacy.fit_uncertainty_aware(
-            x, y, lr=lr, epochs=epochs, beta=beta,
-            variance_subset=variance_subset, patience=patience,
+            x,
+            y,
+            lr=lr,
+            epochs=epochs,
+            beta=beta,
+            variance_subset=variance_subset,
+            patience=patience,
         )
         return self
 
@@ -688,8 +715,13 @@ class Laker:
 
     def tune(
         self,
-        x_train, y_train, x_val, y_val,
-        lr: float = 1e-3, epochs: int = 20, patience: int = 5,
+        x_train,
+        y_train,
+        x_val,
+        y_val,
+        lr: float = 1e-3,
+        epochs: int = 20,
+        patience: int = 5,
     ) -> "Laker":
         """Jointly optimise regularisation and the encoder.
 
@@ -712,8 +744,13 @@ class Laker:
             ``self`` for method chaining.
         """
         self._legacy.fit_bilevel(
-            x_train, y_train, x_val, y_val,
-            lr=lr, epochs=epochs, patience=patience,
+            x_train,
+            y_train,
+            x_val,
+            y_val,
+            lr=lr,
+            epochs=epochs,
+            patience=patience,
         )
         # Validation-based grid search around the current value. The
         # grid uses six candidates centred on the existing
@@ -728,14 +765,18 @@ class Laker:
             y_val_t = y_val_t.squeeze(-1)
 
         centre = self.regularization
-        candidates = [centre * s for s in (10.0 ** k for k in (-2, -1, 0, 1, 2))]
+        candidates = [centre * s for s in (10.0**k for k in (-2, -1, 0, 1, 2))]
         candidates = [c for c in candidates if c > 0]
 
         best_lambda = centre
         best_loss = self._validation_mse(x_train_t, y_train_t, x_val_t, y_val_t, centre)
         for cand in candidates:
             loss = self._validation_mse(
-                x_train_t, y_train_t, x_val_t, y_val_t, cand,
+                x_train_t,
+                y_train_t,
+                x_val_t,
+                y_val_t,
+                cand,
             )
             if loss < best_loss:
                 best_loss = loss

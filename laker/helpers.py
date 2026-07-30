@@ -4,6 +4,7 @@ Public entry point is :class:`Helpers`; utilities are exposed as
 ``@staticmethod``. Helpers wrap shared numerical primitives used across
 kernel, solver, and pipeline code.
 """
+
 from __future__ import annotations
 
 import math
@@ -147,20 +148,8 @@ def _normal_cdf_approx(x):
     sign = torch.where(x >= 0, 1.0, -1.0)
     abs_x = torch.abs(x)
     t = 1.0 / (1.0 + 0.2316419 * abs_x)
-    poly = (
-        t
-        * (
-            0.319381530
-            + t
-            * (
-                -0.356563782
-                + t
-                * (
-                    1.781477937
-                    + t * (-1.821255978 + t * 1.330274429)
-                )
-            )
-        )
+    poly = t * (
+        0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429)))
     )
     pdf = torch.exp(-0.5 * abs_x**2) / math.sqrt(2.0 * math.pi)
     return 1.0 - sign * pdf * poly

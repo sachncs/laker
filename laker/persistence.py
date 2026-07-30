@@ -120,9 +120,7 @@ class ModelPersistence:
             "landmark_method": getattr(regressor, "landmark_method", "greedy"),
             "landmark_pilot_size": getattr(regressor, "landmark_pilot_size", 1000),
             "spectral_knots": getattr(regressor, "spectral_knots", 5),
-            "preconditioner_strategy": getattr(
-                regressor, "preconditioner_strategy", "cccp"
-            ),
+            "preconditioner_strategy": getattr(regressor, "preconditioner_strategy", "cccp"),
             "device": str(regressor.device),
             "dtype": str(regressor.dtype),
             "embedding_dtype": (
@@ -137,18 +135,16 @@ class ModelPersistence:
         # Save the preconditioner tensors if available.
         if regressor.preconditioner is not None:
             prec = regressor.preconditioner
-            prec_state = getattr(prec, "state_dict", None)
             prec_class = prec.__class__.__name__
             prec_module = prec.__class__.__module__
             state["preconditioner_class"] = prec_class
             state["preconditioner_module"] = prec_module
-            if callable(prec_state):
-                state["preconditioner_state"] = prec.state_dict()
-            else:
-                # Fall back to attribute extraction.
-                state["preconditioner_state"] = {
-                    k: v for k, v in vars(prec).items() if torch.is_tensor(v)
-                }
+            # Both CCCPPreconditioner and AdaptivePreconditioner expose
+            # their state as torch tensors on self (set during build());
+            # we extract tensor attributes for the round-trip.
+            state["preconditioner_state"] = {
+                k: v for k, v in vars(prec).items() if torch.is_tensor(v)
+            }
         if regressor.embedding_model is not None:
             state["embedding_model_state"] = regressor.embedding_model.state_dict()
             state["embedding_model_class"] = regressor.embedding_model.__class__.__name__
@@ -400,8 +396,17 @@ class ModelPersistence:
                     else:
                         setattr(prec, key, value)
                 # Reattach other required non-tensor state (gamma, base_rho).
-                for attr in ("gamma", "epsilon", "base_rho", "num_probes",
-                              "max_iter", "tol", "verbose", "device", "dtype"):
+                for attr in (
+                    "gamma",
+                    "epsilon",
+                    "base_rho",
+                    "num_probes",
+                    "max_iter",
+                    "tol",
+                    "verbose",
+                    "device",
+                    "dtype",
+                ):
                     if not hasattr(prec, attr) and hasattr(model, attr):
                         setattr(prec, attr, getattr(model, attr))
                 # Ensure device/dtype fields are correct torch types.
@@ -413,6 +418,7 @@ class ModelPersistence:
             except Exception as exc:
                 logger.warning(
                     "Could not restore preconditioner (%s); variance() "
-                    "after load will fail until refit.", exc
+                    "after load will fail until refit.",
+                    exc,
                 )
         return model

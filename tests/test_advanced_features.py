@@ -11,6 +11,7 @@ the model commits to, the test reads at least one prediction and
 compares it against either an analytical value or the round-trip
 identity with a saved copy.
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -28,11 +29,7 @@ from laker import Laker
 # ---------------------------------------------------------------------------
 def _signal(x: torch.Tensor) -> torch.Tensor:
     """Closed-form target: a smooth function over [0, 100]^2."""
-    return (
-        torch.sin(x[:, 0] / 10.0)
-        + 0.5 * torch.cos(x[:, 1] / 7.0)
-        + 0.001 * (x[:, 0] - x[:, 1])
-    )
+    return torch.sin(x[:, 0] / 10.0) + 0.5 * torch.cos(x[:, 1] / 7.0) + 0.001 * (x[:, 0] - x[:, 1])
 
 
 def _make_problem(
@@ -43,9 +40,7 @@ def _make_problem(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     torch.manual_seed(seed)
     x = torch.rand(n, 2, dtype=torch.float64) * area
-    y = _signal(x) + noise_sigma * torch.randn(
-        n, dtype=torch.float64
-    )
+    y = _signal(x) + noise_sigma * torch.randn(n, dtype=torch.float64)
     return x, y
 
 
@@ -95,7 +90,7 @@ def test_score_returns_r_squared_not_negative_rmse():
     assert r2 > 0.99, f"R^2 on near-deterministic signal too low: {r2:.4f}"
     # Sanity: if predictions == targets the score is 1.0
     # (defined, not infinity or NaN).
-    assert r2 == r2, f"R^2 is NaN"
+    assert r2 == r2, "R^2 is NaN"
 
 
 # ---------------------------------------------------------------------------
@@ -156,11 +151,7 @@ def test_grid_search_picks_best_lambda_in_grid():
     torch.manual_seed(0)
     n = 300
     x = torch.rand(n, 2, dtype=torch.float64) * 10.0
-    y = (
-        torch.sin(x[:, 0])
-        + 0.3 * torch.cos(x[:, 1])
-        + 0.01 * (x[:, 0] - x[:, 1])
-    )
+    y = torch.sin(x[:, 0]) + 0.3 * torch.cos(x[:, 1]) + 0.01 * (x[:, 0] - x[:, 1])
 
     # Tight grid; one candidate is the intended optimum.
     grid = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
@@ -203,9 +194,7 @@ def test_grid_search_picks_best_lambda_in_grid():
     chosen = float(final.regularization)
     # The chosen lambda must be the one we identified as best,
     # or at least the score achieved by the final model must match.
-    assert chosen == best_lambda, (
-        f"search chose {chosen}, expected {best_lambda}"
-    )
+    assert chosen == best_lambda, f"search chose {chosen}, expected {best_lambda}"
 
 
 # ---------------------------------------------------------------------------
@@ -256,9 +245,7 @@ def test_save_load_predictions_are_bit_identical(kernel_kind):
         loaded = Laker.load(str(path))
 
     reloaded = loaded.predict(queries)
-    assert torch.equal(original, reloaded), (
-        f"{kernel_kind}: predictions diverged after save/load"
-    )
+    assert torch.equal(original, reloaded), f"{kernel_kind}: predictions diverged after save/load"
 
 
 def test_save_load_preserves_regularization_value():
@@ -317,8 +304,7 @@ def test_partial_fit_grows_alpha_by_exactly_batch_size():
         m.update(x_new, y_new, rebuild_threshold=10_000)
         expected_n += b
         assert m.coef_.shape[0] == expected_n, (
-            f"after update(b={b}): coef has {m.coef_.shape[0]} rows, "
-            f"expected {expected_n}"
+            f"after update(b={b}): coef has {m.coef_.shape[0]} rows, " f"expected {expected_n}"
         )
         assert m.embeddings_.shape[0] == expected_n, (
             f"after update(b={b}): embeddings has "
@@ -385,6 +371,4 @@ def test_tune_changes_regularization():
     m.tune(x_train, y_train, x_val, y_val, lr=5e-2, epochs=15, patience=10)
 
     after = float(m.regularization)
-    assert abs(before - after) > 1e-6, (
-        f"tune was a no-op (regularization stayed at {before})"
-    )
+    assert abs(before - after) > 1e-6, f"tune was a no-op (regularization stayed at {before})"

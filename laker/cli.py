@@ -3,11 +3,11 @@
 The legacy ``laker.__main__`` module re-exports the same handlers
 from this module. New code should depend on :class:`CLI` directly.
 """
+
 from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from typing import Optional, Sequence
 
 import numpy
@@ -36,9 +36,7 @@ class CLI:
             return torch.from_numpy(numpy.load(path))
         if path.endswith(".pt") or path.endswith(".pth"):
             return torch.load(path, weights_only=True)
-        raise ValueError(
-            f"Unsupported file extension for {path}. Expected .pt, .pth, or .npy."
-        )
+        raise ValueError(f"Unsupported file extension for {path}. Expected .pt, .pth, or .npy.")
 
     @staticmethod
     def _build_parser() -> argparse.ArgumentParser:
@@ -48,66 +46,58 @@ class CLI:
             description="LAKER: Learning-based Attention Kernel Regression",
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         )
-        parser.add_argument(
-            "--version", action="version", version=f"%(prog)s {__version__}"
-        )
-        parser.add_argument(
-            "-v", "--verbose", action="store_true", help="Enable debug logging"
-        )
+        parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+        parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging")
         subparsers = parser.add_subparsers(dest="command")
 
         fit_parser = subparsers.add_parser("fit", help="Fit a LAKER model to data")
         fit_parser.add_argument(
-            "--locations", required=True,
+            "--locations",
+            required=True,
             help="Path to locations .pt or .npy file",
         )
         fit_parser.add_argument(
-            "--measurements", required=True,
+            "--measurements",
+            required=True,
             help="Path to measurements .pt or .npy file",
         )
+        fit_parser.add_argument("--output", required=True, help="Path to save fitted model")
         fit_parser.add_argument(
-            "--output", required=True, help="Path to save fitted model"
-        )
-        fit_parser.add_argument(
-            "--regularization", "--lambda-reg", dest="regularization",
-            type=float, default=1e-2,
+            "--regularization",
+            "--lambda-reg",
+            dest="regularization",
+            type=float,
+            default=1e-2,
             help="Regularisation lambda",
         )
         fit_parser.add_argument(
             "--gamma", type=float, default=1e-1, help="CCCP regularisation gamma"
         )
+        fit_parser.add_argument("--embedding-dim", type=int, default=10, help="Embedding dimension")
         fit_parser.add_argument(
-            "--embedding-dim", type=int, default=10, help="Embedding dimension"
+            "--probes",
+            "--num-probes",
+            dest="probes",
+            type=int,
+            default=None,
+            help="Number of random probes",
         )
+        fit_parser.add_argument("--device", default="cpu", help="torch device")
         fit_parser.add_argument(
-            "--probes", "--num-probes", dest="probes",
-            type=int, default=None, help="Number of random probes",
-        )
-        fit_parser.add_argument(
-            "--device", default="cpu", help="torch device"
-        )
-        fit_parser.add_argument(
-            "--dtype", default="float32",
+            "--dtype",
+            default="float32",
             choices=["float16", "bfloat16", "float32", "float64"],
         )
         fit_parser.add_argument(
-            "--kernel", default="exact",
-            choices=["exact", "nystrom", "fourier", "neighbors", "grid",
-                     "spectrum", "hybrid"],
+            "--kernel",
+            default="exact",
+            choices=["exact", "nystrom", "fourier", "neighbors", "grid", "spectrum", "hybrid"],
         )
 
-        pred_parser = subparsers.add_parser(
-            "predict", help="Predict using a fitted model"
-        )
-        pred_parser.add_argument(
-            "--model", required=True, help="Path to fitted model .pt file"
-        )
-        pred_parser.add_argument(
-            "--locations", required=True, help="Path to query locations"
-        )
-        pred_parser.add_argument(
-            "--output", required=True, help="Path to save predictions"
-        )
+        pred_parser = subparsers.add_parser("predict", help="Predict using a fitted model")
+        pred_parser.add_argument("--model", required=True, help="Path to fitted model .pt file")
+        pred_parser.add_argument("--locations", required=True, help="Path to query locations")
+        pred_parser.add_argument("--output", required=True, help="Path to save predictions")
         return parser
 
     @staticmethod

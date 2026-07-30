@@ -7,6 +7,7 @@ catches the failure via the documented invariant the kernel *does*
 satisfy (``diagonal == diag(to_dense())``) plus a sanity floor on the
 approximation ratio.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -28,9 +29,7 @@ def test_nystrom_diagonal_invariant():
     torch.manual_seed(0)
     n, de = 25, 4
     e = torch.randn(n, de, dtype=torch.float64)
-    op = NystromAttentionKernelOperator(
-        e, lambda_reg=1e-2, num_landmarks=10, dtype=torch.float64
-    )
+    op = NystromAttentionKernelOperator(e, lambda_reg=1e-2, num_landmarks=10, dtype=torch.float64)
     torch.testing.assert_close(op.diagonal(), op.to_dense().diagonal())
 
 
@@ -40,13 +39,9 @@ def test_nystrom_diagonal_is_positive_for_psd_input():
     torch.manual_seed(0)
     n, de = 50, 4
     e = torch.randn(n, de)
-    op = NystromAttentionKernelOperator(
-        e, lambda_reg=1e-2, num_landmarks=30, dtype=torch.float64
-    )
+    op = NystromAttentionKernelOperator(e, lambda_reg=1e-2, num_landmarks=30, dtype=torch.float64)
     diag = op.diagonal()
-    assert torch.all(diag > 0), (
-        f"diagonal has non-positive entries: min={diag.min().item():.4f}"
-    )
+    assert torch.all(diag > 0), f"diagonal has non-positive entries: min={diag.min().item():.4f}"
     assert diag.min().item() >= 1e-2 - 1e-6
 
 
@@ -93,16 +88,12 @@ def test_sparse_knn_k_equals_n_is_dense_kernel():
     lam = 1e-2
 
     exact = AttentionKernelOperator(e, lambda_reg=lam, dtype=torch.float64)
-    sparse = SparseKNNAttentionKernelOperator(
-        e, lambda_reg=lam, k_neighbors=n, dtype=torch.float64
-    )
+    sparse = SparseKNNAttentionKernelOperator(e, lambda_reg=lam, k_neighbors=n, dtype=torch.float64)
     x = torch.randn(n, dtype=torch.float64)
 
     y_exact = exact.matvec(x)
     y_sparse = sparse.matvec(x)
-    rel = float(
-        ((y_sparse - y_exact).norm() / y_exact.norm()).item()
-    )
+    rel = float(((y_sparse - y_exact).norm() / y_exact.norm()).item())
     assert rel < 0.05, f"sparse kNN at k=n rel err too high: {rel:.3e}"
 
 

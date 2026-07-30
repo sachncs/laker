@@ -2,6 +2,7 @@
 
 Captures the contracts every kernel operator must satisfy.
 """
+
 from __future__ import annotations
 
 import math
@@ -17,7 +18,6 @@ from laker.kernels import (
     SparseKNNAttentionKernelOperator,
     TwoScaleAttentionKernelOperator,
 )
-
 
 KERNEL_NAMES = [
     "exact",
@@ -48,18 +48,14 @@ def _build(name, embeddings, **kwargs):
             embeddings, lambda_reg=lam, num_features=20, **kwargs
         )
     if name == "neighbors":
-        return SparseKNNAttentionKernelOperator(
-            embeddings, lambda_reg=lam, k_neighbors=3, **kwargs
-        )
+        return SparseKNNAttentionKernelOperator(embeddings, lambda_reg=lam, k_neighbors=3, **kwargs)
     if name == "grid":
         if embeddings.shape[1] > 6:
             pytest.skip("Grid kernel needs low embedding_dim")
         # Pick a grid_size large enough for the embedding_dim. The grid
         # is `2^d` points per dimension; we ask for slightly more.
         grid_size = max(32, 4 * (2 ** embeddings.shape[1]))
-        return SKIAttentionKernelOperator(
-            embeddings, lambda_reg=lam, grid_size=grid_size, **kwargs
-        )
+        return SKIAttentionKernelOperator(embeddings, lambda_reg=lam, grid_size=grid_size, **kwargs)
     if name == "hybrid":
         return TwoScaleAttentionKernelOperator(
             embeddings,

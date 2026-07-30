@@ -4,6 +4,7 @@ Captures the contract that PCG.solve returns ``(x, status)`` where
 ``status`` carries ``converged``, ``iterations``, ``residual``,
 ``reason``, and (for batched 2-D solves) ``per_rhs``.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -24,9 +25,7 @@ def test_pcg_returns_x_and_status():
     n = 20
     K = _psd(n)
     rhs = torch.randn(n)
-    x, status = PCG(tol=1e-8, max_iter=200, verbose=False).solve(
-        lambda v: K @ v, lambda x: x, rhs
-    )
+    x, status = PCG(tol=1e-8, max_iter=200, verbose=False).solve(lambda v: K @ v, lambda x: x, rhs)
     assert isinstance(status, Status)
     assert status.converged is True
     assert status.iterations > 0
@@ -39,9 +38,7 @@ def test_pcg_zero_rhs_returns_zero_rhs_status():
     n = 20
     K = _psd(n)
     rhs = torch.zeros(n)
-    x, status = PCG(tol=1e-8, max_iter=200, verbose=False).solve(
-        lambda v: K @ v, lambda x: x, rhs
-    )
+    x, status = PCG(tol=1e-8, max_iter=200, verbose=False).solve(lambda v: K @ v, lambda x: x, rhs)
     assert torch.allclose(x, torch.zeros_like(rhs), atol=1e-7)
     assert status.converged is True
     assert status.reason == "zero_rhs"
@@ -65,9 +62,7 @@ def test_pcg_batched_per_rhs_status():
     n = 6
     K = _psd(n)
     rhs = torch.randn(n, 3)
-    _, status = PCG(tol=1e-8, max_iter=500, verbose=False).solve(
-        lambda v: K @ v, lambda x: x, rhs
-    )
+    _, status = PCG(tol=1e-8, max_iter=500, verbose=False).solve(lambda v: K @ v, lambda x: x, rhs)
     assert status.per_rhs is not None
     assert len(status.per_rhs) == 3
     assert all(p.converged is True for p in status.per_rhs)
@@ -78,9 +73,7 @@ def test_descent_returns_x():
     n = 10
     K = _psd(n)
     rhs = torch.randn(n)
-    out = GradientDescent(step_size=1.0, max_iter=200, verbose=False).solve(
-        lambda v: K @ v, rhs
-    )
+    out = GradientDescent(step_size=1.0, max_iter=200, verbose=False).solve(lambda v: K @ v, rhs)
     assert isinstance(out, torch.Tensor)
     assert out.shape == (n,)
 

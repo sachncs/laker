@@ -40,6 +40,7 @@ import logging
 import os
 from typing import Any, Optional, Union
 
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -346,7 +347,7 @@ class LAKERRegressor:
             core = object.__getattribute__(self, "core")
             return f"LAKERRegressor(embedding_dim={core.embedding_dim}, lambda_reg={core.lambda_reg}, {fitted})"
         except AttributeError:
-            return f"LAKERRegressor(uninitialized)"
+            return "LAKERRegressor(uninitialized)"
 
     # ------------------------------------------------------------------
     def __getattr__(self, name: str) -> Any:
@@ -400,8 +401,8 @@ class LAKERRegressor:
     # ------------------------------------------------------------------
     def fit(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         x0: Optional[torch.Tensor] = None,
         seed: Optional[int] = None,
     ) -> "LAKERRegressor":
@@ -422,7 +423,7 @@ class LAKERRegressor:
 
         Args:
             x: Training locations of shape ``(n, d)``.  Accepts a
-                ``torch.Tensor`` or ``numpy.ndarray``.
+                ``torch.Tensor`` or ``np.ndarray``.
             y: Training observations of shape ``(n,)``.
             x0: Optional initial guess for the PCG solver.
             seed: Random seed for reproducibility of the preconditioner.
@@ -467,7 +468,7 @@ class LAKERRegressor:
 
     def predict(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
     ) -> torch.Tensor:
         """Reconstruct the radio field at query locations.
 
@@ -477,7 +478,7 @@ class LAKERRegressor:
 
         Args:
             x: Query locations of shape ``(m, d)``.  Accepts a
-                ``torch.Tensor`` or ``numpy.ndarray``.
+                ``torch.Tensor`` or ``np.ndarray``.
 
         Returns:
             Predicted field values of shape ``(m,)``.
@@ -513,7 +514,7 @@ class LAKERRegressor:
 
     def predict_variance(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
     ) -> torch.Tensor:
         """Predictive variance (uncertainty) at query locations.
 
@@ -523,7 +524,7 @@ class LAKERRegressor:
 
         Args:
             x: Query locations of shape ``(m, d)``.  Accepts a
-                ``torch.Tensor`` or ``numpy.ndarray``.
+                ``torch.Tensor`` or ``np.ndarray``.
 
         Returns:
             Predictive variance of shape ``(m,)``, clamped to be
@@ -558,8 +559,8 @@ class LAKERRegressor:
     # ------------------------------------------------------------------
     def fit_with_search(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         val_fraction: float = 0.2,
         lambda_reg_grid: Optional[list[float]] = None,
         gamma_grid: Optional[list[float]] = None,
@@ -582,8 +583,8 @@ class LAKERRegressor:
 
     def fit_with_bo(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         val_fraction: float = 0.2,
         n_calls: int = 15,
         n_initial_points: int = 5,
@@ -611,8 +612,8 @@ class LAKERRegressor:
     # ------------------------------------------------------------------
     def partial_fit(
         self,
-        x_new: Union[torch.Tensor, "numpy.ndarray"],
-        y_new: Union[torch.Tensor, "numpy.ndarray"],
+        x_new: Union[torch.Tensor, np.ndarray],
+        y_new: Union[torch.Tensor, np.ndarray],
         forgetting_factor: float = 1.0,
         rebuild_threshold: int = 100,
     ) -> "LAKERRegressor":
@@ -623,8 +624,8 @@ class LAKERRegressor:
 
     def fit_path(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         lambda_reg_grid: list[float],
         reuse_precond: bool = True,
     ) -> dict:
@@ -635,8 +636,8 @@ class LAKERRegressor:
 
     def fit_continuation(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         lambda_max: Optional[float] = None,
         lambda_min: Optional[float] = None,
         n_stages: int = 5,
@@ -654,8 +655,8 @@ class LAKERRegressor:
     # ------------------------------------------------------------------
     def fit_learned_embeddings(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         lr: float = 1e-3,
         epochs: int = 50,
         rebuild_freq: int = 10,
@@ -668,8 +669,8 @@ class LAKERRegressor:
 
     def fit_residual_corrector(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         val_fraction: float = 0.2,
         epochs: int = 200,
         patience: int = 10,
@@ -685,10 +686,10 @@ class LAKERRegressor:
 
     def fit_bilevel(
         self,
-        x_train: Union[torch.Tensor, "numpy.ndarray"],
-        y_train: Union[torch.Tensor, "numpy.ndarray"],
-        x_val: Union[torch.Tensor, "numpy.ndarray"],
-        y_val: Union[torch.Tensor, "numpy.ndarray"],
+        x_train: Union[torch.Tensor, np.ndarray],
+        y_train: Union[torch.Tensor, np.ndarray],
+        x_val: Union[torch.Tensor, np.ndarray],
+        y_val: Union[torch.Tensor, np.ndarray],
         lr: float = 1e-3,
         epochs: int = 20,
         patience: int = 5,
@@ -702,8 +703,8 @@ class LAKERRegressor:
 
     def fit_uncertainty_aware(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
         lr: float = 1e-3,
         epochs: int = 50,
         beta: float = 0.1,
@@ -731,8 +732,8 @@ class LAKERRegressor:
     # ------------------------------------------------------------------
     def score(
         self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
+        x: Union[torch.Tensor, np.ndarray],
+        y: Union[torch.Tensor, np.ndarray],
     ) -> float:
         """Compute negative RMSE as a sklearn-style score.
 
@@ -752,37 +753,6 @@ class LAKERRegressor:
         rmse = torch.sqrt(torch.mean((y_pred - y_true) ** 2)).item()
         return -rmse
 
-    def score_r2(
-        self,
-        x: Union[torch.Tensor, "numpy.ndarray"],
-        y: Union[torch.Tensor, "numpy.ndarray"],
-    ) -> float:
-        """Compute the coefficient of determination R^2.
-
-        .. math::
-
-            R^2 = 1 - \\frac{\\sum_i (y_i - \\hat{y}_i)^2}
-                        {\\sum_i (y_i - \\bar{y})^2}
-
-        Returns ``1.0`` for a perfect fit, ``0.0`` when the model always
-        predicts the mean, and negative values when the model is worse
-        than the mean.
-
-        Args:
-            x: Evaluation locations of shape ``(m, d)``.
-            y: True observations of shape ``(m,)``.
-
-        Returns:
-            The :math:`R^2` score as a float.
-        """
-        y_pred = self.predict(x)
-        y_true = to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
-        ss_res = torch.sum((y_true - y_pred) ** 2).item()
-        ss_tot = torch.sum((y_true - torch.mean(y_true)) ** 2).item()
-        if ss_tot == 0:
-            return 1.0 if ss_res == 0 else 0.0
-        return 1.0 - ss_res / ss_tot
-
     def condition_number(self) -> float:
         """Return the condition number of the preconditioned system."""
         if self.preconditioner is None or self.kernel_operator is None:
@@ -792,7 +762,7 @@ class LAKERRegressor:
     # ------------------------------------------------------------------
     # Sklearn compatibility
     # ------------------------------------------------------------------
-    def get_params(self, deep: bool = True) -> dict:
+    def get_params(self) -> dict:
         """Return estimator parameters for sklearn compatibility.
 
         Returns a dictionary of all hyperparameters that can be passed

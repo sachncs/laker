@@ -6,6 +6,7 @@ entry-point declared in ``pyproject.toml``. New code should depend on
 backward-compatible shims so existing tests and downstream code keep
 working.
 """
+
 import argparse
 import logging
 import sys
@@ -32,9 +33,7 @@ def load_tensor(path: str) -> torch.Tensor:
         return torch.from_numpy(numpy.load(path))
     if path.endswith(".pt") or path.endswith(".pth"):
         return torch.load(path, weights_only=True)
-    raise ValueError(
-        f"Unsupported file extension for {path}. Expected .pt, .pth, or .npy."
-    )
+    raise ValueError(f"Unsupported file extension for {path}. Expected .pt, .pth, or .npy.")
 
 
 def main() -> int:
@@ -45,64 +44,57 @@ def main() -> int:
         description="LAKER: Learning-based Attention Kernel Regression",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
-    )
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable debug logging"
-    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging")
     subparsers = parser.add_subparsers(dest="command")
 
     fit_parser = subparsers.add_parser("fit", help="Fit a LAKER model to data")
     fit_parser.add_argument(
-        "--locations", required=True,
+        "--locations",
+        required=True,
         help="Path to locations .pt or .npy file",
     )
     fit_parser.add_argument(
-        "--measurements", required=True,
+        "--measurements",
+        required=True,
         help="Path to measurements .pt or .npy file",
     )
+    fit_parser.add_argument("--output", required=True, help="Path to save fitted model")
     fit_parser.add_argument(
-        "--output", required=True, help="Path to save fitted model"
+        "--regularization",
+        "--lambda-reg",
+        dest="regularization",
+        type=float,
+        default=1e-2,
+        help="Regularisation lambda",
     )
+    fit_parser.add_argument("--gamma", type=float, default=1e-1, help="CCCP regularisation gamma")
+    fit_parser.add_argument("--embedding-dim", type=int, default=10, help="Embedding dimension")
     fit_parser.add_argument(
-        "--regularization", "--lambda-reg", dest="regularization",
-        type=float, default=1e-2, help="Regularisation lambda",
-    )
-    fit_parser.add_argument(
-        "--gamma", type=float, default=1e-1, help="CCCP regularisation gamma"
-    )
-    fit_parser.add_argument(
-        "--embedding-dim", type=int, default=10, help="Embedding dimension"
-    )
-    fit_parser.add_argument(
-        "--probes", "--num-probes", dest="probes",
-        type=int, default=None, help="Number of random probes",
+        "--probes",
+        "--num-probes",
+        dest="probes",
+        type=int,
+        default=None,
+        help="Number of random probes",
     )
     fit_parser.add_argument("--device", default="cpu", help="torch device")
     fit_parser.add_argument(
-        "--dtype", default="float64",
+        "--dtype",
+        default="float64",
         choices=["float32", "float64"],
     )
     fit_parser.add_argument(
-        "--kernel", default="exact",
-        choices=["exact", "nystrom", "fourier", "neighbors", "grid",
-                 "spectrum", "hybrid"],
+        "--kernel",
+        default="exact",
+        choices=["exact", "nystrom", "fourier", "neighbors", "grid", "spectrum", "hybrid"],
         help="Kernel approximation (default: exact).",
     )
 
-    pred_parser = subparsers.add_parser(
-        "predict", help="Predict using a fitted model"
-    )
-    pred_parser.add_argument(
-        "--model", required=True, help="Path to fitted model .pt file"
-    )
-    pred_parser.add_argument(
-        "--locations", required=True, help="Path to query locations"
-    )
-    pred_parser.add_argument(
-        "--output", required=True, help="Path to save predictions"
-    )
+    pred_parser = subparsers.add_parser("predict", help="Predict using a fitted model")
+    pred_parser.add_argument("--model", required=True, help="Path to fitted model .pt file")
+    pred_parser.add_argument("--locations", required=True, help="Path to query locations")
+    pred_parser.add_argument("--output", required=True, help="Path to save predictions")
 
     args = parser.parse_args()
     setup_logging(args.verbose)
@@ -115,7 +107,7 @@ def main() -> int:
         return 0
     parser.print_help()
     sys.exit(1)
-    return 1   # unreachable, kept for static type checkers
+    return 1  # unreachable, kept for static type checkers
 
 
 def cmd_fit(args) -> None:
@@ -128,10 +120,8 @@ def cmd_fit(args) -> None:
 
     dtype = torch.float32 if args.dtype == "float32" else torch.float64
     # Accept both legacy ``lambda_reg`` and current ``regularization``.
-    regularization = getattr(args, "regularization",
-                              getattr(args, "lambda_reg", 1e-2))
-    num_probes = getattr(args, "probes",
-                         getattr(args, "num_probes", None))
+    regularization = getattr(args, "regularization", getattr(args, "lambda_reg", 1e-2))
+    num_probes = getattr(args, "probes", getattr(args, "num_probes", None))
     model = LAKERRegressor(
         embedding_dim=args.embedding_dim,
         lambda_reg=regularization,
@@ -170,4 +160,3 @@ def cmd_predict(args) -> None:
 
 if __name__ == "__main__":
     sys.exit(main())
-

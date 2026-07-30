@@ -1,4 +1,5 @@
 """Bilevel test — verifies that ``Laker.tune`` changes regularization."""
+
 from __future__ import annotations
 
 import torch
@@ -24,9 +25,7 @@ def test_tune_changes_regularization():
     model.tune(x_train, y_train, x_val, y_val, lr=5e-2, epochs=15, patience=10)
 
     after = model.regularization
-    assert (
-        abs(before - after) > 1e-6
-    ), f"tune was a no-op (regularization stayed at {before})"
+    assert abs(before - after) > 1e-6, f"tune was a no-op (regularization stayed at {before})"
 
 
 def test_tune_run_smoke():

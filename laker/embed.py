@@ -6,6 +6,7 @@ embeddings). The ``Position`` class preserves the API of the prior
 ``laker.embeddings.PositionEmbedding`` so existing code keeps working
 while consumers migrate to the new namespace.
 """
+
 from __future__ import annotations
 
 import logging
@@ -70,9 +71,13 @@ class Position(Embed):
         self.register_buffer(
             "freq",
             torch.randn(
-                self.input_dim, self.num_fourier,
-                generator=gen, device=device, dtype=dtype,
-            ) / self.sigma,
+                self.input_dim,
+                self.num_fourier,
+                generator=gen,
+                device=device,
+                dtype=dtype,
+            )
+            / self.sigma,
         )
         self.register_buffer(
             "phase",
@@ -91,17 +96,23 @@ class Position(Embed):
                     layer.weight.copy_(
                         torch.rand(
                             layer.weight.shape,
-                            generator=gen, device=device, dtype=dtype,
+                            generator=gen,
+                            device=device,
+                            dtype=dtype,
                         )
-                        * (2 * bound) - bound
+                        * (2 * bound)
+                        - bound
                     )
                     if layer.bias is not None:
                         layer.bias.copy_(
                             torch.rand(
                                 layer.bias.shape,
-                                generator=gen, device=device, dtype=dtype,
+                                generator=gen,
+                                device=device,
+                                dtype=dtype,
                             )
-                            * (2 * bound) - bound
+                            * (2 * bound)
+                            - bound
                         )
         self.to(device=device, dtype=dtype)
 
@@ -145,9 +156,12 @@ class Visual(Embed):
             dtype = get_default_dtype()
         gen = torch.Generator(device=device).manual_seed(int(seed))
         self.encoder = nn.Conv2d(
-            input_dim, embedding_dim,
-            kernel_size=patch_size, stride=patch_size,
-            device=device, dtype=dtype,
+            input_dim,
+            embedding_dim,
+            kernel_size=patch_size,
+            stride=patch_size,
+            device=device,
+            dtype=dtype,
         )
         self.proj = nn.Linear(embedding_dim, embedding_dim, device=device, dtype=dtype)
         with torch.no_grad():
@@ -155,8 +169,12 @@ class Visual(Embed):
             self.encoder.weight.copy_(
                 torch.rand(
                     self.encoder.weight.shape,
-                    generator=gen, device=device, dtype=dtype,
-                ) * (2 * bound) - bound
+                    generator=gen,
+                    device=device,
+                    dtype=dtype,
+                )
+                * (2 * bound)
+                - bound
             )
             if self.encoder.bias is not None:
                 self.encoder.bias.copy_(
@@ -166,8 +184,8 @@ class Visual(Embed):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (batch, channels, height, width)
-        h = self.encoder(x)            # (batch, embedding_dim, h', w')
-        h = h.mean(dim=(-2, -1))       # (batch, embedding_dim)
+        h = self.encoder(x)  # (batch, embedding_dim, h', w')
+        h = h.mean(dim=(-2, -1))  # (batch, embedding_dim)
         return self.proj(h)
 
     def extra_repr(self) -> str:

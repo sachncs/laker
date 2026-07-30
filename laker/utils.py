@@ -4,6 +4,7 @@ Single public type: :class:`Helpers` (in ``laker.helpers``).
 The legacy free-function and class names are kept as thin shims for
 existing tests and downstream callers.
 """
+
 from __future__ import annotations
 
 import math
@@ -58,10 +59,7 @@ def _scipy_norm_cdf(x: numpy.ndarray) -> numpy.ndarray:
     sign = numpy.sign(x)
     x = numpy.abs(x) / numpy.sqrt(2.0)
     t = 1.0 / (1.0 + p * x)
-    y = 1.0 - (
-        ((((a5 * t + a4) * t + a3) * t + a2) * t + a1)
-        * t * numpy.exp(-x * x)
-    )
+    y = 1.0 - (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * numpy.exp(-x * x))
     return 0.5 * (1.0 + sign * y)
 
 
@@ -114,9 +112,7 @@ class GPSurrogate:
             + numpy.sum(x2**2, axis=1)
             - 2 * numpy.dot(x1, x2.T)
         )
-        return self.sigma_f**2 * numpy.exp(
-            -0.5 * sqdist / (self.length_scale**2 + 1e-12)
-        )
+        return self.sigma_f**2 * numpy.exp(-0.5 * sqdist / (self.length_scale**2 + 1e-12))
 
     def fit(self, X, y):
         self.X = self.transform(X)
@@ -134,9 +130,7 @@ class GPSurrogate:
         K = self.kernel(self.X, self.X)
         K[numpy.diag_indices_from(K)] += self.sigma_n**2
         self.L = numpy.linalg.cholesky(K + 1e-8 * numpy.eye(K.shape[0]))
-        self.alpha_vec = numpy.linalg.solve(
-            self.L.T, numpy.linalg.solve(self.L, self.y)
-        )
+        self.alpha_vec = numpy.linalg.solve(self.L.T, numpy.linalg.solve(self.L, self.y))
 
     def marginal_likelihood(self, candidate_length_scale):
         old_length_scale = self.length_scale

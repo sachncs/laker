@@ -6,12 +6,12 @@ underlying math regresses: a silent dtype relaxation, an
 off-by-one in a sign, a regression in the inner solver — all show
 up here as ``torch.testing.assert_close`` failures.
 """
+
 from __future__ import annotations
 
 import tempfile
 from pathlib import Path
 
-import pytest
 import torch
 
 from laker import Laker
@@ -46,9 +46,7 @@ def _fit_polynomial(
 ):
     torch.manual_seed(seed)
     x = torch.rand(n, 2, dtype=torch.float64) * area
-    y = _polynomial_target(x) + noise_sigma * torch.randn(
-        n, dtype=torch.float64
-    )
+    y = _polynomial_target(x) + noise_sigma * torch.randn(n, dtype=torch.float64)
     defaults = dict(
         embedding_dim=10,
         regularization=1e-6,
@@ -77,8 +75,12 @@ def test_full_pipeline_recovers_polynomial_target_to_high_precision():
     x = torch.rand(n, 2, dtype=torch.float64) * 0.5  # small domain
     y = _polynomial_target(x)
     model = Laker(
-        embedding_dim=10, regularization=1e-8, probes=300,
-        cccp_max_iter=300, pcg_tol=1e-12, pcg_max_iter=3000,
+        embedding_dim=10,
+        regularization=1e-8,
+        probes=300,
+        cccp_max_iter=300,
+        pcg_tol=1e-12,
+        pcg_max_iter=3000,
         dtype=torch.float64,
     )
     model.fit(x, y)
@@ -96,19 +98,27 @@ def test_predict_on_interpolation_grid_matches_target():
     x = torch.rand(n, 2, dtype=torch.float64) * area
     y = _polynomial_target(x)
     model = Laker(
-        embedding_dim=10, regularization=1e-8, probes=300,
-        cccp_max_iter=300, pcg_tol=1e-12, pcg_max_iter=3000,
+        embedding_dim=10,
+        regularization=1e-8,
+        probes=300,
+        cccp_max_iter=300,
+        pcg_tol=1e-12,
+        pcg_max_iter=3000,
         dtype=torch.float64,
     )
     model.fit(x, y)
-    grid = torch.stack(
-        torch.meshgrid(
-            torch.linspace(0, area, 25),
-            torch.linspace(0, area, 25),
-            indexing="ij",
-        ),
-        dim=-1,
-    ).reshape(-1, 2).to(torch.float64)
+    grid = (
+        torch.stack(
+            torch.meshgrid(
+                torch.linspace(0, area, 25),
+                torch.linspace(0, area, 25),
+                indexing="ij",
+            ),
+            dim=-1,
+        )
+        .reshape(-1, 2)
+        .to(torch.float64)
+    )
     expected = _polynomial_target(grid)
     preds = model.predict(grid)
     rmse = float(((preds - expected) ** 2).mean().sqrt().item())
@@ -189,11 +199,7 @@ def test_score_is_one_when_predictions_equal_targets():
     x = torch.rand(n, 2, dtype=torch.float64) * 10.0
     # Use non-zero targets so the PCG routine doesn't hit a 0/0 on
     # residual vs rhs norms.
-    targets = (
-        torch.sin(x[:, 0]) * 2.0
-        + torch.cos(x[:, 1]) * 0.5
-        + 0.3 * x[:, 1]
-    )
+    targets = torch.sin(x[:, 0]) * 2.0 + torch.cos(x[:, 1]) * 0.5 + 0.3 * x[:, 1]
     tiny = Laker(embedding_dim=8, regularization=1e-3, dtype=torch.float64)
     tiny.fit(x, targets)
     preds = tiny.predict(x)
@@ -213,8 +219,12 @@ def test_variance_on_in_sample_queries_stays_bounded():
     x = torch.rand(n, 2, dtype=torch.float64) * 10.0
     y = torch.sin(x[:, 0]) + 0.5 * torch.cos(x[:, 1])
     model = Laker(
-        embedding_dim=8, regularization=1e-2, probes=50,
-        cccp_max_iter=100, pcg_tol=1e-10, pcg_max_iter=1000,
+        embedding_dim=8,
+        regularization=1e-2,
+        probes=50,
+        cccp_max_iter=100,
+        pcg_tol=1e-10,
+        pcg_max_iter=1000,
         dtype=torch.float64,
     )
     model.fit(x, y)
@@ -238,16 +248,18 @@ def test_grid_search_records_chosen_value_in_state():
     grid = [1e-4, 1e-3, 1e-2, 1e-1]
 
     model = Laker(
-        embedding_dim=8, regularization=1.0, probes=80,
-        cccp_max_iter=80, pcg_tol=1e-10, pcg_max_iter=800,
+        embedding_dim=8,
+        regularization=1.0,
+        probes=80,
+        cccp_max_iter=80,
+        pcg_tol=1e-10,
+        pcg_max_iter=800,
         dtype=torch.float64,
     )
     model.search("grid", x, y, regularizations=grid)
 
     chosen = float(model.regularization)
-    assert chosen in grid, (
-        f"search chose {chosen}, which is not in the grid {grid}"
-    )
+    assert chosen in grid, f"search chose {chosen}, which is not in the grid {grid}"
     assert chosen != 1.0, "search did not move from default"
 
 
@@ -262,8 +274,12 @@ def test_save_load_chain_is_bit_identical_across_operator_calls():
     x = torch.rand(n, 2, dtype=torch.float64) * 10.0
     y = torch.sin(x[:, 0]) + 0.5 * torch.cos(x[:, 1])
     m = Laker(
-        embedding_dim=8, regularization=1e-3, probes=80,
-        cccp_max_iter=80, pcg_tol=1e-12, pcg_max_iter=1000,
+        embedding_dim=8,
+        regularization=1e-3,
+        probes=80,
+        cccp_max_iter=80,
+        pcg_tol=1e-12,
+        pcg_max_iter=1000,
         dtype=torch.float64,
     )
     m.fit(x, y)
@@ -301,8 +317,12 @@ def test_set_params_regularization_actually_recomputes():
     x = torch.rand(80, 2, dtype=torch.float64) * 10.0
     y = torch.sin(x[:, 0])
     m1 = Laker(
-        embedding_dim=8, regularization=1e-3, probes=50,
-        cccp_max_iter=50, pcg_tol=1e-10, pcg_max_iter=500,
+        embedding_dim=8,
+        regularization=1e-3,
+        probes=50,
+        cccp_max_iter=50,
+        pcg_tol=1e-10,
+        pcg_max_iter=500,
         dtype=torch.float64,
     )
     m1.fit(x, y)
@@ -340,13 +360,7 @@ def test_exact_kernel_solve_matches_dense_linalg():
     # Reference solve via direct dense linear algebra.
     alpha_ref = torch.linalg.solve(K, y)
 
-    # Solve via the operator's matvec pipeline (which is what the
-    # production Laker pipeline does).
-    rhs = K @ alpha_ref  # by construction this equals y
-    alpha_pcsg = torch.zeros_like(alpha_ref)
-    out = alpha_pcsg.clone()
-    # matvec is what the production pipeline exercises; nothing more to
-    # simulate without a full operator stack. Keep this test laser-
-    # focused on the matvec-aliasing: K.matvec(alpha_ref) == y.
+    # Verify the operator's matvec pipeline recovers the dense
+    # solution: K.matvec(alpha_ref) == y by construction.
     back = op.matvec(alpha_ref)
     torch.testing.assert_close(back, y, atol=1e-8, rtol=1e-8)

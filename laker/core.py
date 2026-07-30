@@ -56,7 +56,12 @@ from typing import Callable, Optional, Union, cast
 import torch
 import torch.nn as nn
 
-from laker.backend import get_chunk_disabled, get_chunk_memory_budget, get_default_device, get_default_dtype
+from laker.backend import (
+    get_chunk_disabled,
+    get_chunk_memory_budget,
+    get_default_device,
+    get_default_dtype,
+)
 from laker.distributed import DistributedAttentionKernelOperator
 from laker.embeddings import PositionEmbedding
 from laker.kernels import (
@@ -839,7 +844,9 @@ class LAKERCore:
                 chunk_size = max(1024, min(max(m, n) // 10, 8192))
 
             element_size = 4 if self.dtype == torch.float32 else 8
-            mem_per_chunk = (chunk_size or m) * n * element_size if chunk_size else m * n * element_size
+            mem_per_chunk = (
+                (chunk_size or m) * n * element_size if chunk_size else m * n * element_size
+            )
             if chunk_size is None or mem_per_chunk <= get_chunk_memory_budget():
                 k_query = kernel_operator.kernel_eval(
                     query_embeddings, embeddings, chunk_size=chunk_size
@@ -918,9 +925,9 @@ class LAKERCore:
             if self.kernel_approx == "rff" and hasattr(kernel_operator, "phi"):
                 ko = cast(RandomFeatureAttentionKernelOperator, kernel_operator)
                 proj = query_embeddings @ ko.freq
-                phi_q = torch.cat([torch.cos(proj + ko.phase), torch.sin(proj + ko.phase)], dim=1) / (
-                    ko.num_features**0.5
-                )
+                phi_q = torch.cat(
+                    [torch.cos(proj + ko.phase), torch.sin(proj + ko.phase)], dim=1
+                ) / (ko.num_features**0.5)
                 a = ko.phi.T @ ko.phi
                 a_reg = a + lambda_reg * torch.eye(a.shape[0], device=self.device, dtype=self.dtype)
                 chol = torch.linalg.cholesky(a_reg)

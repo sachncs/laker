@@ -1,7 +1,7 @@
 """Save / load parity tests."""
+
 from __future__ import annotations
 
-import math
 import tempfile
 from pathlib import Path
 
@@ -9,7 +9,6 @@ import pytest
 import torch
 
 from laker import Laker
-
 
 KERNEL_NAMES = ["exact", "nystrom", "fourier", "neighbors"]
 

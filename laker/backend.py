@@ -4,6 +4,7 @@ Module exposes the :class:`Backend` static-method API. The legacy
 free functions are kept as thin shims for backward compatibility
 through the structural migration.
 """
+
 from __future__ import annotations
 
 import logging
@@ -40,9 +41,7 @@ class Backend:
     def set_default_dtype(dtype: torch.dtype) -> None:
         """Set the default floating-point dtype (must be a floating type)."""
         if dtype not in (torch.float16, torch.bfloat16, torch.float32, torch.float64):
-            raise ValueError(
-                f"set_default_dtype expects a floating dtype, got {dtype}"
-            )
+            raise ValueError(f"set_default_dtype expects a floating dtype, got {dtype}")
         set_default_dtype(dtype)
 
     @staticmethod
@@ -60,9 +59,7 @@ class Backend:
         """Override the chunk-memory budget. ``megabytes`` must be positive."""
         global _LAKER_CHUNK_BUDGET_MB
         if megabytes <= 0:
-            raise ValueError(
-                f"chunk budget must be positive megabytes, got {megabytes}"
-            )
+            raise ValueError(f"chunk budget must be positive megabytes, got {megabytes}")
         _LAKER_CHUNK_BUDGET_MB = int(megabytes)
 
     @staticmethod

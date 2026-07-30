@@ -12,6 +12,7 @@ the physically correct linear-power/dBm-conversion sum. These
 tests are calibrated against the current behaviour; if the
 formula changes the tests must change with it.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -28,16 +29,14 @@ def test_field_closed_form_one_transmitter_matches_manual_computation():
     locs = torch.tensor(
         [
             [1.0, 0.0],  # distance 1, path_loss = 0, signal = -30
-            [10.0 ** 0.5, 0.0],  # distance ~3.162, log10~0.5, path_loss ~10, signal -40
+            [10.0**0.5, 0.0],  # distance ~3.162, log10~0.5, path_loss ~10, signal -40
             [10.0, 0.0],  # distance 10, log10=1, path_loss=20, signal=-50
         ],
         dtype=torch.float64,
     )
     tx = torch.tensor([[0.0, 0.0]], dtype=torch.float64)
     pwr = torch.tensor([-30.0], dtype=torch.float64)
-    expected = torch.tensor(
-        [-30.0, -30.0 - 10.0, -30.0 - 20.0], dtype=torch.float64
-    )
+    expected = torch.tensor([-30.0, -30.0 - 10.0, -30.0 - 20.0], dtype=torch.float64)
     clean, noisy = Data.field(
         locs,
         tx,
@@ -57,9 +56,7 @@ def test_field_closed_form_multi_transmitter_is_direct_dbm_sum():
     linear-power). This locks in the current implementation
     behaviour: it is direct dBm addition.
     """
-    tx = torch.tensor(
-        [[0.0, 0.0], [10.0, 0.0]], dtype=torch.float64
-    )
+    tx = torch.tensor([[0.0, 0.0], [10.0, 0.0]], dtype=torch.float64)
     pwr = torch.tensor([-40.0, -50.0], dtype=torch.float64)
     loc = torch.tensor([[5.0, 0.0]], dtype=torch.float64)
 
@@ -67,9 +64,7 @@ def test_field_closed_form_multi_transmitter_is_direct_dbm_sum():
     # and eta=2, so log10(5/1) ~ 0.69897 and path_loss ~ 13.97 dB.
     contrib_0 = -40.0 - 10.0 * 2.0 * torch.log10(torch.tensor(5.0)).item()
     contrib_1 = -50.0 - 10.0 * 2.0 * torch.log10(torch.tensor(5.0)).item()
-    expected_clean_tensor = torch.tensor(
-        [contrib_0 + contrib_1], dtype=torch.float64
-    )
+    expected_clean_tensor = torch.tensor([contrib_0 + contrib_1], dtype=torch.float64)
 
     clean, noisy = Data.field(
         loc,
@@ -95,14 +90,18 @@ def test_field_clamps_distance_below_reference_to_reference():
     on_reference = torch.tensor([[1.0, 0.0]], dtype=torch.float64)
 
     clean_in, _ = Data.field(
-        inside, tx, pwr,
+        inside,
+        tx,
+        pwr,
         path_loss_exponent=2.0,
         reference_distance=1.0,
         shadow_sigma=0.0,
         seed=0,
     )
     clean_ref, _ = Data.field(
-        on_reference, tx, pwr,
+        on_reference,
+        tx,
+        pwr,
         path_loss_exponent=2.0,
         reference_distance=1.0,
         shadow_sigma=0.0,
@@ -122,12 +121,22 @@ def test_field_respects_path_loss_exponent():
     loc = torch.tensor([[10.0, 0.0]], dtype=torch.float64)
 
     clean_2, _ = Data.field(
-        loc, tx, pwr, path_loss_exponent=2.0,
-        reference_distance=1.0, shadow_sigma=0.0, seed=0,
+        loc,
+        tx,
+        pwr,
+        path_loss_exponent=2.0,
+        reference_distance=1.0,
+        shadow_sigma=0.0,
+        seed=0,
     )
     clean_4, _ = Data.field(
-        loc, tx, pwr, path_loss_exponent=4.0,
-        reference_distance=1.0, shadow_sigma=0.0, seed=0,
+        loc,
+        tx,
+        pwr,
+        path_loss_exponent=4.0,
+        reference_distance=1.0,
+        shadow_sigma=0.0,
+        seed=0,
     )
     expected_2 = -20.0
     expected_4 = -40.0
@@ -149,7 +158,9 @@ def test_field_noisy_minus_clean_has_correct_stddev():
     pwr = torch.tensor([-40.0], dtype=torch.float64)
     shadow = 2.5
     clean, noisy = Data.field(
-        locs, tx, pwr,
+        locs,
+        tx,
+        pwr,
         path_loss_exponent=2.0,
         reference_distance=1.0,
         shadow_sigma=shadow,
@@ -171,9 +182,13 @@ def test_field_noisy_minus_clean_is_zero_when_sigma_zero():
     tx = torch.tensor([[20.0, 30.0], [70.0, 60.0]], dtype=torch.float64)
     pwr = torch.tensor([-30.0, -45.0], dtype=torch.float64)
     clean, noisy = Data.field(
-        locs, tx, pwr,
-        path_loss_exponent=2.5, reference_distance=1.0,
-        shadow_sigma=0.0, seed=0,
+        locs,
+        tx,
+        pwr,
+        path_loss_exponent=2.5,
+        reference_distance=1.0,
+        shadow_sigma=0.0,
+        seed=0,
     )
     torch.testing.assert_close(noisy, clean)
 
@@ -199,12 +214,22 @@ def test_field_seed_reproduces_identical_output():
     tx = torch.tensor([[25.0, 25.0]], dtype=torch.float64)
     pwr = torch.tensor([-40.0], dtype=torch.float64)
     c1, n1 = Data.field(
-        locs, tx, pwr, path_loss_exponent=2.0,
-        reference_distance=1.0, shadow_sigma=1.0, seed=1234,
+        locs,
+        tx,
+        pwr,
+        path_loss_exponent=2.0,
+        reference_distance=1.0,
+        shadow_sigma=1.0,
+        seed=1234,
     )
     c2, n2 = Data.field(
-        locs, tx, pwr, path_loss_exponent=2.0,
-        reference_distance=1.0, shadow_sigma=1.0, seed=1234,
+        locs,
+        tx,
+        pwr,
+        path_loss_exponent=2.0,
+        reference_distance=1.0,
+        shadow_sigma=1.0,
+        seed=1234,
     )
     torch.testing.assert_close(c1, c2)
     torch.testing.assert_close(n1, n2)
@@ -216,12 +241,22 @@ def test_field_different_seeds_diverge():
     tx = torch.tensor([[25.0, 25.0]], dtype=torch.float64)
     pwr = torch.tensor([-40.0], dtype=torch.float64)
     _, n1 = Data.field(
-        locs, tx, pwr, path_loss_exponent=2.0,
-        reference_distance=1.0, shadow_sigma=1.0, seed=1,
+        locs,
+        tx,
+        pwr,
+        path_loss_exponent=2.0,
+        reference_distance=1.0,
+        shadow_sigma=1.0,
+        seed=1,
     )
     _, n2 = Data.field(
-        locs, tx, pwr, path_loss_exponent=2.0,
-        reference_distance=1.0, shadow_sigma=1.0, seed=2,
+        locs,
+        tx,
+        pwr,
+        path_loss_exponent=2.0,
+        reference_distance=1.0,
+        shadow_sigma=1.0,
+        seed=2,
     )
     # Two independent seeds should not coincide (probability of full
     # match on 50 floats is zero).
@@ -319,12 +354,8 @@ def test_grid_corners_and_shape():
     g = Data.grid((0.0, 100.0, 0.0, 100.0), grid_size=10)
     assert g.shape == (100, 2)
     flat = g.reshape(10, 10, 2)
-    torch.testing.assert_close(
-        flat[0, 0], torch.tensor([0.0, 0.0], dtype=g.dtype)
-    )
-    torch.testing.assert_close(
-        flat[-1, -1], torch.tensor([100.0, 100.0], dtype=g.dtype)
-    )
+    torch.testing.assert_close(flat[0, 0], torch.tensor([0.0, 0.0], dtype=g.dtype))
+    torch.testing.assert_close(flat[-1, -1], torch.tensor([100.0, 100.0], dtype=g.dtype))
 
 
 def test_grid_axis_spacing_is_uniform():

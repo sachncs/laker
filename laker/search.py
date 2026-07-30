@@ -467,8 +467,14 @@ class Search:
             y_t = y_t.squeeze(-1)
         helper = HyperparameterSearch(regressor.core)
         return helper.fit_with_search(
-            regressor, x, y_t,
-            val_fraction, regularizations, gammas, probes, warm_start,
+            regressor,
+            x,
+            y_t,
+            val_fraction,
+            regularizations,
+            gammas,
+            probes,
+            warm_start,
         )
 
     @staticmethod
@@ -490,15 +496,22 @@ class Search:
             y_t = y_t.squeeze(-1)
         helper = HyperparameterSearch(regressor.core)
         return helper.fit_with_bo(
-            regressor, x, y_t,
-            val_fraction, n_calls, n_initial_points,
-            regularization_bounds, gamma_bounds, probes_bounds,
+            regressor,
+            x,
+            y_t,
+            val_fraction,
+            n_calls,
+            n_initial_points,
+            regularization_bounds,
+            gamma_bounds,
+            probes_bounds,
         )
 
     @staticmethod
     def gpsurrogate():
         """Construct a default ``GPSurrogate`` for direct use."""
         from laker.utils import GPSurrogate
+
         return GPSurrogate()
 
 

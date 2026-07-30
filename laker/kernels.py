@@ -228,15 +228,11 @@ class AttentionKernelOperator:
         """
         if x.dim() == 1:
             if x.shape[0] != self.n:
-                raise ValueError(
-                    f"x must have {self.n} rows, got {x.shape[0]}"
-                )
+                raise ValueError(f"x must have {self.n} rows, got {x.shape[0]}")
             return self.matvec_impl(x)
         if x.dim() == 2:
             if x.shape[0] != self.n:
-                raise ValueError(
-                    f"x must have {self.n} rows, got {x.shape[0]}"
-                )
+                raise ValueError(f"x must have {self.n} rows, got {x.shape[0]}")
             return self.matvec_impl(x)
         raise ValueError(f"x must be 1-D or 2-D, got shape {x.shape}")
 
@@ -298,9 +294,7 @@ class AttentionKernelOperator:
                 for j_start in range(0, n, chunk_size_local):
                     j_end = min(j_start + chunk_size_local, n)
                     gram_block = e_i @ self.embeddings[j_start:j_end].T
-                    gram_block = exp_safe(
-                        gram_block, out=gram_block, skip_clamp=self.skip_clamp
-                    )
+                    gram_block = exp_safe(gram_block, out=gram_block, skip_clamp=self.skip_clamp)
                     accum.addmm_(gram_block, x[j_start:j_end])
                 out[i_start:i_end].add_(accum)
         return out
@@ -374,9 +368,7 @@ class AttentionKernelOperator:
             for start in range(0, m, chunk_size):
                 end = min(start + chunk_size, m)
                 gram_chunk = x[start:end] @ y.T
-                gram_chunk = exp_safe(
-                    gram_chunk, out=gram_chunk, skip_clamp=self.skip_clamp
-                )
+                gram_chunk = exp_safe(gram_chunk, out=gram_chunk, skip_clamp=self.skip_clamp)
                 out[start:end] = gram_chunk
             return out
 
@@ -386,9 +378,7 @@ class AttentionKernelOperator:
             for j_start in range(0, p, chunk_size):
                 j_end = min(j_start + chunk_size, p)
                 gram_block = x[i_start:i_end] @ y[j_start:j_end].T
-                gram_block = exp_safe(
-                    gram_block, out=gram_block, skip_clamp=self.skip_clamp
-                )
+                gram_block = exp_safe(gram_block, out=gram_block, skip_clamp=self.skip_clamp)
                 out[i_start:i_end, j_start:j_end] = gram_block
         return out
 
@@ -1597,4 +1587,3 @@ class SpectralAttentionKernelOperator:
         # K = C_x @ diag(spectrum) @ C_y^T
         k = (cx * self.spectrum.unsqueeze(0)) @ cy.T
         return k
-

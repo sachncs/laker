@@ -616,5 +616,3 @@ class JacobiPreconditioner:
 
         """
         return self.inv_diag * x
-
-

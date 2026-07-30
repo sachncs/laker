@@ -11,6 +11,7 @@ promises.
 The legacy module names (``AttentionKernelOperator``, ``NystromAttentionKernelOperator``,
 ...) remain as backward-compat aliases of the canonical classes.
 """
+
 from __future__ import annotations
 
 from laker.kernels import (
@@ -26,7 +27,6 @@ from laker.kernels import KernelOperator  # protocol
 from laker.distributed import (
     DistributedAttentionKernelOperator as Distribute,
 )
-
 
 __all__ = [
     "Exact",

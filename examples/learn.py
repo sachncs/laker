@@ -7,6 +7,7 @@ Run::
 
     python -m examples.learn
 """
+
 from __future__ import annotations
 
 import argparse
@@ -57,9 +58,7 @@ class Learn:
         assert locations.shape == (n, 2), "data: location shape"
         assert targets.shape == (n,), "data: target shape"
         assert torch.isfinite(targets).all(), "data: targets non-finite"
-        assert (
-            targets.std().item() > 5.0
-        ), "data: insufficient dynamic range"
+        assert targets.std().item() > 5.0, "data: insufficient dynamic range"
 
         # ---- fit -----------------------------------------------------------
         model = Laker(
@@ -72,12 +71,8 @@ class Learn:
 
         assert model.coef_ is not None, "fit: coef is None after fit"
         assert model.embeddings_ is not None, "fit: embeddings is None"
-        assert (
-            model.coef_.shape == (n,)
-        ), "fit: coef shape mismatch"
-        assert (
-            model.embeddings_.shape == (n, embedding_dim)
-        ), "fit: embeddings shape"
+        assert model.coef_.shape == (n,), "fit: coef shape mismatch"
+        assert model.embeddings_.shape == (n, embedding_dim), "fit: embeddings shape"
         assert (
             model.embeddings_.requires_grad is False
         ), "fit: frozen embeddings expected at fit time"
@@ -85,13 +80,9 @@ class Learn:
         # ---- predict -------------------------------------------------------
         query = torch.rand(20, 2, dtype=torch.float64) * area
         predictions = model.predict(query)
-        assert (
-            predictions.shape == (20,)
-        ), "predict: shape mismatch"
+        assert predictions.shape == (20,), "predict: shape mismatch"
         assert torch.isfinite(predictions).all(), "predict: non-finite"
-        assert (
-            predictions.std().item() > 0.1
-        ), "predict: model produced constant output"
+        assert predictions.std().item() > 0.1, "predict: model produced constant output"
 
         # ---- save / load round-trip ----------------------------------------
         with tempfile.TemporaryDirectory() as tmp:

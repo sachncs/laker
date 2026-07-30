@@ -23,6 +23,7 @@ class RecordingExecutor(Executor):
 
     def time_operation(self, name: str, operation) -> any:
         import time
+
         start = time.time()
         result = operation()
         elapsed = time.time() - start

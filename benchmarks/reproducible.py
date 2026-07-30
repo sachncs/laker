@@ -370,9 +370,7 @@ class ReproducibleBenchmarkSuite:
         results["knn"] = {"mean": result["mean_ms"], "std": result["std_ms"]}
 
         # SKI
-        operator = Grid(
-            embeddings, lambda_reg=self.lambda_reg, grid_size=1024, dtype=self.dtype
-        )
+        operator = Grid(embeddings, lambda_reg=self.lambda_reg, grid_size=1024, dtype=self.dtype)
         result = self.executor.run(
             "ski_matvec",
             lambda: operator.matvec(vector),

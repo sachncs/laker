@@ -377,5 +377,3 @@ class StreamingUpdater:
         regressor.lambda_reg = float(lambda_min)
         regressor.pcg_iterations_ = path["pcg_iters"][-1]
         return regressor
-
-

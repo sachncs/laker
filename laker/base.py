@@ -2,9 +2,10 @@
 
 Public entry point is :class:`Base`; helpers are static methods.
 """
+
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Optional
 
 import torch
 
@@ -27,9 +28,7 @@ class Base:
             ValueError: if shape is wrong or values are non-finite.
         """
         if x.dim() != 2:
-            raise ValueError(
-                f"{name} must be 2-D (n, d), got shape {tuple(x.shape)}"
-            )
+            raise ValueError(f"{name} must be 2-D (n, d), got shape {tuple(x.shape)}")
         if x.shape[0] == 0:
             raise ValueError(f"{name} must have at least one row")
         if not torch.isfinite(x).all():
@@ -52,20 +51,14 @@ class Base:
         """
         if y.dim() == 0:
             raise ValueError(
-                f"{name} must be 1-D (n,) or 2-D (n, 1), got scalar "
-                f"shape {tuple(y.shape)}"
+                f"{name} must be 1-D (n,) or 2-D (n, 1), got scalar " f"shape {tuple(y.shape)}"
             )
         if y.dim() == 2:
             if y.shape[-1] != 1:
-                raise ValueError(
-                    f"{name} must have shape (n,) or (n, 1), got "
-                    f"{tuple(y.shape)}"
-                )
+                raise ValueError(f"{name} must have shape (n,) or (n, 1), got " f"{tuple(y.shape)}")
             return y.squeeze(-1)
         if y.dim() != 1:
-            raise ValueError(
-                f"{name} must be 1-D, got shape {tuple(y.shape)}"
-            )
+            raise ValueError(f"{name} must be 1-D, got shape {tuple(y.shape)}")
         if not torch.isfinite(y).all():
             raise ValueError(f"{name} contains non-finite values (NaN or Inf)")
         return y
@@ -96,8 +89,7 @@ class Base:
             )
         if out.shape[1] != expected_dim:
             raise ValueError(
-                f"{name} output has {out.shape[1]} features but model "
-                f"expects {expected_dim}"
+                f"{name} output has {out.shape[1]} features but model " f"expects {expected_dim}"
             )
         if not torch.isfinite(out).all():
             raise ValueError(f"{name} output contains non-finite values")
@@ -116,9 +108,7 @@ class Base:
         if n < 2:
             raise ValueError(f"n must be at least 2 for splits, got {n}")
         if not 0.0 < val_fraction < 1.0:
-            raise ValueError(
-                f"val_fraction must be in (0, 1), got {val_fraction}"
-            )
+            raise ValueError(f"val_fraction must be in (0, 1), got {val_fraction}")
         n_val = max(1, int(round(n * val_fraction)))
         n_val = min(n_val, n - 1)
         return n - n_val, n_val

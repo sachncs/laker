@@ -597,5 +597,3 @@ class AdaptivePreconditioner:
         if self.inner_name == "jacobi":
             return self.inner.apply(x)
         return self.inner.apply(x)
-
-

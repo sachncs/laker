@@ -2,6 +2,7 @@
 
 The single public type is :class:`Plot`; helpers are static methods.
 """
+
 from __future__ import annotations
 
 import logging
