@@ -3,12 +3,22 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath(".."))
+# Robust insertion: locate the repo root regardless of CWD.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _REPO_ROOT)
 
 project = "LAKER"
 copyright = "2026, LAKER Contributors"
 author = "LAKER Contributors"
-release = "0.4.0"
+
+# Single source of truth: read from installed package metadata when
+# available; fall back to a documented local fallback.
+try:
+    from importlib.metadata import version as _pkg_version
+
+    release = _pkg_version("laker")
+except Exception:
+    release = "0.4.0+local"
 
 extensions = [
     "sphinx.ext.autodoc",

@@ -89,6 +89,10 @@ def exp_safe(
     Clamps to ``80.0`` for float32 and ``700.0`` for float64 before
     exponentiation to prevent silent overflow to ``inf``.
 
+    The returned tensor is **always** exponentiated; callers that pass
+    ``out=gram`` must use the return value (or accept the in-place
+    overwrite) rather than relying on the original buffer.
+
     When ``gram.requires_grad`` is ``True`` (e.g. during learned-embedding
     training) the ``out=`` form is skipped because PyTorch does not support
     autodiff through in-place ``torch.exp``.
@@ -102,6 +106,8 @@ def exp_safe(
             max_val = 11.0
         elif gram.dtype == torch.float32:
             max_val = 80.0
+        elif gram.dtype == torch.bfloat16:
+            max_val = 80.0
         else:
             max_val = 700.0
         if gram.requires_grad:
@@ -110,8 +116,9 @@ def exp_safe(
             out = gram.clone()
         elif out is not gram:
             out.copy_(gram)
+        # Clamp in place, then write the actual exp back into ``out``.
         out.clamp_(max=max_val)
-        return torch.exp(out)
+        return torch.exp(out, out=out)
     # Fast path: no clamp needed
     if out is None:
         return torch.exp(gram)
@@ -133,7 +140,7 @@ def dense_attention_matvec(
 ) -> torch.Tensor:
     """Apply the non-chunked attention matvec."""
     gram = embeddings @ embeddings.T
-    exp_safe(gram, out=gram, skip_clamp=skip_clamp)
+    gram = exp_safe(gram, out=gram, skip_clamp=skip_clamp)
     return lambda_reg * x + gram @ x
 
 
@@ -257,13 +264,13 @@ class AttentionKernelOperator:
         n = self.n
         # Heuristic: if a single output chunk against all inputs fits comfortably
         # in memory (default ~64 MB), use fast 1-D chunking; otherwise use 2-D tiling.
-        element_size = 4 if self.dtype == torch.float32 else 8
+        element_size = self.dtype.itemsize if hasattr(self.dtype, "itemsize") else 4
         mem_per_chunk = chunk_size_local * n * element_size
         if mem_per_chunk <= get_chunk_memory_budget():
             for start in range(0, n, chunk_size_local):
                 end = min(start + chunk_size_local, n)
                 gram_chunk = self.embeddings[start:end] @ self.embeddings.T
-                exp_safe(gram_chunk, out=gram_chunk, skip_clamp=self.skip_clamp)
+                gram_chunk = exp_safe(gram_chunk, out=gram_chunk, skip_clamp=self.skip_clamp)
                 if x.dim() == 1:
                     out[start:end].addmv_(gram_chunk, x)
                 else:
@@ -279,7 +286,7 @@ class AttentionKernelOperator:
                 for j_start in range(0, n, chunk_size_local):
                     j_end = min(j_start + chunk_size_local, n)
                     gram_block = e_i @ self.embeddings[j_start:j_end].T
-                    exp_safe(gram_block, out=gram_block, skip_clamp=self.skip_clamp)
+                    gram_block = exp_safe(gram_block, out=gram_block, skip_clamp=self.skip_clamp)
                     accum.addmv_(gram_block, x[j_start:j_end])
                 out[i_start:i_end].add_(accum)
         else:
@@ -291,7 +298,9 @@ class AttentionKernelOperator:
                 for j_start in range(0, n, chunk_size_local):
                     j_end = min(j_start + chunk_size_local, n)
                     gram_block = e_i @ self.embeddings[j_start:j_end].T
-                    exp_safe(gram_block, out=gram_block, skip_clamp=self.skip_clamp)
+                    gram_block = exp_safe(
+                        gram_block, out=gram_block, skip_clamp=self.skip_clamp
+                    )
                     accum.addmm_(gram_block, x[j_start:j_end])
                 out[i_start:i_end].add_(accum)
         return out
@@ -307,7 +316,7 @@ class AttentionKernelOperator:
 
         """
         sq_norms = torch.sum(self.embeddings**2, dim=1)
-        return self.lambda_reg + torch.exp(sq_norms)
+        return self.lambda_reg + exp_safe(sq_norms)
 
     def to_dense(self) -> torch.Tensor:
         """Materialise the full dense ``(lambda I + G)`` matrix.
@@ -321,7 +330,7 @@ class AttentionKernelOperator:
 
         """
         gram = self.embeddings @ self.embeddings.T
-        torch.exp(gram, out=gram)
+        gram = exp_safe(gram, out=gram)
         gram.diagonal().add_(self.lambda_reg)
         return gram
 
@@ -354,19 +363,20 @@ class AttentionKernelOperator:
         p = y.shape[0]
         if chunk_size is None or m <= chunk_size:
             gram = x @ y.T
-            exp_safe(gram, out=gram, skip_clamp=self.skip_clamp)
-            return gram
+            return exp_safe(gram, out=gram, skip_clamp=self.skip_clamp)
 
         # Use 1-D chunking over the query dimension when memory is moderate,
         # otherwise fall back to full 2-D tiling.
-        element_size = 4 if self.dtype == torch.float32 else 8
+        element_size = self.dtype.itemsize if hasattr(self.dtype, "itemsize") else 4
         mem_per_chunk = chunk_size * p * element_size
         if mem_per_chunk <= get_chunk_memory_budget():
             out = torch.empty(m, p, device=self.device, dtype=self.dtype)
             for start in range(0, m, chunk_size):
                 end = min(start + chunk_size, m)
                 gram_chunk = x[start:end] @ y.T
-                exp_safe(gram_chunk, out=gram_chunk, skip_clamp=self.skip_clamp)
+                gram_chunk = exp_safe(
+                    gram_chunk, out=gram_chunk, skip_clamp=self.skip_clamp
+                )
                 out[start:end] = gram_chunk
             return out
 
@@ -376,7 +386,9 @@ class AttentionKernelOperator:
             for j_start in range(0, p, chunk_size):
                 j_end = min(j_start + chunk_size, p)
                 gram_block = x[i_start:i_end] @ y[j_start:j_end].T
-                exp_safe(gram_block, out=gram_block, skip_clamp=self.skip_clamp)
+                gram_block = exp_safe(
+                    gram_block, out=gram_block, skip_clamp=self.skip_clamp
+                )
                 out[i_start:i_end, j_start:j_end] = gram_block
         return out
 

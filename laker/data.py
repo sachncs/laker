@@ -1,136 +1,89 @@
-"""Synthetic data generation for spectrum cartography experiments.
+"""Synthetic data generation.
 
-The :mod:`laker.data` module exposes two complementary generators used
-throughout the LAKER examples, tests, and benchmarks:
-
-* :func:`generate_radio_field` (and its underlying
-  :class:`RadioFieldGenerator`) synthesises a *received signal strength*
-  (RSS) map from a small set of point transmitters using the standard
-  log-distance path loss model with optional log-normal shadowing. The
-  resulting field is the canonical benchmark for spectrum cartography
-  algorithms in the LAKER paper (Tao & Tan, 2026).
-* :func:`generate_grid` produces a regular 2-D evaluation grid for
-  visualising reconstructed RSS maps.
-
-Both generators are deterministic when ``seed`` is provided, so they
-are suitable for reproducible benchmarks and unit tests. The path-loss
-model assumes a free-space-like exponent (``eta=2``) by default, but
-arbitrary exponents are supported.
+The single public type is :class:`Data`; helpers are static methods.
 """
+from __future__ import annotations
 
 import logging
 from typing import Optional, Tuple
 
 import torch
 
+from laker.backend import get_default_device, get_default_dtype
+
 logger = logging.getLogger(__name__)
 
 
-class RadioFieldGenerator:
-    """Generator for synthetic radio propagation fields.
+class Data:
+    """Synthetic data generation for spectrum cartography."""
 
-    Produces received signal strength (RSS) maps from multiple
-    transmitters using log-distance path loss with optional log-normal
-    shadowing. The model is the standard one used in the LAKER paper:
-
-    .. math::
-
-        r(x) = \\sum_j \\bigl(P_j - 10 \\eta \\log_{10}(d_j / d_0)\\bigr)
-        + \\sigma_\\epsilon \\epsilon
-
-    where :math:`d_j = \\|x - \\text{tx}_j\\|_2`,
-    :math:`\\epsilon \\sim \\mathcal{N}(0, 1)`, and
-    :math:`(\\eta, d_0, \\sigma_\\epsilon)` are constructor arguments.
-
-    The class is intentionally stateless apart from its three
-    hyperparameters; the per-call state is just the inputs and the
-    optional RNG seed, so a single generator instance can be reused
-    across many calls without interference.
-
-    Args:
-        path_loss_exponent: Path-loss exponent :math:`\\eta` (default
-            ``2.0`` corresponding to free-space propagation).
-        reference_distance: Reference distance :math:`d_0` (metres)
-            below which the log-distance term is clamped to avoid
-            ``log(0)``. Default ``1.0``.
-        shadow_sigma: Standard deviation :math:`\\sigma_\\epsilon` of
-            the log-normal shadowing term (dB). Set to ``0`` for a
-            noise-free field.
-
-    """
-
-    def __init__(
-        self,
-        path_loss_exponent: float = 2.0,
-        reference_distance: float = 1.0,
-        shadow_sigma: float = 1.5,
-    ):
-        """Initialise the radio-map generator.
-
-        Stores the three hyperparameters; no RNG state is created here
-        (a fresh per-call generator is built inside :meth:`generate`
-        only when ``seed`` is provided).
+    @staticmethod
+    def validate_params(
+        path_loss_exponent: float,
+        reference_distance: float,
+        shadow_sigma: float,
+    ) -> None:
+        """Validate path-loss parameters.
 
         Args:
-            path_loss_exponent: Path-loss exponent ``eta``.
-            reference_distance: Reference distance ``d_0``.
-            shadow_sigma: Shadowing standard deviation.
+            path_loss_exponent: ``eta``, must be non-negative.
+            reference_distance: ``d_0``, must be positive.
+            shadow_sigma: Shadowing std-dev, must be non-negative.
 
+        Raises:
+            ValueError: if any value is out of range.
         """
-        self.path_loss_exponent = float(path_loss_exponent)
-        self.reference_distance = float(reference_distance)
-        self.shadow_sigma = float(shadow_sigma)
+        if path_loss_exponent < 0:
+            raise ValueError(
+                f"path_loss_exponent must be non-negative, got "
+                f"{path_loss_exponent}"
+            )
+        if reference_distance <= 0:
+            raise ValueError(
+                f"reference_distance must be positive, got "
+                f"{reference_distance}"
+            )
+        if shadow_sigma < 0:
+            raise ValueError(
+                f"shadow_sigma must be non-negative, got {shadow_sigma}"
+            )
 
-    def __repr__(self) -> str:
-        return (
-            f"RadioFieldGenerator(path_loss_exponent={self.path_loss_exponent}, "
-            f"reference_distance={self.reference_distance}, "
-            f"shadow_sigma={self.shadow_sigma})"
-        )
-
-    def generate(
-        self,
+    @staticmethod
+    def field(
         locations: torch.Tensor,
         transmitters: torch.Tensor,
         powers: torch.Tensor,
+        path_loss_exponent: float = 2.0,
+        reference_distance: float = 1.0,
+        shadow_sigma: float = 1.5,
         seed: Optional[int] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""Generate a synthetic radio field from multiple transmitters.
 
-        The received signal strength at each location is computed as a
-        superposition of log-distance path-loss terms plus log-normal
-        shadowing:
+        Computes a received signal strength (RSS) field via the standard
+        log-distance path-loss model with optional log-normal shadowing:
 
         .. math::
 
-            r(x) = \sum_j \left( P_j - 10 \eta \log_{10}
-            \frac{d_j}{d_0} \right) + \sigma_\epsilon \epsilon
+            r(x) = \sum_j \bigl(P_j - 10 \eta \log_{10}
+            \frac{d_j}{d_0} \bigr) + \sigma_\epsilon \epsilon
 
-        where :math:`d_j = \|x - \text{tx}_j\|_2` and
+        where :math:`d_j = \|x - \text{tx}_j\|_2`,
         :math:`\epsilon \sim \mathcal{N}(0, 1)`.
 
         Args:
-            locations: Sensor locations of shape ``(n, dx)``.
-            transmitters: Transmitter coordinates of shape
-                ``(num_tx, dx)``.
-            powers: Transmitter power levels in dBm of shape
-                ``(num_tx,)``.
-            seed: Optional random seed for reproducible shadowing. If
-                ``None`` the global RNG is used.
+            locations: Sensor locations of shape ``(n, d)``.
+            transmitters: Transmitter coordinates of shape ``(k, d)``.
+            powers: Transmitter power levels (dBm) of shape ``(k,)``.
+            path_loss_exponent: Path-loss exponent ``eta``.
+            reference_distance: Reference distance ``d_0``.
+            shadow_sigma: Shadowing standard deviation.
+            seed: Optional seed for reproducible shadowing.
 
         Returns:
-            Tuple ``(rss_clean, rss_noisy)`` where each is a tensor of
-            shape ``(n,)``. ``rss_clean`` is the noise-free path-loss
-            field; ``rss_noisy`` adds shadowing.
-
-        Raises:
-            ValueError: If ``locations``, ``transmitters``, or ``powers``
-                have the wrong dimensionality, if the number of
-                transmitters does not match the number of powers, or if
-                the spatial dimension of locations and transmitters
-                disagree.
-
+            Tuple ``(rss_clean, rss_noisy)``, each of shape ``(n,)``.
         """
+        Data.validate_params(path_loss_exponent, reference_distance, shadow_sigma)
         if locations.dim() != 2:
             raise ValueError(f"locations must be 2-D, got shape {locations.shape}")
         if locations.shape[0] == 0:
@@ -154,10 +107,12 @@ class RadioFieldGenerator:
                 f"got {locations.shape[1]} and {transmitters.shape[1]}"
             )
 
+        # Coerce transmitter and power tensors onto the same device/dtype
+        # as locations so cross-tensor arithmetic works without surprise.
+        transmitters = transmitters.to(device=locations.device, dtype=locations.dtype)
+        powers = powers.to(device=locations.device, dtype=locations.dtype)
+
         if seed is not None:
-            # Per-call generator keeps seed independence across calls —
-            # the global RNG is untouched, so concurrent calls do not
-            # race on shared state.
             gen = torch.Generator(device=locations.device)
             gen.manual_seed(seed)
         else:
@@ -165,116 +120,63 @@ class RadioFieldGenerator:
 
         n = locations.shape[0]
         rss_clean = torch.zeros(n, device=locations.device, dtype=locations.dtype)
-
-        # Iterating over transmitters is intentional: ``num_tx`` is
-        # typically ≤ 10 (handful of emitters), so the Python-level loop
-        # cost is negligible compared to the subsequent PCG solve.
-        # Vectorising this loop would require a broadcasted
-        # ``(n, num_tx)`` distance matrix that we then keep in memory
-        # for no good reason.
-        for transmitter_location, transmitter_power in zip(transmitters, powers):
-            distances = torch.norm(locations - transmitter_location, dim=1)
-            # Clamp to ``reference_distance`` so the log-distance term
-            # never sees a non-positive argument (``log10(0) = -inf``).
-            distances = distances.clamp(min=self.reference_distance)
+        for tx_location, tx_power in zip(transmitters, powers):
+            distances = torch.norm(locations - tx_location, dim=1)
+            distances = distances.clamp(min=reference_distance)
             path_loss = (
-                10.0 * self.path_loss_exponent * torch.log10(distances / self.reference_distance)
+                10.0
+                * path_loss_exponent
+                * torch.log10(distances / reference_distance)
             )
-            rss_clean += transmitter_power - path_loss
+            rss_clean += tx_power - path_loss
 
-        noise = torch.randn(n, device=locations.device, dtype=locations.dtype, generator=gen)
-        rss_noisy = rss_clean + self.shadow_sigma * noise
+        noise = torch.randn(
+            n, device=locations.device, dtype=locations.dtype, generator=gen
+        )
+        rss_noisy = rss_clean + shadow_sigma * noise
         logger.info(
             "Generated radio field: n=%d, tx=%d, path_loss_exp=%.1f, shadow_sigma=%.2f",
-            n,
-            transmitters.shape[0],
-            self.path_loss_exponent,
-            self.shadow_sigma,
+            n, transmitters.shape[0], path_loss_exponent, shadow_sigma,
         )
         return rss_clean, rss_noisy
 
+    @staticmethod
+    def grid(
+        bounds: Tuple[float, float, float, float],
+        grid_size: int,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+    ) -> torch.Tensor:
+        """Generate a regular 2-D evaluation grid.
 
-def generate_radio_field(
-    locations: torch.Tensor,
-    transmitters: torch.Tensor,
-    powers: torch.Tensor,
-    path_loss_exponent: float = 2.0,
-    reference_distance: float = 1.0,
-    shadow_sigma: float = 1.5,
-    seed: Optional[int] = None,
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    r"""Generate a synthetic radio field from multiple transmitters.
+        Args:
+            bounds: ``(x_min, x_max, y_min, y_max)``.
+            grid_size: Number of points per axis.
+            device: Target device.
+            dtype: Target dtype.
 
-    Convenience wrapper around :meth:`RadioFieldGenerator.generate` for
-    callers that prefer a single function call. The full path-loss
-    model is described in the :class:`RadioFieldGenerator` docstring.
-
-    Args:
-        locations: Sensor locations of shape ``(n, dx)``.
-        transmitters: Transmitter coordinates of shape ``(num_tx, dx)``.
-        powers: Transmitter power levels in dBm of shape ``(num_tx,)``.
-        path_loss_exponent: Path-loss exponent ``eta`` (default ``2.0``
-            for free space).
-        reference_distance: Reference distance ``d_0`` in metres.
-        shadow_sigma: Standard deviation of log-normal shadowing in dB.
-        seed: Optional random seed for reproducible shadowing.
-
-    Returns:
-        Tuple ``(rss_clean, rss_noisy)`` where each is a tensor of
-        shape ``(n,)``.
-
-    """
-    generator = RadioFieldGenerator(
-        path_loss_exponent=path_loss_exponent,
-        reference_distance=reference_distance,
-        shadow_sigma=shadow_sigma,
-    )
-    return generator.generate(locations, transmitters, powers, seed=seed)
+        Returns:
+            Tensor of shape ``(grid_size**2, 2)``.
+        """
+        if grid_size < 2:
+            raise ValueError(f"grid_size must be at least 2, got {grid_size}")
+        x_min, x_max, y_min, y_max = bounds
+        if x_min >= x_max:
+            raise ValueError(
+                f"x_min ({x_min}) must be strictly less than x_max ({x_max})"
+            )
+        if y_min >= y_max:
+            raise ValueError(
+                f"y_min ({y_min}) must be strictly less than y_max ({y_max})"
+            )
+        if device is None:
+            device = get_default_device()
+        if dtype is None:
+            dtype = get_default_dtype()
+        x = torch.linspace(x_min, x_max, grid_size, device=device, dtype=dtype)
+        y = torch.linspace(y_min, y_max, grid_size, device=device, dtype=dtype)
+        xx, yy = torch.meshgrid(x, y, indexing="ij")
+        return torch.stack([xx, yy], dim=-1).reshape(-1, 2)
 
 
-def generate_grid(
-    bounds: Tuple[float, float, float, float],
-    grid_size: int,
-    device: Optional[torch.device] = None,
-    dtype: Optional[torch.dtype] = None,
-) -> torch.Tensor:
-    """Generate a regular 2-D evaluation grid.
-
-    Builds a ``grid_size x grid_size`` lattice of points in the bounding
-    box ``[x_min, x_max] x [y_min, y_max]`` and returns the points in
-    row-major order. The output shape is ``(grid_size ** 2, 2)``.
-
-    Args:
-        bounds: Tuple ``(x_min, x_max, y_min, y_max)``. ``x_min`` must
-            be strictly less than ``x_max``; the same applies to the
-            ``y`` bounds.
-        grid_size: Number of points along each axis. Must be at least
-            ``2``.
-        device: Target :class:`torch.device` (defaults to
-            :func:`laker.backend.get_default_device`).
-        dtype: Target :class:`torch.dtype` (defaults to
-            :func:`laker.backend.get_default_dtype`).
-
-    Returns:
-        Tensor of shape ``(grid_size**2, 2)`` whose rows are the
-        ``(x, y)`` coordinates of every grid point.
-
-    """
-    if grid_size < 2:
-        raise ValueError(f"grid_size must be at least 2, got {grid_size}")
-    x_min, x_max, y_min, y_max = bounds
-    if x_min >= x_max:
-        raise ValueError(
-            f"x_min ({x_min}) must be strictly less than x_max ({x_max})"
-        )
-    if y_min >= y_max:
-        raise ValueError(
-            f"y_min ({y_min}) must be strictly less than y_max ({y_max})"
-        )
-    x = torch.linspace(x_min, x_max, grid_size, device=device, dtype=dtype)
-    y = torch.linspace(y_min, y_max, grid_size, device=device, dtype=dtype)
-    # ``indexing="ij"`` produces matrix-style indices so the resulting
-    # ``(grid_size, grid_size)`` tensor corresponds to row-major
-    # traversal of the lattice.
-    xx, yy = torch.meshgrid(x, y, indexing="ij")
-    return torch.stack([xx.ravel(), yy.ravel()], dim=1)
+__all__ = ["Data"]

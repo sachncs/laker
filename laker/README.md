@@ -4,58 +4,68 @@ Learning-based Attention Kernel Regression for large-scale spectrum cartography.
 
 ## Package Structure
 
-| Module | Purpose |
-|--------|---------|
-| `backend.py` | Device/dtype management and tensor conversion utilities. |
-| `benchmark.py` | Solver benchmarking utilities (PCG, Jacobi, gradient descent). |
-| `data.py` | Synthetic radio-field generation and regular grid creation. |
-| `embeddings.py` | `PositionEmbedding` module: maps spatial coordinates to learned feature vectors. |
-| `kernels.py` | **Exact and approximate kernel operators** (exact, Nyström, RFF, sparse k-NN, SKI). |
-| `models.py` | `LAKERRegressor`: high-level sklearn-compatible estimator with PCG solver and CCCP preconditioner. |
-| `preconditioner.py` | `CCCPPreconditioner`: learned data-dependent preconditioner via shrinkage-regularised CCCP. |
-| `solvers.py` | `PreconditionedConjugateGradient`, `GradientDescent`, and `JacobiPreconditioner`. |
-| `utils.py` | Numerical stability helpers (`trace_normalize`, `eigh_stable`, `adaptive_shrinkage_rho`) and Bayesian Optimisation surrogate (`GPSurrogate`). |
-| `visualize.py` | Plotting utilities for radio maps and convergence curves. |
+| Module | Class | Purpose |
+|--------|-------|---------|
+| `model.py` | `Laker` | High-level sklearn-compatible estimator. |
+| `kernel.py` | `Kernel` (+ `Exact`, `Nystrom`, `Fourier`, `Neighbors`, `Grid`, `Hybrid`, `Spectrum`, `Distribute`) | Exact and approximate kernel operators. |
+| `preconditioner.py` | `Preconditioner` (+ `CCCP`, `Adaptive`, `Jacobi`) | Learned data-dependent preconditioners. |
+| `solve.py` | `Solve` (+ `PCG`, `Descent`) | Preconditioned conjugate gradient and gradient descent. |
+| `embed.py` | `Embed` (+ `Position`, `Visual`) | Embedding modules. |
+| `search.py` | `Search` | Grid and Bayesian hyperparameter search. |
+| `fit.py` | `Fit` | Learned embeddings, correction, calibration, tuning. |
+| `stream.py` | `Stream` | Online updates, regularisation paths, continuation. |
+| `implicit.py` | `Implicit` | Hypergradient adjoint. |
+| `plot.py` | `Plot` | Radio-map and convergence plotting. |
+| `data.py` | `Data` | Synthetic radio-field generation and grid creation. |
+| `helpers.py` | `Helpers` | Math/RNG helpers. |
+| `backend.py` | `Backend` | Device/dtype/env management. |
+| `base.py` | `Base` | Validation and tensor coercion. |
+| `cli.py` | `CLI` | CLI handlers. |
 
 ## Quick Start
 
 ```python
 import torch
-from laker import LAKERRegressor
+from laker import Laker
 
-# Generate synthetic data
 locations = torch.rand(200, 2) * 100.0
 measurements = torch.randn(200)
 
-# Fit
-model = LAKERRegressor(embedding_dim=10, lambda_reg=1e-2, verbose=True)
+model = Laker(embedding_dim=10, regularization=1e-2)
 model.fit(locations, measurements)
 
-# Predict on a grid
 query = torch.rand(1000, 2) * 100.0
 predictions = model.predict(query)
 ```
 
 ## Kernel Approximations
 
-The `kernel_approx` argument controls the operator used inside `LAKERRegressor`:
+The `kernel` argument controls the operator:
 
-- `None` — exact attention kernel (default, most accurate)
-- `"nystrom"` — Nyström low-rank approximation
-- `"rff"` — Random Fourier Features
-- `"knn"` — sparse k-NN approximation
-- `"ski"` — Structured Kernel Interpolation
+- `"exact"` — exact attention kernel (default).
+- `"nystrom"` — Nyström low-rank approximation.
+- `"fourier"` — Random Fourier features.
+- `"neighbors"` — sparse k-NN approximation.
+- `"grid"` — Structured Kernel Interpolation.
+- `"spectrum"` — Spectral shaping.
+- `"hybrid"` — Two-scale combined approximation.
 
 Example:
 
 ```python
-model = LAKERRegressor(kernel_approx="nystrom", num_landmarks=100)
+model = Laker(kernel="nystrom", landmarks=100)
 model.fit(locations, measurements)
 ```
 
 ## Design Principles
 
-- **Class-based executors**: All major components are implemented as classes with public APIs.
-- **No semi-private naming**: All functions, methods, and variables use standard public naming (no leading underscores).
-- **Logging over prints**: All diagnostic output goes through the standard `logging` module.
-- **Combined modules**: Related functionality is co-located (e.g., all kernel variants live in `kernels.py`, all utilities in `utils.py`).
+- **One primary class per module**: every module exports a single
+  public class; helpers exist as `@staticmethod`.
+- **Module-qualified names**: secondary classes live behind their
+  parent module (`laker.kernel.Nystrom`, `laker.solve.PCG`).
+- **No legacy aliases**: clean-break renames between releases;
+  see `NAMING.md`.
+- **No semi-private naming**: no leading-underscore modules in the
+  public surface.
+- **Logging over prints**: all diagnostic output goes through
+  `logging`.

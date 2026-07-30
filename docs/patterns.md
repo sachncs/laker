@@ -72,8 +72,9 @@ fall back to a sensible default.
 ### Rule: every public workflow must have a class implementation
 
 Standalone free functions are **not** acceptable as the primary API for
-workflows, benchmarks, or examples. They may exist as thin convenience
-wrappers, but a class must always be available.
+workflows, benchmarks, or examples. Helpers exist only as
+``@staticmethod`` on the module's primary class; they are *not*
+public module-level functions.
 
 ### Pattern
 
@@ -93,25 +94,28 @@ class MyBenchmark:
 
 ### When to keep a free-function wrapper
 
-Free-function wrappers are permitted **only** in the public API package
-(``laker/``) for heavily-used one-liners such as ``generate_radio_field`` or
-``plot_radio_map``. These wrappers must:
-
-1. Be a single line: instantiate the class and forward arguments.
-2. Carry a docstring that explicitly states:
-   ``"Convenience wrapper around <Class>.<method>()."``
-3. Never contain business logic.
+Public free functions are forbidden. Inlined `@staticmethod` on the
+primary class is the single canonical way to expose a helper. If you
+find yourself reaching for a wrapper, inline the call site or add a
+`@staticmethod` to the responsible class.
 
 ---
 
 ## 3. Naming Conventions
 
-- **No semi-private naming**: leading underscores are not used for functions,
-  methods, classes, or variables. If something is truly internal, document it
-  in the docstring rather than hiding it with an underscore.
+- **No semi-private naming**: leading underscores are not used for
+  public functions, methods, classes, or variables. Implementation
+  helpers are `private` (single underscore) inside a class, never as
+  public module-level names. The `_*.py` underscore-module convention
+  for entire files is also removed; modules are unprefixed.
 - **Descriptive names**: avoid single-letter or cryptic abbreviations.
   ``chunk_size`` is preferred over ``cs``; ``preconditioner`` over ``pre``.
-- **PEP 8**: all identifiers are ``snake_case``; classes are ``PascalCase``.
+- **PEP 8**: all identifiers are ``snake_case``; classes are
+  ``PascalCase``. Top-level classes follow ``<Module>`` naming
+  (``Laker``, ``Data``, ``Plot``, ``Embed`` etc.); secondary classes
+  follow the same PascalCase (``Nystrom``, ``PCG``, ``Adaptive``).
+- **Single source of truth**: every renames lives in `NAMING.md`.
+  Names change in lock-step with code; no deprecation layer.
 
 ---
 

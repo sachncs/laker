@@ -98,6 +98,7 @@ class ModelPersistence:
         if regressor.alpha is None:
             raise RuntimeError("Model has not been fitted. Call fit() before saving.")
         state: dict[str, Any] = {
+            "format_version": 2,
             "embedding_dim": regressor.embedding_dim,
             "lambda_reg": regressor.lambda_reg,
             "gamma": regressor.gamma,
@@ -115,15 +116,39 @@ class ModelPersistence:
             "k_neighbors": regressor.k_neighbors,
             "grid_size": regressor.grid_size,
             "distributed": regressor.distributed,
+            "twoscale_alpha": getattr(regressor, "twoscale_alpha", 0.5),
+            "landmark_method": getattr(regressor, "landmark_method", "greedy"),
+            "landmark_pilot_size": getattr(regressor, "landmark_pilot_size", 1000),
+            "spectral_knots": getattr(regressor, "spectral_knots", 5),
+            "preconditioner_strategy": getattr(
+                regressor, "preconditioner_strategy", "cccp"
+            ),
             "device": str(regressor.device),
             "dtype": str(regressor.dtype),
             "embedding_dtype": (
                 str(regressor.embedding_dtype) if regressor.embedding_dtype else None
             ),
             "verbose": regressor.verbose,
-            "embeddings": regressor.embeddings,
-            "alpha": regressor.alpha,
+            "embeddings": regressor.embeddings.cpu() if regressor.embeddings is not None else None,
+            "alpha": regressor.alpha.cpu() if regressor.alpha is not None else None,
+            "x_train": regressor.x_train.cpu() if regressor.x_train is not None else None,
+            "y_train": regressor.y_train.cpu() if regressor.y_train is not None else None,
         }
+        # Save the preconditioner tensors if available.
+        if regressor.preconditioner is not None:
+            prec = regressor.preconditioner
+            prec_state = getattr(prec, "state_dict", None)
+            prec_class = prec.__class__.__name__
+            prec_module = prec.__class__.__module__
+            state["preconditioner_class"] = prec_class
+            state["preconditioner_module"] = prec_module
+            if callable(prec_state):
+                state["preconditioner_state"] = prec.state_dict()
+            else:
+                # Fall back to attribute extraction.
+                state["preconditioner_state"] = {
+                    k: v for k, v in vars(prec).items() if torch.is_tensor(v)
+                }
         if regressor.embedding_model is not None:
             state["embedding_model_state"] = regressor.embedding_model.state_dict()
             state["embedding_model_class"] = regressor.embedding_model.__class__.__name__
@@ -199,6 +224,11 @@ class ModelPersistence:
             k_neighbors=state.get("k_neighbors"),
             grid_size=state.get("grid_size"),
             distributed=state.get("distributed", False),
+            twoscale_alpha=state.get("twoscale_alpha", 0.5),
+            landmark_method=state.get("landmark_method", "greedy"),
+            landmark_pilot_size=state.get("landmark_pilot_size", 1000),
+            spectral_knots=state.get("spectral_knots", 5),
+            preconditioner=state.get("preconditioner_strategy", "cccp"),
             embedding_dtype=embedding_dtype,
             device=state["device"],
             dtype=dtype,
@@ -206,6 +236,10 @@ class ModelPersistence:
         )
         model.embeddings = state["embeddings"].to(model.device)
         model.alpha = state["alpha"].to(model.device)
+        if state.get("x_train") is not None:
+            model.x_train = state["x_train"].to(model.device)
+        if state.get("y_train") is not None:
+            model.y_train = state["y_train"].to(model.device)
 
         if "embedding_model_state" in state:
             class_name = state["embedding_model_class"]
@@ -281,9 +315,11 @@ class ModelPersistence:
             RandomFeatureAttentionKernelOperator,
             SKIAttentionKernelOperator,
             SparseKNNAttentionKernelOperator,
+            SpectralAttentionKernelOperator,
+            TwoScaleAttentionKernelOperator,
         )
 
-        if model.kernel_approx is None:
+        if model.kernel_approx is None or model.kernel_approx == "exact":
             model.kernel_operator = AttentionKernelOperator(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
@@ -325,4 +361,58 @@ class ModelPersistence:
                 device=model.device,
                 dtype=dtype,
             )
+        elif model.kernel_approx == "spectral":
+            model.kernel_operator = SpectralAttentionKernelOperator(
+                embeddings=model.embeddings,
+                lambda_reg=model.lambda_reg,
+                num_knots=model.spectral_knots,
+                device=model.device,
+                dtype=dtype,
+            )
+        elif model.kernel_approx == "twoscale":
+            model.kernel_operator = TwoScaleAttentionKernelOperator(
+                embeddings=model.embeddings,
+                lambda_reg=model.lambda_reg,
+                alpha=model.twoscale_alpha,
+                num_landmarks=model.num_landmarks,
+                k_neighbors=model.k_neighbors,
+                chunk_size=model.chunk_size,
+                device=model.device,
+                dtype=dtype,
+            )
+
+        # Restore preconditioner state.
+        if (
+            "preconditioner_state" in state
+            and "preconditioner_class" in state
+            and model.kernel_operator is not None
+        ):
+            try:
+                import importlib
+
+                prec_module = importlib.import_module(state["preconditioner_module"])
+                prec_cls = getattr(prec_module, state["preconditioner_class"])
+                prec = prec_cls.__new__(prec_cls)
+                # Restore tensor attributes onto the instance.
+                for key, value in state["preconditioner_state"].items():
+                    if torch.is_tensor(value):
+                        setattr(prec, key, value.to(model.device))
+                    else:
+                        setattr(prec, key, value)
+                # Reattach other required non-tensor state (gamma, base_rho).
+                for attr in ("gamma", "epsilon", "base_rho", "num_probes",
+                              "max_iter", "tol", "verbose", "device", "dtype"):
+                    if not hasattr(prec, attr) and hasattr(model, attr):
+                        setattr(prec, attr, getattr(model, attr))
+                # Ensure device/dtype fields are correct torch types.
+                if not hasattr(prec, "device"):
+                    setattr(prec, "device", model.device)
+                if not hasattr(prec, "dtype"):
+                    setattr(prec, "dtype", dtype)
+                model.preconditioner = prec
+            except Exception as exc:
+                logger.warning(
+                    "Could not restore preconditioner (%s); variance() "
+                    "after load will fail until refit.", exc
+                )
         return model

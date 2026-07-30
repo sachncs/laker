@@ -33,14 +33,15 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics"
 ]
 dependencies = [
-    "numpy>=1.23.0",
-    "torch>=2.0.0"
+    "numpy>=1.23.0,<3.0",
+    "torch>=2.0.0,<3.0"
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
+    "hypothesis>=6.148.0",
     "black>=23.0.0",
     "isort>=5.12.0",
     "flake8>=6.0.0",
@@ -50,8 +51,8 @@ dev = [
     "myst-parser>=2.0.0"
 ]
 viz = [
-    "matplotlib>=3.5.0"
-]
+    "matplotlib>=3.5.0,<4.0"
+] 
 
 [project.urls]
 Homepage = "https://github.com/sachncs/laker"
@@ -89,7 +90,7 @@ follow_imports = "skip"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "--strict-markers --disable-warnings"
+addopts = "--strict-markers"
 
 [tool.coverage.run]
 source = ["laker"]
