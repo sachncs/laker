@@ -1,5 +1,8 @@
 """Distributed multi-device matvec sanity check.
 
+Compares the matvec and diagonal of the multi-device distributed kernel
+against the single-device exact kernel.
+
 Run:
     python -m examples.distributed_matvec --devices 0,1
 """
@@ -9,43 +12,59 @@ import argparse
 
 import torch
 
-from laker.kernel import Distribute, Exact
+from laker.distributed_kernels import DistributedAttentionKernelOperator
+from laker.kernels import AttentionKernelOperator
 
 
-def main() -> None:
+class Distributed:
+    """Compare single-device and multi-device kernel operators."""
+
+    @staticmethod
+    def run(devices: str = "0", n: int = 200, regularization: float = 1e-2) -> None:
+        """Smoke-test the two operators on identical inputs."""
+        if not torch.cuda.is_available():
+            print("CUDA not available; skipping distributed smoke test.")
+            return
+
+        device_ids = [int(d) for d in devices.split(",") if d]
+        torch.manual_seed(0)
+        embeddings = torch.randn(n, 8)
+        target = torch.randn(n)
+
+        single = AttentionKernelOperator(embeddings, regularization=regularization)
+        distributed = DistributedAttentionKernelOperator(
+            embeddings,
+            regularization=regularization,
+            master_device="cuda",
+            devices=device_ids,
+        )
+
+        for name in ("matvec", "diagonal"):
+            v = torch.randn(n)
+            a_single = (
+                single.matvec(v)
+                if name == "matvec"
+                else single.diagonal()
+            )
+            a_dist = (
+                distributed.matvec(v)
+                if name == "matvec"
+                else distributed.diagonal()
+            )
+            err = (a_single - a_dist).norm().item() / a_single.norm().item()
+            print(f"{name}: relative error = {err:.2e}")
+
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--devices",
         default="0",
-        help="Comma-separated CUDA device indices (skips on non-CUDA hosts).",
+        help="Comma-separated CUDA device indices. Skip if no CUDA.",
     )
     parser.add_argument("--n", type=int, default=200)
+    parser.add_argument("--regularization", type=float, default=1e-2)
     args = parser.parse_args()
-
-    if not torch.cuda.is_available():
-        print("CUDA not available; skipping distributed smoke test.")
-        return
-
-    device_ids = [int(d) for d in args.devices.split(",") if d]
-    n = args.n
-    torch.manual_seed(0)
-    embeddings = torch.randn(n, 8)
-    targets = torch.randn(n)
-
-    base = Exact(embeddings, regularization=1e-2)
-    distributed = Distribute(embeddings, regularization=1e-2, devices=device_ids)
-
-    v = torch.randn(n)
-    a_single = base.matvec(v)
-    a_dist = distributed.matvec(v)
-    err = (a_single - a_dist).norm().item() / a_single.norm().item()
-    print(f"Relative error vs single-device: {err:.2e}")
-
-    d_single = base.diagonal()
-    d_dist = distributed.diagonal()
-    err = (d_single - d_dist).norm().item() / d_single.norm().item()
-    print(f"Diagonal relative error: {err:.2e}")
-
-
-if __name__ == "__main__":
-    main()
+    Distributed.run(
+        devices=args.devices, n=args.n, regularization=args.regularization
+    )
