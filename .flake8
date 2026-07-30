@@ -13,7 +13,4 @@ exclude =
     .tox,
     .mypy_cache,
     .pytest_cache,
-    docs/_build,
-    benchmarks/compare_approximations.py,
-    benchmarks/compare_baseline.py,
-    benchmarks/reproducible_benchmarks.py
+    docs/_build
