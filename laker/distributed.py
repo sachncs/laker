@@ -1,4 +1,4 @@
-"""Multi-GPU distributed attention kernel operator.
+"""Multi-GPU distributed attention kernel operator (canonical).
 
 Shards embeddings across available CUDA devices and computes matvecs
 in parallel. Falls back gracefully to single-device execution when only

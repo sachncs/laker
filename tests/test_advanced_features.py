@@ -368,7 +368,7 @@ def test_learned_embeddings():
 
 def test_distributed_fallback():
     """Distributed kernel should fall back to single-device when only one GPU."""
-    from laker.distributed_kernels import DistributedAttentionKernelOperator
+    from laker.distributed import DistributedAttentionKernelOperator
 
     torch.manual_seed(42)
     n = 50

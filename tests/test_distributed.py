@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from laker.distributed_kernels import DistributedAttentionKernelOperator
+from laker.distributed import DistributedAttentionKernelOperator
 
 
 def test_distributed_single_device_fallback():

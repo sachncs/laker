@@ -57,7 +57,7 @@ import torch
 import torch.nn as nn
 
 from laker.backend import get_chunk_disabled, get_chunk_memory_budget, get_default_device, get_default_dtype
-from laker.distributed_kernels import DistributedAttentionKernelOperator
+from laker.distributed import DistributedAttentionKernelOperator
 from laker.embeddings import PositionEmbedding
 from laker.kernels import (
     AttentionKernelOperator,

@@ -23,7 +23,7 @@ from laker.kernels import (
     TwoScaleAttentionKernelOperator as Hybrid,
 )
 from laker.kernels import KernelOperator  # protocol
-from laker.distributed_kernels import (
+from laker.distributed import (
     DistributedAttentionKernelOperator as Distribute,
 )
 
