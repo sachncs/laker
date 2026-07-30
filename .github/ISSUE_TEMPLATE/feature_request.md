@@ -1,19 +1,40 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
-title: '[FEATURE] '
-labels: enhancement
-assignees: ''
+about: Suggest an idea for LAKER
+title: "[FEATURE] "
+labels: ["enhancement"]
+assignees: ""
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+## Problem
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+A clear and concise description of the problem you want solved.
+What workflow is blocked by the missing capability? What is the
+real-world use case behind it (spectrum cartography? online
+learning? hyperparameter tuning? something else)?
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+## Proposed solution
 
-**Additional context**
-Add any other context, references to papers, or screenshots about the feature request here.
+A clear and concise description of what you want LAKER to do.
+Sketch the API if you have one in mind, e.g.
+
+```python
+model = Laker(...)
+# ...
+```
+
+## Alternatives considered
+
+A clear and concise description of any alternative solutions or
+workarounds you have considered.
+
+## Public-API impact
+
+If the feature changes the public surface, list the symbols and
+their current shapes; otherwise mark this as `[ ] No public-API
+impact`.
+
+## Additional context
+
+Links to related work (papers, blog posts, prior art), benchmarks
+that motivate the change, or screenshots / mock-ups.

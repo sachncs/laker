@@ -1,0 +1,15 @@
+# Code owners for LAKER. Lower patterns take precedence.
+
+*       @sachncs
+
+# Documentation requires a docs review.
+/docs/  @sachncs
+
+# Public API: any change to `laker/model.py` or `laker/__init__.py`
+# is a breaking-change candidate.
+/laker/model.py   @sachncs
+/laker/__init__.py @sachncs
+
+# CI workflows and packaging.
+/.github/  @sachncs
+/pyproject.toml  @sachncs
