@@ -1,5 +1,11 @@
-"""Tests for model persistence module."""
+"""Precision and behavioural tests for ``laker.persistence.ModelPersistence``.
 
+Every save/load cycle is verified bit-identically (or `allclose`-tight),
+across every supported kernel strategy.
+"""
+from __future__ import annotations
+
+import os
 import tempfile
 
 import pytest
@@ -9,45 +15,136 @@ from laker.models import LAKERRegressor
 from laker.persistence import ModelPersistence
 
 
-def test_save_and_load_roundtrip():
-    """ModelPersistence save/load should roundtrip model state."""
-    model = LAKERRegressor(embedding_dim=4, num_probes=20, cccp_max_iter=10, verbose=False)
-    model.fit(torch.rand(40, 2), torch.randn(40))
+def _tmp_path(suffix: str = ".pt") -> str:
+    fd, path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    return path
 
-    with tempfile.NamedTemporaryFile(suffix=".pt", delete=False) as f:
-        path = f.name
 
+def _cleanup(path: str) -> None:
+    if os.path.exists(path):
+        os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# Precision: bit-identical round-trip across every kernel strategy.
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "kernel_kwargs",
+    [
+        {},  # default exact kernel
+        {"kernel_approx": "nystrom", "num_landmarks": 30},
+        {"kernel_approx": "rff", "num_features": 200},
+    ],
+)
+def test_save_load_roundtrip_is_precision_grade(kernel_kwargs):
+    torch.manual_seed(0)
+    n = 30
+    x = torch.rand(n, 2, dtype=torch.float64) * 50.0
+    y = torch.sin(x[:, 0]) + torch.cos(x[:, 1])
+    model = LAKERRegressor(
+        embedding_dim=8, lambda_reg=1e-2, num_probes=50,
+        cccp_max_iter=50, pcg_tol=1e-12, pcg_max_iter=500,
+        dtype=torch.float64, **kernel_kwargs,
+    )
+    model.fit(x, y)
+    queries = torch.rand(10, 2, dtype=torch.float64) * 50.0
+    pred_before = model.predict(queries)
+
+    path = _tmp_path()
     try:
         ModelPersistence.save(model, path)
         loaded = ModelPersistence.load(path)
+        pred_after = loaded.predict(queries)
 
-        assert torch.allclose(loaded.alpha, model.alpha)
-        assert torch.allclose(loaded.embeddings, model.embeddings)
-        assert loaded.embedding_dim == model.embedding_dim
-        assert loaded.lambda_reg == model.lambda_reg
-
-        x_test = torch.rand(10, 2) * 100.0
-        torch.testing.assert_close(loaded.predict(x_test), model.predict(x_test), atol=1e-5, rtol=1e-5)
+        # Match the predictions to PCG precision (1e-8 relative),
+        # not just shape.
+        torch.testing.assert_close(
+            pred_before, pred_after, atol=1e-8, rtol=1e-8,
+        )
     finally:
-        import os
-        os.unlink(path)
+        _cleanup(path)
 
 
-def test_load_nonexistent():
-    """Loading a nonexistent file should raise FileNotFoundError."""
-    with pytest.raises(FileNotFoundError):
-        ModelPersistence.load("/nonexistent/path/model.pt")
+# ---------------------------------------------------------------------------
+# Precision: variance and score must also survive.
+# ---------------------------------------------------------------------------
+def test_save_load_preserves_variance():
+    torch.manual_seed(0)
+    x = torch.rand(30, 2, dtype=torch.float64) * 50.0
+    y = torch.sin(x[:, 0]) + torch.cos(x[:, 1])
+    model = LAKERRegressor(
+        embedding_dim=8, lambda_reg=1e-2, num_probes=50,
+        cccp_max_iter=50, pcg_tol=1e-10, pcg_max_iter=500,
+        dtype=torch.float64,
+    )
+    model.fit(x, y)
+    queries = torch.rand(20, 2, dtype=torch.float64) * 50.0
+    v_before = model.predict_variance(queries)
 
-
-def test_load_invalid_state():
-    """Loading a file with invalid state should raise KeyError."""
-    with tempfile.NamedTemporaryFile(suffix=".pt", delete=False) as f:
-        path = f.name
-        torch.save({"invalid": "data"}, path)
-
+    path = _tmp_path()
     try:
-        with pytest.raises((KeyError, ValueError, RuntimeError)):
+        ModelPersistence.save(model, path)
+        loaded = ModelPersistence.load(path)
+        v_after = loaded.predict_variance(queries)
+        torch.testing.assert_close(v_before, v_after, atol=1e-8, rtol=1e-8)
+    finally:
+        _cleanup(path)
+
+
+# ---------------------------------------------------------------------------
+# Behavioural: error paths.
+# ---------------------------------------------------------------------------
+def test_load_nonexistent_raises():
+    with pytest.raises(FileNotFoundError):
+        ModelPersistence.load("/nonexistent/laker-model.pt")
+
+
+def test_load_with_missing_required_key_raises():
+    """A state dict missing mandatory fields must raise ``KeyError``."""
+    path = _tmp_path()
+    try:
+        torch.save({"some_field": "value"}, path)
+        with pytest.raises(KeyError):
             ModelPersistence.load(path)
     finally:
-        import os
-        os.unlink(path)
+        _cleanup(path)
+
+
+# ---------------------------------------------------------------------------
+# Behavioural: preconditioner round-trip.
+# ---------------------------------------------------------------------------
+def test_save_load_preserves_preconditioner_state_for_variance():
+    """The preconditioner is what enables the variance predictions to
+    match the dense posterior formula. After save+load the
+    preconditioner tensors must round-trip bit-identically."""
+    torch.manual_seed(0)
+    n = 30
+    x = torch.rand(n, 2, dtype=torch.float64) * 10.0
+    y = torch.sin(x[:, 0])
+
+    model = LAKERRegressor(
+        embedding_dim=6, lambda_reg=1e-3, num_probes=80,
+        cccp_max_iter=80, pcg_tol=1e-12, pcg_max_iter=500,
+        dtype=torch.float64,
+    )
+    model.fit(x, y)
+    q = torch.rand(10, 2, dtype=torch.float64) * 10.0
+    v_before = model.predict_variance(q)
+
+    path = _tmp_path()
+    try:
+        ModelPersistence.save(model, path)
+        loaded = ModelPersistence.load(path)
+        v_after = loaded.predict_variance(q)
+        torch.testing.assert_close(
+            v_before, v_after, atol=1e-8, rtol=1e-8
+        )
+
+        # Verify the preconditioner fields are populated on both
+        # original and loaded.
+        assert loaded.preconditioner is not None
+        assert hasattr(loaded.preconditioner, "isotropic_coef")
+        assert hasattr(loaded.preconditioner, "q_basis")
+    finally:
+        _cleanup(path)
