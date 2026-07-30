@@ -12,7 +12,7 @@ same hardware and PyTorch version.
 Benchmarked components:
 
 * **Attention kernel matvec** — :math:`Kx` with
-  :class:`~laker.kernels.AttentionKernelOperator`.
+  :class:`~laker.kernels.Kernel.exact`.
 * **Approximation matvec** — Nyström, RFF, k-NN, and SKI kernel
   operators compared against the exact kernel.
 * **CCCP preconditioner build** — randomised low-rank approximation of
@@ -41,16 +41,18 @@ import torch
 
 from benchmarks.executor import BenchmarkExecutor
 from laker.embeddings import PositionEmbedding
-from laker.kernels import (
-    AttentionKernelOperator,
-    NystromAttentionKernelOperator,
-    RandomFeatureAttentionKernelOperator,
-    SKIAttentionKernelOperator,
-    SparseKNNAttentionKernelOperator,
-)
+from laker.kernels import Kernel
 from laker.models import LAKERRegressor
 from laker.preconditioner import CCCPPreconditioner
-from laker.solvers import PreconditionedConjugateGradient
+from laker.solvers import Solve
+from laker.solvers import PreconditionedConjugateGradient as PCG  # noqa: F401
+
+# Short aliases for kernel strategy selection; the full name is verbose.
+Exact = Kernel.exact
+Nystrom = Kernel.nystrom
+Fourier = Kernel.fourier
+Grid = Kernel.grid
+Neighbors = Kernel.neighbors
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +157,7 @@ class ReproducibleBenchmarkSuite:
         """
         embeddings = self.make_embeddings(n, dim=self.embedding_dim)
         vector = torch.randn(n, dtype=self.dtype)
-        kernel = AttentionKernelOperator(
+        kernel = Kernel.exact(
             embeddings,
             lambda_reg=self.lambda_reg,
             chunk_size=chunk_size,
@@ -194,7 +196,7 @@ class ReproducibleBenchmarkSuite:
             ``build_ms`` (build time in milliseconds).
         """
         embeddings = self.make_embeddings(n, dim=self.embedding_dim)
-        kernel = AttentionKernelOperator(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
+        kernel = Kernel.exact(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
         preconditioner = CCCPPreconditioner(
             num_probes=num_probes,
             gamma=1e-1,
@@ -219,7 +221,7 @@ class ReproducibleBenchmarkSuite:
 
         Solves :math:`(K + \\lambda I)\\alpha = b` for a random right-
         hand side :math:`b` using
-        :class:`~laker.solvers.PreconditionedConjugateGradient` with
+        :class:`~laker.solve.Solve.pcg` with
         tolerance :math:`10^{-10}` and up to 1000 iterations.
 
         Args:
@@ -233,7 +235,7 @@ class ReproducibleBenchmarkSuite:
             iteration count).
         """
         embeddings = self.make_embeddings(n, dim=self.embedding_dim)
-        kernel = AttentionKernelOperator(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
+        kernel = Kernel.exact(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
         rhs = torch.randn(n, dtype=self.dtype)
 
         preconditioner = CCCPPreconditioner(
@@ -246,7 +248,7 @@ class ReproducibleBenchmarkSuite:
         )
         preconditioner.build(kernel.matvec, n)
 
-        pcg = PreconditionedConjugateGradient(tol=1e-10, max_iter=1000, verbose=False)
+        pcg = Solve.pcg(tol=1e-10, max_iter=1000, verbose=False)
 
         result = self.executor.run_once(
             f"pcg_solve_n{n}",
@@ -322,7 +324,7 @@ class ReproducibleBenchmarkSuite:
         results = {}
 
         # Exact
-        operator = AttentionKernelOperator(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
+        operator = Kernel.exact(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
         result = self.executor.run(
             "exact_matvec",
             lambda: operator.matvec(vector),
@@ -332,7 +334,7 @@ class ReproducibleBenchmarkSuite:
         results["exact"] = {"mean": result["mean_ms"], "std": result["std_ms"]}
 
         # Nyström
-        operator = NystromAttentionKernelOperator(
+        operator = Nystrom(
             embeddings, lambda_reg=self.lambda_reg, num_landmarks=200, dtype=self.dtype
         )
         result = self.executor.run(
@@ -344,7 +346,7 @@ class ReproducibleBenchmarkSuite:
         results["nystrom"] = {"mean": result["mean_ms"], "std": result["std_ms"]}
 
         # RFF
-        operator = RandomFeatureAttentionKernelOperator(
+        operator = Fourier(
             embeddings, lambda_reg=self.lambda_reg, num_features=400, dtype=self.dtype
         )
         result = self.executor.run(
@@ -356,7 +358,7 @@ class ReproducibleBenchmarkSuite:
         results["rff"] = {"mean": result["mean_ms"], "std": result["std_ms"]}
 
         # k-NN
-        operator = SparseKNNAttentionKernelOperator(
+        operator = Neighbors(
             embeddings, lambda_reg=self.lambda_reg, k_neighbors=50, dtype=self.dtype
         )
         result = self.executor.run(
@@ -368,7 +370,7 @@ class ReproducibleBenchmarkSuite:
         results["knn"] = {"mean": result["mean_ms"], "std": result["std_ms"]}
 
         # SKI
-        operator = SKIAttentionKernelOperator(
+        operator = Grid(
             embeddings, lambda_reg=self.lambda_reg, grid_size=1024, dtype=self.dtype
         )
         result = self.executor.run(

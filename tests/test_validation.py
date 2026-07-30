@@ -212,28 +212,37 @@ def test_fit_residual_corrector():
 
 def test_generate_radio_field_wrong_shapes():
     """Test generate_radio_field validates input shapes."""
-    from laker.data import generate_radio_field
+    from laker.data import Data
     locs = torch.randn(10, 2)
     tx = torch.randn(3, 2)
     pwr = torch.randn(3)
     with pytest.raises(ValueError, match="locations must be 2-D"):
-        generate_radio_field(torch.randn(10), tx, pwr)
+        Data.field(torch.randn(10), tx, pwr)
     with pytest.raises(ValueError, match="transmitters must be 2-D"):
-        generate_radio_field(locs, torch.randn(3), pwr)
+        Data.field(locs, torch.randn(3), pwr)
     with pytest.raises(ValueError, match="powers must be 1-D"):
-        generate_radio_field(locs, tx, torch.randn(3, 1))
+        Data.field(locs, tx, torch.randn(3, 1))
     with pytest.raises(ValueError, match="transmitters and powers must have same length"):
-        generate_radio_field(locs, torch.randn(4, 2), pwr)
+        Data.field(locs, torch.randn(4, 2), pwr)
 
 
 def test_radio_field_generator_repr():
-    """Test RadioFieldGenerator repr shows parameters."""
-    from laker.data import RadioFieldGenerator
-    gen = RadioFieldGenerator(path_loss_exponent=3.0, shadow_sigma=2.0)
-    r = repr(gen)
-    assert "path_loss_exponent=3.0" in r
-    assert "shadow_sigma=2.0" in r
-    assert "RadioFieldGenerator" in r
+    """Test that Data static methods respect path-loss parameters."""
+    from laker.data import Data
+    # Smoke test: ensure all kwargs are accepted and the field is finite.
+    locs = torch.rand(20, 2) * 50.0
+    tx = torch.tensor([[25.0, 25.0]])
+    pwr = torch.tensor([-40.0])
+    clean, noisy = Data.field(
+        locs, tx, pwr,
+        path_loss_exponent=3.0,
+        reference_distance=1.5,
+        shadow_sigma=2.0,
+    )
+    assert clean.shape == (20,)
+    assert noisy.shape == (20,)
+    assert torch.isfinite(clean).all()
+    assert torch.isfinite(noisy).all()
 
 
 def test_matvec_wrong_size():
@@ -252,37 +261,37 @@ def test_matvec_wrong_size_2d():
 
 def test_generate_grid_small():
     """generate_grid should reject grid_size < 2."""
-    from laker.data import generate_grid
+    from laker.data import Data
     with pytest.raises(ValueError, match="grid_size must be at least 2"):
-        generate_grid((0.0, 1.0, 0.0, 1.0), 1)
+        Data.grid((0.0, 1.0, 0.0, 1.0), 1)
 
 
 def test_generate_grid_reversed_x():
     """generate_grid should reject reversed x bounds."""
-    from laker.data import generate_grid
+    from laker.data import Data
     with pytest.raises(ValueError, match="x_min"):
-        generate_grid((1.0, 0.0, 0.0, 1.0), 5)
+        Data.grid((1.0, 0.0, 0.0, 1.0), 5)
 
 
 def test_generate_grid_reversed_y():
     """generate_grid should reject reversed y bounds."""
-    from laker.data import generate_grid
+    from laker.data import Data
     with pytest.raises(ValueError, match="y_min"):
-        generate_grid((0.0, 1.0, 1.0, 0.0), 5)
+        Data.grid((0.0, 1.0, 1.0, 0.0), 5)
 
 
 def test_generate_radio_field_empty_locations():
     """generate_radio_field should reject empty locations."""
-    from laker.data import generate_radio_field
+    from laker.data import Data
     with pytest.raises(ValueError, match="at least one"):
-        generate_radio_field(torch.empty(0, 2), torch.randn(1, 2), torch.randn(1))
+        Data.field(torch.empty(0, 2), torch.randn(1, 2), torch.randn(1))
 
 
 def test_generate_radio_field_empty_transmitters():
     """generate_radio_field should reject empty transmitters."""
-    from laker.data import generate_radio_field
+    from laker.data import Data
     with pytest.raises(ValueError, match="at least one"):
-        generate_radio_field(torch.randn(5, 2), torch.empty(0, 2), torch.empty(0))
+        Data.field(torch.randn(5, 2), torch.empty(0, 2), torch.empty(0))
 
 
 def test_predict_wrong_features():

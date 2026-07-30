@@ -187,6 +187,19 @@ def solve(operator, rhs, tol=1e-10):
 - Never commit secrets, API keys, or credentials.
 - Follow existing code patterns in the module you are modifying.
 
+### Module Conventions (post-refactor)
+
+- One primary class per module under `laker/`.
+- Helpers exist only as `@staticmethod` on that class.
+  No module-level public functions.
+- Module names are unprefixed; no `_*` underscore modules.
+- Public surface goes through `laker/__init__.py` re-exports and
+  the module-qualified secondary classes listed in `NAMING.md`.
+- No legacy aliases. Old names are removed in the same step that
+  replaces them; no deprecation period.
+- Every module <= 12 `@staticmethod` and <= 300 lines. Split when
+  exceeded (see `tools/audit_one_class.py`).
+
 ## Reporting Bugs
 
 When reporting bugs, please include:

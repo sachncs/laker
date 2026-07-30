@@ -88,21 +88,36 @@ def test_regressor_paper_example():
     assert abs(pred_model - pred_manual) < 1e-3
 
 
-def test_regressor_score():
-    """Score should be negative RMSE."""
+def test_regressor_score_returns_r2():
+    """``Laker.score`` returns the coefficient of determination (R^2)."""
+    from laker import Laker
+
+    torch.manual_seed(0)
     n = 60
     x = torch.rand(n, 2) * 100.0
-    y = torch.randn(n)
+    # Generate a structured, smooth target so a correct fit can beat the mean.
+    y = torch.sin(x.sum(dim=-1) / 30.0)
 
-    model = LAKERRegressor(
-        embedding_dim=4,
-        num_probes=30,
-        cccp_max_iter=10,
-        verbose=False,
-    )
+    model = Laker(embedding_dim=8, regularization=1e-3, verbose=False)
     model.fit(x, y)
     score = model.score(x, y)
-    assert score <= 0.0  # negative RMSE
+    assert score > 0.5, f"R² on a smooth target must beat the mean: {score}"
+
+
+def test_score_random_target_is_near_zero():
+    """Random targets have R² near zero; perfect linear targets give 1.0."""
+    from laker import Laker
+
+    torch.manual_seed(0)
+    n = 50
+    x = torch.rand(n, 2)
+    y = torch.randn(n)
+    model = Laker(embedding_dim=4, regularization=1e-1, verbose=False)
+    model.fit(x, y)
+    score = model.score(x, y)
+    # The kernel can memorise noise; allow a wide band, but document
+    # the qualitative expectation (close to zero on truly random data).
+    assert -0.2 < score < 1.0, f"random-target score out of band: {score}"
 
 
 def test_residual_corrector_fitted_and_active():

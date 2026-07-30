@@ -149,3 +149,13 @@ def hypergradient(
             hypergrads.append(torch.zeros_like(param))
 
     return hypergrads
+
+
+# Single-class namespace for the new public API.
+class _ImplicitNamespace:
+    @staticmethod
+    def hypergradient(*args, **kwargs):
+        return hypergradient(*args, **kwargs)
+
+
+Implicit = _ImplicitNamespace

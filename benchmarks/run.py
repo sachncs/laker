@@ -26,10 +26,10 @@ from typing import Optional
 import torch
 
 from benchmarks.executor import BenchmarkExecutor
-from laker.kernels import AttentionKernelOperator
+from laker.kernels import Kernel
 from laker.models import LAKERRegressor
 from laker.preconditioner import CCCPPreconditioner
-from laker.solvers import PreconditionedConjugateGradient
+from laker.solvers import Solve
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +120,7 @@ class PerformanceBenchmarkSuite:
         """Benchmark attention kernel matvec performance.
 
         Constructs a random :math:`n \\times d` embedding matrix, builds
-        an :class:`~laker.kernels.AttentionKernelOperator` with the
+        an :class:`~laker.kernel.Kernel.exact` with the
         given ``chunk_size``, and measures the time for
         :math:`Kv \\in \\mathbb{R}^n` using repeated execution via
         :meth:`BenchmarkExecutor.run_repeated`.
@@ -136,7 +136,7 @@ class PerformanceBenchmarkSuite:
         """
         embeddings = torch.randn(n, self.embedding_dim, dtype=self.dtype)
         vector = torch.randn(n, dtype=self.dtype)
-        kernel = AttentionKernelOperator(
+        kernel = Kernel.exact(
             embeddings, lambda_reg=self.lambda_reg, chunk_size=chunk_size, dtype=self.dtype
         )
 
@@ -170,7 +170,7 @@ class PerformanceBenchmarkSuite:
             iterations executed).
         """
         embeddings = torch.randn(n, self.embedding_dim, dtype=self.dtype)
-        kernel = AttentionKernelOperator(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
+        kernel = Kernel.exact(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
         preconditioner = CCCPPreconditioner(
             num_probes=num_probes,
             gamma=1e-1,
@@ -196,7 +196,7 @@ class PerformanceBenchmarkSuite:
 
         Solves :math:`(K + \\lambda I)\\alpha = b` for a random right-
         hand side :math:`b` using
-        :class:`~laker.solvers.PreconditionedConjugateGradient` with
+        :class:`~laker.solve.Solve.pcg` with
         the CCCP preconditioner.  The preconditioner build is included
         in the timing.
 
@@ -211,7 +211,7 @@ class PerformanceBenchmarkSuite:
             (number of PCG iterations until convergence).
         """
         embeddings = torch.randn(n, self.embedding_dim, dtype=self.dtype)
-        kernel = AttentionKernelOperator(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
+        kernel = Kernel.exact(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
         rhs = torch.randn(n, dtype=self.dtype)
 
         preconditioner = CCCPPreconditioner(
@@ -224,7 +224,7 @@ class PerformanceBenchmarkSuite:
         )
         preconditioner.build(kernel.matvec, n)
 
-        pcg = PreconditionedConjugateGradient(tol=1e-8, max_iter=500, verbose=False)
+        pcg = Solve.pcg(tol=1e-8, max_iter=500, verbose=False)
 
         result = self.executor.run_once(
             f"pcg_solve_n{n}",

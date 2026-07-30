@@ -2,16 +2,16 @@
 
 import torch
 
-from laker.data import generate_grid, generate_radio_field
+from laker.data import Data
 
 
 def test_generate_radio_field_shape():
-    """Test that generate_radio_field returns correct shapes and types."""
+    """Test that Data.field returns correct shapes and types."""
     n = 50
     locs = torch.rand(n, 2) * 100.0
     tx = torch.tensor([[30.0, 70.0]])
     pwr = torch.tensor([-40.0])
-    clean, noisy = generate_radio_field(locs, tx, pwr)
+    clean, noisy = Data.field(locs, tx, pwr)
     assert clean.shape == (n,)
     assert noisy.shape == (n,)
     assert noisy.dtype == locs.dtype
@@ -24,29 +24,28 @@ def test_generate_radio_field_seed_reproducibility():
     locs = torch.rand(n, 2) * 100.0
     tx = torch.tensor([[50.0, 50.0]])
     pwr = torch.tensor([-40.0])
-    _, noisy1 = generate_radio_field(locs, tx, pwr, seed=42)
-    _, noisy2 = generate_radio_field(locs, tx, pwr, seed=42)
+    _, noisy1 = Data.field(locs, tx, pwr, seed=42)
+    _, noisy2 = Data.field(locs, tx, pwr, seed=42)
     torch.testing.assert_close(noisy1, noisy2)
 
 
 def test_generate_grid():
-    """Test that generate_grid produces correct shape and bounds."""
-    grid = generate_grid((0.0, 100.0, 0.0, 100.0), grid_size=10)
+    """Test that Data.grid produces correct shape and bounds."""
+    grid = Data.grid((0.0, 100.0, 0.0, 100.0), grid_size=10)
     assert grid.shape == (100, 2)
     assert grid[0, 0].item() == 0.0
     assert grid[-1, 0].item() == 100.0
 
 
 def test_generate_grid_minimal_size():
-    """Test generate_grid with minimal grid_size."""
-    grid = generate_grid((0.0, 1.0, 0.0, 1.0), grid_size=2)
+    """Test Data.grid with minimal grid_size."""
+    grid = Data.grid((0.0, 1.0, 0.0, 1.0), grid_size=2)
     assert grid.shape == (4, 2)
 
 
 def test_generate_grid_device_dtype():
-    """Test generate_grid respects device and dtype."""
-    import torch
-    grid = generate_grid((0.0, 1.0, 0.0, 1.0), grid_size=5, device="cpu", dtype=torch.float32)
+    """Test Data.grid respects device and dtype."""
+    grid = Data.grid((0.0, 1.0, 0.0, 1.0), grid_size=5, device="cpu", dtype=torch.float32)
     assert grid.dtype == torch.float32
     assert grid.device.type == "cpu"
 
@@ -59,7 +58,7 @@ def test_generate_radio_field_bad_locations():
     tx = torch.tensor([[1.0, 1.0]])
     pwr = torch.tensor([-40.0])
     with pytest.raises(ValueError, match="locations must be 2-D"):
-        generate_radio_field(locs, tx, pwr)
+        Data.field(locs, tx, pwr)
 
 
 def test_generate_radio_field_bad_transmitters():
@@ -70,7 +69,7 @@ def test_generate_radio_field_bad_transmitters():
     tx = torch.tensor([1.0, 1.0])
     pwr = torch.tensor([-40.0])
     with pytest.raises(ValueError, match="transmitters must be 2-D"):
-        generate_radio_field(locs, tx, pwr)
+        Data.field(locs, tx, pwr)
 
 
 def test_generate_radio_field_bad_powers():
@@ -81,7 +80,7 @@ def test_generate_radio_field_bad_powers():
     tx = torch.tensor([[1.0, 1.0]])
     pwr = torch.tensor([[-40.0]])
     with pytest.raises(ValueError, match="powers must be 1-D"):
-        generate_radio_field(locs, tx, pwr)
+        Data.field(locs, tx, pwr)
 
 
 def test_generate_radio_field_mismatched_tx_powers():
@@ -92,7 +91,7 @@ def test_generate_radio_field_mismatched_tx_powers():
     tx = torch.tensor([[1.0, 1.0], [2.0, 2.0]])
     pwr = torch.tensor([-40.0])
     with pytest.raises(ValueError, match="transmitters and powers must have same length"):
-        generate_radio_field(locs, tx, pwr)
+        Data.field(locs, tx, pwr)
 
 
 def test_generate_radio_field_mismatched_dimensions():
@@ -106,4 +105,16 @@ def test_generate_radio_field_mismatched_dimensions():
         ValueError,
         match="locations and transmitters must have same spatial dimension",
     ):
-        generate_radio_field(locs, tx, pwr)
+        Data.field(locs, tx, pwr)
+
+
+def test_validate_params_rejects_negative():
+    import pytest
+
+    with pytest.raises(ValueError, match="reference_distance"):
+        Data.validate_params(2.0, -1.0, 0.0)
+    with pytest.raises(ValueError, match="path_loss_exponent"):
+        Data.validate_params(-0.1, 1.0, 0.0)
+    with pytest.raises(ValueError, match="shadow_sigma"):
+        Data.validate_params(2.0, 1.0, -0.1)
+

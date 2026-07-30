@@ -99,15 +99,15 @@ laker predict --model model.pt --locations x_test.pt --output y_pred.pt
 
 ```python
 import torch
-from laker import LAKERRegressor
+from laker import Laker
 
 n = 1000
 x_train = torch.rand(n, 2) * 100.0
 y_train = torch.randn(n)
 
-model = LAKERRegressor(
+model = Laker(
     embedding_dim=10,
-    lambda_reg=1e-2,
+    regularization=1e-2,
     gamma=1e-1,
     device="cuda" if torch.cuda.is_available() else "cpu",
 )
@@ -127,9 +127,9 @@ print(f"R^2 score: {model.score(x_test, y_test):.4f}")
 | Parameter | Env Variable | Default | Description |
 |-----------|--------------|---------|-------------|
 | `embedding_dim` | — | 10 | Dimension of the embedding space |
-| `lambda_reg` | — | 1e-2 | Ridge regularization weight |
+| `regularization` | — | 1e-2 | Ridge regularization weight |
 | `gamma` | — | 0.1 | Kernel bandwidth for CCCP preconditioner |
-| `num_probes` | — | `None` | Random probe vectors for preconditioner |
+| `probes` | — | `None` | Random probe vectors for preconditioner |
 | `pcg_tol` | — | 1e-6 | PCG relative residual tolerance |
 | `pcg_max_iter` | — | 1000 | Maximum PCG iterations |
 | `cccp_max_iter` | — | 200 | Maximum CCCP iterations |
@@ -140,14 +140,14 @@ print(f"R^2 score: {model.score(x_test, y_test):.4f}")
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `kernel_approx` | `None` | `None` (exact), `"nystrom"`, `"rff"`, `"knn"`, `"ski"`, `"spectral"`, `"twoscale"` |
-| `num_landmarks` | `None` | Landmarks for Nyström / two-scale kernels |
-| `num_features` | `None` | Random Fourier features for RFF kernel |
-| `k_neighbors` | `None` | Nearest neighbours for sparse k-NN kernel |
-| `grid_size` | `None` | Grid resolution for SKI kernel |
-| `twoscale_alpha` | 0.5 | Blending weight for two-scale kernel |
-| `landmark_method` | `"greedy"` | `"greedy"` or `"leverage"` landmark selection |
-| `spectral_knots` | 5 | Spline knots for spectral kernel |
+| `kernel` | `"exact"` | `"exact"`, `"nystrom"`, `"fourier"`, `"neighbors"`, `"grid"`, `"spectrum"`, `"hybrid"` |
+| `landmarks` | `None` | Landmarks for Nyström / hybrid kernels |
+| `features` | `None` | Random Fourier features for the Fourier kernel |
+| `neighbors` | `None` | Nearest neighbours for the sparse k-NN kernel |
+| `grid_size` | `None` | Grid resolution for the grid (SKI) kernel |
+| `blend` | 0.5 | Blending weight for the hybrid kernel |
+| `selection` | `"greedy"` | `"greedy"` or `"leverage"` landmark selection |
+| `knots` | 5 | Spline knots for the spectrum kernel |
 
 ### Preconditioner
 
@@ -175,14 +175,16 @@ See [docs/](docs/) for detailed configuration options.
 
 | Symbol | Type | Description |
 |--------|------|-------------|
-| `LAKERRegressor` | class | sklearn-compatible estimator (`fit`/`predict`/`score`) |
-| `PositionEmbedding` | class | Embedding module (random Fourier features + MLP) |
-| `SearchService` | class | Grid and Bayesian hyperparameter search |
-| `StreamingService` | class | `partial_fit` with warm-start and rebuild |
-| `ResidualCorrector` | class | Small MLP for local misspecification |
-| `DistributedMatvec` | class | Multi-GPU sharded matrix-free matvec |
-| `BilevelLearner` | class | Implicit-differentiation bilevel optimiser |
-| `save` / `load` | function | Model serialisation to / from disk |
+| `Laker` | class | sklearn-compatible estimator (`fit`/`predict`/`score`/`variance`) |
+| `Laker.save` | method | Serialise fitted model to disk |
+| `Laker.load` | classmethod | Load fitted model from disk |
+| `Kernel` (`Nystrom`, `Fourier`, `Neighbors`, `Grid`, `Hybrid`, `Spectrum`) | class | Low-rank kernel operators under `laker.kernel` |
+| `Preconditioner` (`Adaptive`, `CCCP`, `Jacobi`) | class | Preconditioner strategies under `laker.preconditioner` |
+| `Solve` (`PCG`, `Descent`) | class | Linear solvers under `laker.solve` |
+| `Embed` (`Position`, `Visual`) | class | Embedding modules under `laker.embed` |
+| `Search`, `Fit`, `Stream`, `Implicit` | class | Workflow modules under `laker.{search,fit,stream,implicit}` |
+| `Plot`, `Data`, `Helpers`, `Backend`, `Base` | class | Plotting, data, math, env, validation under `laker.{plot,data,helpers,backend,base}` |
+| `CLI` | class | Argparse entry points under `laker.cli` |
 
 ---
 
@@ -191,14 +193,11 @@ See [docs/](docs/) for detailed configuration options.
 The package ships with end-to-end worked examples under [`examples/`](examples/):
 
 ```bash
-# Reconstruct a synthetic radio field
-python examples/radio_field.py --n 2000 --embedding-dim 10
+# Basic pipeline
+python -m examples.basic
 
-# Run the bilevel lambda / embedding optimization
-python examples/bilevel.py --epochs 50 --lr 1e-3
-
-# Distributed multi-GPU matvec sanity check
-python examples/distributed_matvec.py --devices 0,1
+# Large-scale pipeline with chunking
+python -m examples.large
 ```
 
 A full reproduction of the paper's Table 5 fit lives in
@@ -211,29 +210,24 @@ A full reproduction of the paper's Table 5 fit lives in
 ```
 laker/
 ├── laker/                     # Main package
-│   ├── __init__.py            # Public API and version
-│   ├── __main__.py            # CLI interface (laker fit, laker predict)
-│   ├── models.py              # LAKERRegressor (sklearn-compatible API)
-│   ├── core.py                # Core pipeline: embeddings, kernels, solvers
-│   ├── kernels.py             # All kernel operators (exact, Nyström, RFF, etc.)
-│   ├── preconditioner.py      # CCCP and adaptive preconditioners
-│   ├── solvers.py             # PCG solver and baselines
-│   ├── training.py            # Embedding training, residual correctors
-│   ├── embeddings.py          # PositionEmbedding (random Fourier features + MLP)
-│   ├── search.py              # Grid search and Bayesian optimization
-│   ├── streaming.py           # Partial fit, regularization path, continuation
-│   ├── distributed_kernels.py # Multi-GPU distributed matvec
-│   ├── data.py                # Synthetic radio field generators
-│   ├── visualize.py           # Radio map and convergence plotting
-│   ├── benchmark.py           # Benchmarking utilities
-│   ├── persistence.py         # Save/load models
-│   ├── utils.py               # Numerical stability helpers
-│   ├── backend.py             # Device/dtype management
-│   ├── bilevel.py             # Bilevel hyperparameter learning
-│   ├── implicit_diff.py       # Adjoint method for hypergradients
-│   ├── correctors.py          # ResidualCorrector MLP
-│   └── executor.py            # Abstract Executor base class
-├── tests/                     # Test suite (19 files)
+│   ├── __init__.py            # Public API: `Laker`
+│   ├── __main__.py            # CLI entry point
+│   ├── cli.py                 # CLI class (argparse handlers)
+│   ├── model.py               # `Laker` estimator (sklearn-compatible API)
+│   ├── kernel.py              # `Kernel` and eight strategy subclasses
+│   ├── preconditioner.py      # `Preconditioner`, `Adaptive`, `CCCP`, `Jacobi`
+│   ├── solve.py               # `Solve`, `PCG`, `Descent`
+│   ├── embed.py               # `Embed`, `Position`, `Visual`
+│   ├── search.py              # `Search` (grid, Bayesian)
+│   ├── fit.py                 # `Fit` (learn, correct, calibrate, tune)
+│   ├── stream.py              # `Stream` (path, continuation, update)
+│   ├── implicit.py            # `Implicit` (hypergradient)
+│   ├── plot.py                # `Plot` (field, convergence, image)
+│   ├── data.py                # `Data` (field, grid)
+│   ├── helpers.py             # `Helpers` (math/RNG utilities)
+│   ├── backend.py             # `Backend` (env/dtype/device)
+│   └── base.py                # `Base` (validation/protocols)
+├── tests/                     # Test suite (24 files)
 ├── examples/                  # Worked examples
 ├── benchmarks/                # Benchmark suite
 ├── docs/                      # Documentation

@@ -632,3 +632,66 @@ class EmbeddingTrainer:
             kernel_operator, preconditioner, y
         )
         return regressor
+
+
+# Single-class namespace for the new public API.
+class _FitNamespace:
+    @staticmethod
+    def learn(regressor, x, y, lr=1e-3, epochs=50, rebuild_freq=10, patience=5):
+        from laker.backend import to_tensor
+        x = to_tensor(x, device=regressor.device, dtype=regressor.dtype)
+        y_t = to_tensor(y, device=regressor.device, dtype=regressor.dtype)
+        if y_t.dim() == 2:
+            y_t = y_t.squeeze(-1)
+        helper = EmbeddingTrainer(regressor.core)
+        return helper.fit_learned_embeddings(
+            regressor, x, y_t, lr, epochs, rebuild_freq, patience
+        )
+
+    @staticmethod
+    def correct(regressor, x, y, val_fraction=0.2, epochs=200,
+                 patience=10, weight_decay=1e-2, lr=1e-3):
+        from laker.backend import to_tensor
+        x = to_tensor(x, device=regressor.device, dtype=regressor.dtype)
+        y_t = to_tensor(y, device=regressor.device, dtype=regressor.dtype)
+        if y_t.dim() == 2:
+            y_t = y_t.squeeze(-1)
+        helper = EmbeddingTrainer(regressor.core)
+        return helper.fit_residual_corrector(
+            regressor, x, y_t, val_fraction, epochs,
+            patience, weight_decay, lr,
+        )
+
+    @staticmethod
+    def calibrate(regressor, x, y, lr=1e-3, epochs=50, beta=0.1,
+                   variance_subset=0.2, patience=5):
+        from laker.backend import to_tensor
+        x = to_tensor(x, device=regressor.device, dtype=regressor.dtype)
+        y_t = to_tensor(y, device=regressor.device, dtype=regressor.dtype)
+        if y_t.dim() == 2:
+            y_t = y_t.squeeze(-1)
+        helper = EmbeddingTrainer(regressor.core)
+        return helper.fit_uncertainty_aware(
+            regressor, x, y_t, lr, epochs, beta, variance_subset, patience,
+        )
+
+    @staticmethod
+    def tune(regressor, x_train, y_train, x_val, y_val,
+              lr=1e-3, epochs=20, patience=5):
+        from laker.backend import to_tensor
+        x_train = to_tensor(x_train, device=regressor.device, dtype=regressor.dtype)
+        y_train_t = to_tensor(y_train, device=regressor.device, dtype=regressor.dtype)
+        if y_train_t.dim() == 2:
+            y_train_t = y_train_t.squeeze(-1)
+        x_val = to_tensor(x_val, device=regressor.device, dtype=regressor.dtype)
+        y_val_t = to_tensor(y_val, device=regressor.device, dtype=regressor.dtype)
+        if y_val_t.dim() == 2:
+            y_val_t = y_val_t.squeeze(-1)
+        helper = EmbeddingTrainer(regressor.core)
+        return helper.fit_bilevel(
+            regressor, x_train, y_train_t, x_val, y_val_t,
+            lr, epochs, patience,
+        )
+
+
+Fit = _FitNamespace
