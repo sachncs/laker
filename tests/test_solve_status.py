@@ -10,7 +10,7 @@ import pytest
 import torch
 
 from laker.kernel import Exact
-from laker.solvers import Status, Solve
+from laker.solvers import PreconditionedConjugateGradient as PCG, GradientDescent, Status
 
 
 def _psd(n: int, seed: int = 0):
@@ -24,7 +24,7 @@ def test_pcg_returns_x_and_status():
     n = 20
     K = _psd(n)
     rhs = torch.randn(n)
-    x, status = Solve.pcg(tol=1e-8, max_iter=200, verbose=False).solve(
+    x, status = PCG(tol=1e-8, max_iter=200, verbose=False).solve(
         lambda v: K @ v, lambda x: x, rhs
     )
     assert isinstance(status, Status)
@@ -39,7 +39,7 @@ def test_pcg_zero_rhs_returns_zero_rhs_status():
     n = 20
     K = _psd(n)
     rhs = torch.zeros(n)
-    x, status = Solve.pcg(tol=1e-8, max_iter=200, verbose=False).solve(
+    x, status = PCG(tol=1e-8, max_iter=200, verbose=False).solve(
         lambda v: K @ v, lambda x: x, rhs
     )
     assert torch.allclose(x, torch.zeros_like(rhs), atol=1e-7)
@@ -65,7 +65,7 @@ def test_pcg_batched_per_rhs_status():
     n = 6
     K = _psd(n)
     rhs = torch.randn(n, 3)
-    _, status = Solve.pcg(tol=1e-8, max_iter=500, verbose=False).solve(
+    _, status = PCG(tol=1e-8, max_iter=500, verbose=False).solve(
         lambda v: K @ v, lambda x: x, rhs
     )
     assert status.per_rhs is not None
@@ -78,7 +78,7 @@ def test_descent_returns_x():
     n = 10
     K = _psd(n)
     rhs = torch.randn(n)
-    out = Solve.descent(step_size=1.0, max_iter=200, verbose=False).solve(
+    out = GradientDescent(step_size=1.0, max_iter=200, verbose=False).solve(
         lambda v: K @ v, rhs
     )
     assert isinstance(out, torch.Tensor)

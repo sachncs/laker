@@ -618,19 +618,3 @@ class JacobiPreconditioner:
         return self.inv_diag * x
 
 
-# Single-class namespace for the new public API.
-class _SolveNamespace:
-    @staticmethod
-    def pcg(*args, **kwargs):
-        return PreconditionedConjugateGradient(*args, **kwargs)
-
-    @staticmethod
-    def descent(*args, **kwargs):
-        return GradientDescent(*args, **kwargs)
-
-    @staticmethod
-    def jacobi(diagonal):
-        return JacobiPreconditioner(diagonal)
-
-
-Solve = _SolveNamespace

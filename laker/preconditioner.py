@@ -599,21 +599,3 @@ class AdaptivePreconditioner:
         return self.inner.apply(x)
 
 
-# Single-class namespace for new code; legacy ``CCCPPreconditioner``
-# and ``AdaptivePreconditioner`` classes remain in place.
-class _PreconditionerNamespace:
-    @staticmethod
-    def cccp(*args, **kwargs):
-        return CCCPPreconditioner(*args, **kwargs)
-
-    @staticmethod
-    def adaptive(*args, **kwargs):
-        return AdaptivePreconditioner(*args, **kwargs)
-
-    @staticmethod
-    def jacobi(*args, **kwargs):
-        from laker.solvers import JacobiPreconditioner
-        return JacobiPreconditioner(*args, **kwargs)
-
-
-Preconditioner = _PreconditionerNamespace

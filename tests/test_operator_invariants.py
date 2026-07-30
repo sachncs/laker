@@ -54,8 +54,11 @@ def _build(name, embeddings, **kwargs):
     if name == "grid":
         if embeddings.shape[1] > 6:
             pytest.skip("Grid kernel needs low embedding_dim")
+        # Pick a grid_size large enough for the embedding_dim. The grid
+        # is `2^d` points per dimension; we ask for slightly more.
+        grid_size = max(32, 4 * (2 ** embeddings.shape[1]))
         return SKIAttentionKernelOperator(
-            embeddings, lambda_reg=lam, grid_size=4, **kwargs
+            embeddings, lambda_reg=lam, grid_size=grid_size, **kwargs
         )
     if name == "hybrid":
         return TwoScaleAttentionKernelOperator(
@@ -71,8 +74,6 @@ def _build(name, embeddings, **kwargs):
 @pytest.mark.parametrize("name", KERNEL_NAMES)
 def test_matvec_matches_dense_1d(name):
     """``matvec(v) == to_dense() @ v`` for 1-D RHS."""
-    if name in ("hybrid", "grid"):
-        pytest.skip(f"{name} operator semantics differ from dense reference")
     embeddings = _make(n=20, d=4)
     op = _build(name, embeddings)
     v = torch.randn(op.n)
@@ -91,6 +92,10 @@ def test_matvec_matches_dense_1d(name):
         # the assembled ``to_dense`` is the audit's reference. We assert
         # that matvec stays within a generous bound of the dense matvec.
         assert rel < 1.0, f"nystrom matvec drift: {rel.item()}"
+    elif name == "hybrid":
+        # Hybrid combines nystrom and neighbors; both have semantic
+        # splits documented above, so we tolerate generous error.
+        assert rel < 1.0, f"hybrid relative error: {rel.item()}"
     else:
         assert rel < 1e-3, f"{name} relative error: {rel.item()}"
 
