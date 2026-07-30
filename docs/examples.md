@@ -3,6 +3,42 @@
 All snippets use the current public API. The single top-level class
 is `Laker`; secondary classes are under `laker.<module>`.
 
+For the smallest possible end-to-end pipeline, see
+[`examples/simple.py`](../examples/simple.py) — the Laker equivalent of
+a "hello world": fit, predict, save/load, with assertions on R² and
+save/load bit-identity. All examples use the same single-class-per-file
+convention; each module exposes one primary class with a
+`@staticmethod run(...)` entry and an `if __name__ == "__main__"`
+argparse block.
+
+---
+
+## Minimal fit — `simple.py`
+
+The absolute smallest pipeline: fit on a smooth analytic target,
+verify R² > 0.95, and assert save/load is bit-identical.
+
+```python
+import torch
+from laker import Laker
+
+torch.manual_seed(0)
+x = torch.rand(60, 2, dtype=torch.float64) * 5.0
+y = torch.sin(torch.pi * x[:, 0] / 5.0) * torch.cos(torch.pi * x[:, 1] / 5.0)
+
+model = Laker(
+    embedding_dim=8,
+    regularization=1e-6,
+    probes=200,
+    cccp_max_iter=200,
+    pcg_tol=1e-12,
+    pcg_max_iter=2000,
+    dtype=torch.float64,
+)
+model.fit(x, y)
+print(f"train R^2 = {model.score(x, y):.6f}")
+```
+
 ---
 
 ## Reproduce the n = 3 worked example
