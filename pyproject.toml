@@ -1,23 +1,27 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "laker"
-version = "0.4.0"
+version = "0.5.0"
 description = "Learning-based Attention Kernel Regression for large-scale spectrum cartography"
 readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.9"
+license = { text = "MIT" }
+requires-python = ">=3.9,<3.14"
 authors = [
-    {name = "Sachin", email = "sachncs@gmail.com"}
+    { name = "LAKER Contributors", email = "sachncs@gmail.com" },
 ]
 keywords = [
-    "kernel regression",
-    "attention kernel",
+    "kernel-regression",
+    "attention-kernel",
     "preconditioning",
-    "spectrum cartography",
-    "radio map reconstruction"
+    "conjugate-gradient",
+    "spectrum-cartography",
+    "radio-map-reconstruction",
+    "convex-concave-procedure",
+    "cccp",
+    "scientific-machine-learning",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -30,77 +34,145 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Scientific/Engineering :: Mathematics"
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
 ]
 dependencies = [
-    "numpy>=1.23.0,<3.0",
-    "torch>=2.0.0,<3.0"
+    "numpy>=1.23,<3.0",
+    "torch>=2.0,<3.0",
 ]
 
 [project.optional-dependencies]
+viz = ["matplotlib>=3.5,<4.0"]
 dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "hypothesis>=6.148.0",
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "flake8>=6.0.0",
-    "mypy>=1.5.0",
-    "sphinx>=7.0.0",
-    "sphinx-rtd-theme>=1.3.0",
-    "myst-parser>=2.0.0"
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "hypothesis>=6.148",
+    "black>=23",
+    "isort>=5.12",
+    "flake8>=6",
+    "mypy>=1.5",
+    "sphinx>=7",
+    "sphinx-rtd-theme>=1.3",
+    "myst-parser>=2",
 ]
-viz = [
-    "matplotlib>=3.5.0,<4.0"
-] 
+all = ["laker[viz,dev]"]
 
 [project.urls]
 Homepage = "https://github.com/sachncs/laker"
 Documentation = "https://laker.readthedocs.io"
 Repository = "https://github.com/sachncs/laker"
 Issues = "https://github.com/sachncs/laker/issues"
+Changelog = "https://github.com/sachncs/laker/blob/master/CHANGELOG.md"
 
 [project.scripts]
 laker = "laker.__main__:main"
 
+[tool.setuptools]
+zip-safe = false
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["laker*"]
+exclude = ["tests*", "examples*", "benchmarks*", "docs*"]
 
 [tool.black]
 line-length = 100
-target-version = ['py39', 'py310', 'py311', 'py312']
+target-version = ["py39", "py310", "py311", "py312", "py313"]
 
 [tool.isort]
 profile = "black"
 line_length = 100
+known_first_party = ["laker", "tests", "examples", "benchmarks"]
 
 [tool.mypy]
 python_version = "3.9"
+mypy_path = "laker"
 warn_return_any = false
 warn_unused_configs = true
+warn_unused_ignores = true
 disallow_untyped_defs = false
+disallow_incomplete_defs = false
 ignore_missing_imports = true
 strict_optional = false
+show_error_codes = true
+plugins = []
 
 [[tool.mypy.overrides]]
-module = ["torch.*", "numpy.*"]
+module = ["torch.*", "numpy.*", "matplotlib.*"]
 follow_imports = "skip"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*", "examples.*", "benchmarks.*"]
+disallow_untyped_defs = false
+check_untyped_defs = false
+ignore_errors = true
 
 [tool.pytest.ini_options]
+minversion = "7.4"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "--strict-markers"
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "slow: marks tests as slow (deselect with -m 'not slow')",
+    "cuda: marks tests that require CUDA (deselect on CPU-only hosts)",
+    "integration: integration tests that exercise the public API end-to-end",
+    "precision: numerical precision tests against closed-form references",
+]
+xfail_strict = true
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:torch._dynamo",
+    "ignore::DeprecationWarning:torch.compiler",
+    "ignore::DeprecationWarning:torch.cuda",
+    "ignore::PendingDeprecationWarning",
+    "ignore::pytest.PytestDeprecationWarning",
+]
+log_cli = false
+log_cli_level = "INFO"
 
 [tool.coverage.run]
+branch = true
 source = ["laker"]
-omit = ["*/tests/*", "*/examples/*", "*/docs/*"]
+omit = [
+    "*/tests/*",
+    "*/examples/*",
+    "*/docs/*",
+    "*/benchmarks/*",
+    "laker/__main__.py",
+    "laker/_visualize_impl.py",
+]
 
 [tool.coverage.report]
+show_missing = true
+skip_covered = false
+skip_empty = true
+precision = 2
+sort = "-Cover"
 exclude_lines = [
     "pragma: no cover",
+    "pragma: noqa",
     "def __repr__",
     "raise AssertionError",
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
 ]
+exclude_also = [
+    "@deprecated",
+    "@overload",
+    "@abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+show_contexts = true
