@@ -1,20 +1,17 @@
 """Runnable LAKER examples.
 
-Each example ships as a single class in its own module:
+Real-world-style demonstrations of the public surface. Each
+example ships as a single primary class in its own module, with
+assertions that fail loudly if LAKER regresses. Run any example
+as ``python -m examples.<name>``.
 
-- :mod:`.basic` — ``PaperExample`` reproduces the Section IV-E n=3 worked
-  example; verifies alpha against the direct solve and the kernel
-  against ``exp(E E^T)``.
-- :mod:`.large` — ``LargeScale`` fits a 5000-sample radio-field dataset
-  with chunked matrix-free evaluation.
-- :mod:`.radio_field` — ``RadioField`` fits a synthetic 2-D field and
-  reports train R² plus grid prediction shape.
-- :mod:`.bilevel` — ``Bilevel`` optimises regularisation and the
-  encoder jointly via :meth:`laker.Laker.tune`.
-- :mod:`.distributed_matvec` — ``Distributed`` compares single-device
-  and multi-device kernel operators (CUDA only).
-
-Run any example as ``python -m examples.<name>``.
+- :mod:`.learn` — ``Learn``: single-shot fit, score, save, reload
+  round-trip.
+- :mod:`.map` — ``Map``: scattered-sensor fit, grid-level evaluation
+  against ground truth.
+- :mod:`.flow` — ``Flow``: streaming updates, validated per batch.
+- :mod:`.scale` — ``Scale``: thousands of sensors and a dense grid.
+- :mod:`.tune` — ``Tune``: validation-driven regularisation search.
 """
 
-__all__ = ["basic", "large", "radio_field", "bilevel", "distributed_matvec"]
+__all__ = ["learn", "map", "flow", "scale", "tune"]
