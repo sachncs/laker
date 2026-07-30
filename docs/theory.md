@@ -28,7 +28,7 @@ which is what LAKER actually solves.
 
 ### Why an Exponential Attention Kernel?
 
-In spectrum cartography the received signal strength (RSS) at location $x_i$ is a smooth function of spatial coordinates. A Gaussian (RBF) kernel could be used, but it requires a carefully tuned length-scale. The *attention kernel* (2) is parameterised by the embedding inner products $\langle e_i, e_j \rangle$. Because the embeddings are themselves learned (or at least data-dependent, via `PositionEmbedding`), the kernel adaptively reshapes its "similarity landscape" to the geometry of the measurements.
+In spectrum cartography the received signal strength (RSS) at location $x_i$ is a smooth function of spatial coordinates. A Gaussian (RBF) kernel could be used, but it requires a carefully tuned length-scale. The *attention kernel* (2) is parameterised by the embedding inner products $\langle e_i, e_j \rangle$. Because the embeddings are themselves learned (or at least data-dependent, via `laker.embed.Position`), the kernel adaptively reshapes its "similarity landscape" to the geometry of the measurements.
 
 The exponential guarantees **strict positive definiteness** and gives rapid decay for dissimilar points, which is exactly the inductive bias needed for radio-map reconstruction. Furthermore, the kernel is *parameter-free* in the sense that no bandwidth hyperparameter is required — the embedding network learns the appropriate metric.
 

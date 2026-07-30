@@ -1,17 +1,21 @@
 # Examples
 
-## Worked Example from the Paper
+All snippets use the current public API. The single top-level class
+is `Laker`; secondary classes are under `laker.<module>`.
 
-Reproduce the $n = 3$ example from Section IV-E of the paper:
+---
+
+## Reproduce the n = 3 worked example
+
+A small deterministic example that verifies the kernel matrix
+matches `exp(E Eᵀ)` and the Laker solution matches `linalg.solve`.
 
 ```python
-import logging
-
 import torch
-from laker import LAKERRegressor
+from laker import Laker
+from laker.kernel import Exact
 
-logger = logging.getLogger(__name__)
-
+# Three hand-crafted embeddings (paper Eq. 53).
 e = torch.tensor(
     [[0.241, 0.444], [-0.336, 0.112], [-0.220, 0.353]],
     dtype=torch.float64,
@@ -22,356 +26,324 @@ class FixedEmbedding(torch.nn.Module):
     def forward(self, x):
         return e
 
-model = LAKERRegressor(
+model = Laker(
     embedding_dim=2,
-    lambda_reg=0.1,
+    regularization=0.1,
     gamma=0.0,
-    embedding_module=FixedEmbedding(),
+    cccp_max_iter=10,
+    pcg_tol=1e-12,
+    pcg_max_iter=10,
+    encoder=FixedEmbedding(),
     dtype=torch.float64,
 )
-model.fit(torch.zeros(3, 2), y)
+# Dummy input rows; the encoder returns e regardless.
+model.fit(torch.zeros(3, 2, dtype=torch.float64), y)
 
-logger.info("alpha = %s", model.alpha)
+# Compare against the direct dense solve.
+K = Exact(e, lambda_reg=0.1, dtype=torch.float64).to_dense()
+alpha_ref = torch.linalg.solve(K, y)
+assert torch.allclose(model.coef_, alpha_ref, atol=1e-6)
 ```
-
-Because `gamma=0.0`, no shrinkage is applied and the preconditioner learns the exact covariance structure from the three probe directions.
 
 ---
 
-## Benchmarking
-
-Run a head-to-head comparison of LAKER against baseline solvers:
+## Reconstruct a radio coverage map
 
 ```python
-import logging
+import torch
+from laker import Laker
+from laker.data import Data
 
-from laker import benchmark_laker_vs_baselines
-from laker.data import generate_radio_field
+area = 100.0
+torch.manual_seed(0)
 
-logger = logging.getLogger(__name__)
-
-x = torch.rand(500, 2) * 100.0
-tx = torch.tensor([[30.0, 70.0], [70.0, 30.0]])
-pwr = torch.tensor([-40.0, -45.0])
-y_clean, y = generate_radio_field(x, tx, pwr)
-
-# Need embeddings first
-from laker import PositionEmbedding
-emb = PositionEmbedding(2, 10)
-e = emb(x)
-
-results = benchmark_laker_vs_baselines(e, y)
-for r in results:
-    logger.info("%20s  iters=%4d  time=%.3fs", r.name, r.iterations, r.solve_time_seconds)
-```
-
-Typical output on an Apple M3:
-
-```
-LAKER                iters=  24  time=0.045s
-Jacobi PCG           iters= 187  time=0.312s
-CG (no precond)      iters= 412  time=0.654s
-Gradient Descent     iters=50000  time=2.341s
-```
-
-LAKER converges in **~24 iterations** versus hundreds for Jacobi and thousands for unpreconditioned CG.
-
----
-
-## Hyperparameter Grid Search
-
-Automatically tune `lambda_reg`, `gamma`, and `num_probes` with a validation split:
-
-```python
-from laker import LAKERRegressor
-
-model = LAKERRegressor(
-    embedding_dim=10,
-    verbose=True,
+transmitters = torch.tensor(
+    [[area * 0.20, area * 0.30], [area * 0.80, area * 0.70], [area * 0.50, area * 0.50]],
+    dtype=torch.float64,
 )
-model.fit_with_search(
-    x_train, y_train,
-    val_fraction=0.2,
-    lambda_reg_grid=[1e-3, 1e-2, 1e-1],
-    gamma_grid=[0.0, 1e-1, 1.0],
-    num_probes_grid=[50, 100, 200],
-)
-```
+powers = torch.tensor([-30.0, -40.0, -35.0], dtype=torch.float64)
 
-The search computes embeddings once and reuses them across trials, giving a 3–5$\times$ speedup over naive per-trial `fit()` calls.
+x = torch.rand(200, 2, dtype=torch.float64) * area
+_, y = Data.field(
+    x, transmitters, powers,
+    path_loss_exponent=2.5, reference_distance=1.0, shadow_sigma=1.0, seed=0,
+)
+
+model = Laker(embedding_dim=12, regularization=1e-2, dtype=torch.float64)
+model.fit(x, y)
+r2 = model.score(x, y)
+print(f"R^2 = {r2:.4f}")
+
+# Predictions on a dense grid.
+grid = Data.grid((0.0, area, 0.0, area), grid_size=40, dtype=torch.float64)
+predictions = model.predict(grid)
+```
 
 ---
 
-## Bayesian Optimisation
-
-When the hyperparameter grid is large, Bayesian Optimisation (BO) is more efficient:
+## Predictive variance and uncertainty
 
 ```python
-model = LAKERRegressor(embedding_dim=10, verbose=True)
-model.fit_with_bo(
-    x_train, y_train,
+import torch
+from laker import Laker
+from laker.data import Data
+
+torch.manual_seed(0)
+transmitters = torch.tensor([[30.0, 50.0]], dtype=torch.float64)
+powers = torch.tensor([-40.0], dtype=torch.float64)
+x = torch.rand(80, 2, dtype=torch.float64) * 50.0
+_, y = Data.field(x, transmitters, powers, seed=0)
+
+model = Laker(embedding_dim=10, regularization=1e-2, dtype=torch.float64)
+model.fit(x, y)
+mean = model.predict(x[:10])
+var = model.variance(x[:10])
+# Variance is non-negative everywhere; in-sample anchored near zero.
+assert (var >= 0).all()
+```
+
+---
+
+## Tune regularisation on a held-out validation set
+
+```python
+import torch
+from laker import Laker
+
+torch.manual_seed(0)
+n = 200
+x = torch.rand(n, 2, dtype=torch.float64) * 10.0
+y = torch.sin(x[:, 0]) + torch.cos(x[:, 1])
+
+model = Laker(embedding_dim=10, regularization=1e-1, dtype=torch.float64)
+model.search("grid", x, y, regularizations=[1e-4, 1e-3, 1e-2, 1e-1])
+print(f"chosen regularization = {model.regularization}")
+```
+
+---
+
+## Bayesian hyperparameter search
+
+```python
+import torch
+from laker import Laker
+
+torch.manual_seed(0)
+n = 200
+x = torch.rand(n, 2, dtype=torch.float64) * 10.0
+y = torch.sin(x[:, 0]) + torch.cos(x[:, 1])
+
+model = Laker(embedding_dim=10, dtype=torch.float64)
+model.search(
+    "bayes",
+    x, y,
     n_calls=15,
     n_initial_points=5,
-    lambda_reg_bounds=(1e-4, 1.0),
-    gamma_bounds=(0.0, 2.0),
-    num_probes_bounds=(20, 300),
+    regularization_bounds=(1e-4, 1.0),
 )
 ```
 
-BO uses a lightweight Gaussian Process surrogate on a log-scale parameter space with Expected Improvement acquisition. It typically finds a near-optimal configuration in 10–15 evaluations.
-
 ---
 
-## Learned Embeddings
+## Learned embeddings via `learn`
 
-End-to-end training of the embedding MLP weights on the regression objective:
-
-```python
-model = LAKERRegressor(embedding_dim=10, verbose=True)
-model.fit(x_train, y_train)  # initial fit with fixed embeddings
-model.fit_learned_embeddings(
-    x_train, y_train,
-    lr=1e-3,
-    epochs=50,
-    rebuild_freq=10,
-    patience=5,
-)
-```
-
-The embedding module becomes fully differentiable and is trained via Adam on the kernel ridge regression residual. The preconditioner is rebuilt every `rebuild_freq` epochs.
-
----
-
-## Regularisation Path
-
-Fit a sequence of models with decreasing `lambda_reg` to study the bias–variance trade-off:
-
-```python
-import logging
-
-from laker import LAKERRegressor
-
-logger = logging.getLogger(__name__)
-
-model = LAKERRegressor(embedding_dim=10, verbose=True)
-path = model.fit_path(
-    x_train, y_train,
-    lambda_reg_grid=[1.0, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001],
-    reuse_precond=True,
-)
-
-for lam, iters, res in zip(path["lambda_reg"], path["pcg_iters"], path["final_rel_res"]):
-    logger.info("lambda=%.3e  iters=%4d  rel_res=%.3e", lam, iters, res)
-```
-
-When `reuse_precond=True`, the preconditioner is built once for the largest $\lambda$ (best-conditioned) and reused for the rest. Warm-starting $\alpha$ from the previous solution further accelerates convergence.
-
----
-
-## Visualisation
-
-Plot a reconstructed radio map and convergence diagnostics:
-
-```python
-from laker.visualize import plot_radio_map, plot_convergence
-import matplotlib.pyplot as plt
-
-# Predict on a regular grid
-from laker.data import generate_grid
-grid = generate_grid((0, 100, 0, 100), grid_size=50)
-y_grid = model.predict(grid)
-
-fig, ax = plot_radio_map(y_grid, grid_size=50, extent=(0, 100, 0, 100))
-plt.savefig("radio_map.png")
-
-# Plot PCG convergence (requires capturing residuals manually)
-gaps = [...]  # list of residual norms per iteration
-fig, ax = plot_convergence([gaps], labels=["LAKER PCG"])
-plt.savefig("convergence.png")
-```
-
----
-
-## Using Approximate Kernels
-
-Switching to an approximate kernel is a one-line change:
-
-```python
-import logging
-
-import torch
-from laker import LAKERRegressor
-from laker.data import generate_grid
-
-logger = logging.getLogger(__name__)
-
-# Exact kernel (default)
-model_exact = LAKERRegressor(embedding_dim=10)
-model_exact.fit(x_train, y_train)
-
-# Nyström approximation
-model_nys = LAKERRegressor(embedding_dim=10, kernel_approx="nystrom", num_landmarks=200)
-model_nys.fit(x_train, y_train)
-
-# RFF approximation
-model_rff = LAKERRegressor(embedding_dim=10, kernel_approx="rff", num_features=400)
-model_rff.fit(x_train, y_train)
-
-# Compare predictions on a test set
-from laker.data import generate_grid
-grid = generate_grid((0, 100, 0, 100), grid_size=50)
-y_exact = model_exact.predict(grid)
-y_nys = model_nys.predict(grid)
-y_rff = model_rff.predict(grid)
-
-rmse_nys = torch.sqrt(torch.mean((y_exact - y_nys)**2)).item()
-rmse_rff = torch.sqrt(torch.mean((y_exact - y_rff)**2)).item()
-logger.info("Nyström RMSE vs exact: %.3f", rmse_nys)
-logger.info("RFF RMSE vs exact: %.3f", rmse_rff)
-```
-
-For $n = 5\,000$, Nyström with $m = 200$ landmarks is typically **50–100$\times$** faster per matvec than the exact kernel, with a relative approximation error below 5%.
-
----
-
-## Spectral-Shaped Kernel
-
-Replace the plain exponential kernel with a learned spectral decomposition:
+`learn` optimises the encoder MLP weights end-to-end against the
+regression objective.
 
 ```python
 import torch
-from laker import LAKERRegressor
+from laker import Laker
 
-model = LAKERRegressor(
-    embedding_dim=10,
-    kernel_approx="spectral",
-    spectral_knots=5,
-    lambda_reg=1e-2,
-    dtype=torch.float64,
-    verbose=True,
-)
-model.fit(x_train, y_train)
+torch.manual_seed(0)
+n = 200
+x = torch.rand(n, 2, dtype=torch.float64) * 10.0
+y = torch.sin(x[:, 0]) + torch.cos(x[:, 1])
+
+model = Laker(embedding_dim=10, dtype=torch.float64)
+model.fit(x, y)
+model.learn(x, y, lr=1e-3, epochs=50, rebuild_freq=10, patience=5)
 ```
-
-The spectral kernel performs an economy SVD of the embedding matrix and learns a
-monotone spline `g` over the eigenvalues. This directly controls conditioning and
-can improve both fit quality and solver behaviour.
 
 ---
 
-## Two-Scale Kernel
+## Residual corrector
 
-Combine global coherence with local sharpness:
-
-```python
-model = LAKERRegressor(
-    embedding_dim=10,
-    kernel_approx="twoscale",
-    num_landmarks=100,
-    k_neighbors=30,
-    lambda_reg=1e-2,
-    dtype=torch.float64,
-    verbose=True,
-)
-model.fit(x_train, y_train)
-```
-
-The two-scale kernel mixes a Nyström global approximation with a sparse k-NN
-local graph, reducing oversmoothing compared to either approximation alone.
-
----
-
-## Bilevel Hyperparameter Learning
-
-Optimise `lambda_reg` and embedding weights via implicit differentiation:
+A small MLP that fits the residual `y - y_hat_laker` after the base
+model has trained.
 
 ```python
 import torch
-from laker import LAKERRegressor
+from laker import Laker
 
-n = len(x_train)
+torch.manual_seed(0)
+n = 300
+x = torch.rand(n, 2, dtype=torch.float64) * 10.0
+y = torch.sin(x[:, 0]) + torch.cos(x[:, 1]) + 0.1 * torch.randn(n)
+
+model = Laker(embedding_dim=10, dtype=torch.float64)
+model.fit(x, y)
+model.correct(x, y, val_fraction=0.2, epochs=200, patience=10)
+predictions = model.predict(x)
+```
+
+---
+
+## Uncertainty-aware training
+
+`calibrate` minimises NLL plus a calibration penalty so that the
+predicted variance tracks the actual residuals.
+
+```python
+import torch
+from laker import Laker
+
+torch.manual_seed(0)
+n = 200
+x = torch.rand(n, 2, dtype=torch.float64) * 10.0
+y = torch.sin(x[:, 0]) + 0.1 * torch.randn(n)
+
+model = Laker(embedding_dim=10, dtype=torch.float64)
+model.fit(x, y)
+model.calibrate(x, y, lr=1e-3, epochs=50, beta=0.1)
+var = model.variance(x)
+```
+
+---
+
+## Regularisation path
+
+```python
+import torch
+from laker import Laker
+
+torch.manual_seed(0)
+x = torch.rand(100, 2, dtype=torch.float64) * 10.0
+y = torch.sin(x[:, 0])
+
+model = Laker(embedding_dim=10, dtype=torch.float64)
+result = model.path(
+    x, y, regularizations=[1.0, 0.1, 0.01, 1e-3]
+)
+for stage in result["stages"]:
+    print(stage["regularization"], stage["pcg_iterations"])
+```
+
+---
+
+## Bilevel joint regularisation + encoder tune
+
+```python
+import torch
+from laker import Laker
+
+torch.manual_seed(0)
+n = 300
+x = torch.rand(n, 2, dtype=torch.float64) * 10.0
+y = torch.sin(x[:, 0]) + 0.05 * torch.randn(n)
+perm = torch.randperm(n)
 n_val = n // 5
-x_val = x_train[:n_val]
-y_val = y_train[:n_val]
-x_tr = x_train[n_val:]
-y_tr = y_train[n_val:]
+x_train, x_val = x[perm[n_val:]], x[perm[:n_val]]
+y_train, y_val = y[perm[n_val:]], y[perm[:n_val]]
 
-model = LAKERRegressor(embedding_dim=10, dtype=torch.float64, verbose=True)
-model.fit(x_tr, y_tr)
-model.fit_bilevel(
-    x_tr, y_tr, x_val, y_val,
-    lr=1e-3, epochs=20, patience=5,
-)
-```
-
-Bilevel learning uses the adjoint method to compute hypergradients through the
-PCG fixed-point, avoiding expensive grid or BO outer loops.
-
----
-
-## Uncertainty-Aware Training
-
-Train embeddings with a calibration-aware NLL objective:
-
-```python
-model = LAKERRegressor(embedding_dim=10, dtype=torch.float64, verbose=True)
+model = Laker(regularization=0.1, embedding_dim=8)
 model.fit(x_train, y_train)
-model.fit_uncertainty_aware(
-    x_train, y_train,
-    lr=1e-3, epochs=50, beta=0.1, patience=5,
-)
-
-# Predictions now come with well-calibrated variance
-mean = model.predict(x_test)
-var = model.predict_variance(x_test)
+before = model.score(x_val, y_val)
+model.tune(x_train, y_train, x_val, y_val, lr=5e-3, epochs=15, patience=10)
+after = model.score(x_val, y_val)
+assert before != after
 ```
 
 ---
 
-## Residual Corrector
-
-Add a small residual MLP on top of the base LAKER prediction:
+## Streaming updates
 
 ```python
-model = LAKERRegressor(embedding_dim=10, verbose=True)
-model.fit(x_train, y_train)
-model.fit_residual_corrector(
-    x_train, y_train,
-    val_fraction=0.2,
-    epochs=200,
-    patience=10,
-    weight_decay=1e-2,
-)
-```
+import torch
+from laker import Laker
 
-The corrector is trained with validation-split early stopping and strong L2
-regularisation to avoid overfitting the residual.
+torch.manual_seed(0)
+x_init = torch.rand(50, 2, dtype=torch.float64) * 50.0
+y_init = torch.sin(x_init[:, 0] / 10.0)
+
+model = Laker(
+    embedding_dim=10, regularization=1e-3,
+    rebuild_threshold=10_000,  # allow several batches
+)
+model.fit(x_init, y_init)
+for batch_idx in range(4):
+    x_new = torch.rand(20, 2, dtype=torch.float64) * 50.0
+    y_new = torch.sin(x_new[:, 0] / 10.0)
+    model.update(x_new, y_new, rebuild_threshold=10_000)
+```
 
 ---
 
-## Continuation Schedule
-
-Track a stable path to a sharper solution:
+## Save, reload, and re-fit
 
 ```python
-import logging
+import torch
+from laker import Laker
 
-from laker import LAKERRegressor
+torch.manual_seed(0)
+x = torch.rand(50, 2, dtype=torch.float64) * 10.0
+y = torch.sin(x[:, 0])
 
-logger = logging.getLogger(__name__)
+model = Laker(embedding_dim=10, dtype=torch.float64)
+model.fit(x, y)
+model.save("/tmp/laker.pt")
+restored = Laker.load("/tmp/laker.pt")
+assert torch.allclose(model.predict(x), restored.predict(x))
+```
 
-model = LAKERRegressor(embedding_dim=10, dtype=torch.float64, verbose=True)
-model.fit_continuation(
-    x_train, y_train,
-    lambda_max=1.0,
-    lambda_min=1e-2,
-    n_stages=5,
-    reuse_precond=True,
-)
+---
 
-path = model.path_
-for lam, iters, res in zip(
-    path["lambda_reg"], path["pcg_iters"], path["final_rel_res"]
-):
-    logger.info("lambda=%.3e  iters=%4d  rel_res=%.3e", lam, iters, res)
+## Plot a recovered map
+
+```python
+import torch
+from laker import Laker
+from laker.data import Data
+from laker.plot import Plot
+
+torch.manual_seed(0)
+transmitters = torch.tensor([[30.0, 50.0]], dtype=torch.float64)
+powers = torch.tensor([-40.0], dtype=torch.float64)
+x = torch.rand(100, 2, dtype=torch.float64) * 50.0
+_, y = Data.field(x, transmitters, powers, seed=0)
+
+model = Laker(embedding_dim=10, dtype=torch.float64)
+model.fit(x, y)
+
+grid = Data.grid((0.0, 50.0, 0.0, 50.0), grid_size=30, dtype=torch.float64)
+predictions = model.predict(grid)
+Plot.field(predictions, grid_size=30, area=50.0, title="Recovered map")
+```
+
+---
+
+## Mixing kernel strategies on the same problem
+
+Compare exact / Nyström / RFF predictions on a held-out set:
+
+```python
+import torch
+from laker import Laker
+
+torch.manual_seed(0)
+x = torch.rand(150, 2, dtype=torch.float64) * 10.0
+y = torch.sin(x[:, 0]) + torch.cos(x[:, 1])
+
+x_test = torch.rand(50, 2, dtype=torch.float64) * 10.0
+
+exact = Laker(embedding_dim=10, dtype=torch.float64)
+exact.fit(x, y)
+y_exact = exact.predict(x_test)
+
+nys = Laker(kernel="nystrom", landmarks=80, embedding_dim=10, dtype=torch.float64)
+nys.fit(x, y)
+y_nys = nys.predict(x_test)
+
+# Compare against the exact baseline.
+rmse = float(((y_exact - y_nys) ** 2).mean().sqrt().item())
+print(f"Nyström RMSE vs exact: {rmse:.4f}")
 ```
