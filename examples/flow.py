@@ -90,9 +90,9 @@ class Flow:
         final_score = float(model.score(locations, targets))
         print(f"initial={n_initial} +{n_batches}*{n_per_batch}={total} total")
         print(f"final R^2={final_score:.4f}")
-        print(f"coef shape={model.coef_.shape}, expected=({total},)")
+        print(f"coef shape={model.coef.shape}, expected=({total},)")
 
-        assert model.coef_.shape[0] == total, "stream: coef has wrong sample count"
+        assert model.coef.shape[0] == total, "stream: coef has wrong sample count"
         assert final_score == final_score, "stream: final score non-finite"
 
 

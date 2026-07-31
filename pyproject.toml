@@ -80,8 +80,7 @@ line_length = 100
 known_first_party = ["laker", "tests", "examples", "benchmarks"]
 
 [tool.mypy]
-python_version = "3.10"
-mypy_path = "laker"
+python_version = "3.12"
 warn_return_any = false
 warn_unused_configs = true
 warn_unused_ignores = true
@@ -96,12 +95,6 @@ plugins = []
 module = ["torch.*", "matplotlib.*", "numpy.*"]
 follow_imports = "skip"
 ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["tests.*", "examples.*", "benchmarks.*"]
-disallow_untyped_defs = false
-check_untyped_defs = false
-ignore_errors = true
 
 [tool.ruff]
 line-length = 100

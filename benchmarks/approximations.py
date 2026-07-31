@@ -57,7 +57,7 @@ class ApproximationBenchmarkSuite:
         self.lambda_reg = 1e-2
 
     @classmethod
-    def benchmark_kernel_speed(cls, n: int = 2000, dim: int = 10) -> dict:
+    def benchmark_kernelspeed(cls, n: int = 2000, dim: int = 10) -> dict:
         """Benchmark matvec speed for exact and approximate kernels.
 
         Args:
@@ -68,7 +68,7 @@ class ApproximationBenchmarkSuite:
             Dictionary with timing and error results.
         """
         suite = cls()
-        return suite.kernel_speed(n, dim)
+        return suite.kernelspeed(n, dim)
 
     @classmethod
     def benchmark_full_fit(cls, n: int = 500) -> dict:
@@ -83,7 +83,7 @@ class ApproximationBenchmarkSuite:
         suite = cls()
         return suite.full_fit(n)
 
-    def kernel_speed(self, n: int = 2000, dim: int = 10) -> dict:
+    def kernelspeed(self, n: int = 2000, dim: int = 10) -> dict:
         """Benchmark matvec speed for exact and approximate kernels.
 
         Constructs exact, Nyström (200 landmarks), and RFF (400
@@ -208,9 +208,9 @@ class ApproximationBenchmarkSuite:
                 "  %8s: %7.2f ms  pcg_iters=%s",
                 label,
                 fit_ms,
-                model.iters_,
+                model.iters,
             )
-            results[label] = {"fit_ms": fit_ms, "pcg_iters": model.iters_}
+            results[label] = {"fit_ms": fit_ms, "pcg_iters": model.iters}
 
         return {"n": n, **results}
 
@@ -222,8 +222,8 @@ class ApproximationBenchmarkSuite:
         and :math:`n = 1000`.
         """
         logger.info("=== Kernel Matvec Speed ===")
-        self.kernel_speed(n=2000)
-        self.kernel_speed(n=5000)
+        self.kernelspeed(n=2000)
+        self.kernelspeed(n=5000)
 
         logger.info("=== Full Fit Speed ===")
         self.full_fit(n=500)

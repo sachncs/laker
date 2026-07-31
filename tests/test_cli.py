@@ -124,7 +124,7 @@ class TestExitCodes:
             CLI.run([])
         assert exc.value.code == 1
 
-    def test_unknown_kernel_exits(self, tmp_path):
+    def test_unknown_kernelexits(self, tmp_path):
         import numpy as np
 
         x_path = str(tmp_path / "x.npy")

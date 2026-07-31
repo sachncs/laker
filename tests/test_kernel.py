@@ -72,7 +72,7 @@ class TestExact:
         out = k.eval(q)
         assert out.shape == (5, 20)
 
-    def test_eval_matches_kernel_without_lambda(self):
+    def test_eval_matches_kernelwithout_lambda(self):
         e = _emb()
         k = Exact(e, lam=0.1, dtype=torch.float64)
         # eval returns the unregularised kernel; dense adds lambda I.

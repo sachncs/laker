@@ -11,7 +11,7 @@ class TestGrid:
         x = torch.rand(40, 2, dtype=torch.float64) * 100
         y = torch.sin(x[:, 0] / 50) + 0.1 * torch.randn(40, dtype=torch.float64)
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
-        m._search.grid(
+        m.searcher.grid(
             m,
             x,
             y,
@@ -31,7 +31,7 @@ class TestGrid:
         x = torch.rand(40, 2, dtype=torch.float64) * 100
         y = torch.sin(x[:, 0] / 50)
         m = Laker(embed_dim=4, lam=1.0, dtype=torch.float64, verbose=False)
-        m._search.grid(
+        m.searcher.grid(
             m,
             x,
             y,

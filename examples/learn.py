@@ -69,11 +69,11 @@ class Learn:
         model.fit(locations, targets)
         train_r2 = model.score(locations, targets)
 
-        assert model.coef_ is not None, "fit: coef is None after fit"
-        assert model.embed_ is not None, "fit: embeddings is None"
-        assert model.coef_.shape == (n,), "fit: coef shape mismatch"
-        assert model.embed_.shape == (n, embedding_dim), "fit: embeddings shape"
-        assert model.embed_.requires_grad is False, "fit: frozen embeddings expected at fit time"
+        assert model.coef is not None, "fit: coef is None after fit"
+        assert model.embed is not None, "fit: embeddings is None"
+        assert model.coef.shape == (n,), "fit: coef shape mismatch"
+        assert model.embed.shape == (n, embedding_dim), "fit: embeddings shape"
+        assert model.embed.requires_grad is False, "fit: frozen embeddings expected at fit time"
 
         # ---- predict -------------------------------------------------------
         query = torch.rand(20, 2, dtype=torch.float64) * area

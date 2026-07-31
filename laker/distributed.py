@@ -63,9 +63,9 @@ class Distributed:
             return
 
         self.single = False
-        self._shard(embeddings.to(dtype=dtype))
+        self.shard(embeddings.to(dtype=dtype))
 
-    def _shard(self, embeddings: torch.Tensor) -> None:
+    def shard(self, embeddings: torch.Tensor) -> None:
         n = embeddings.shape[0]
         nd = len(self.devices)
         sizes = [n // nd] * nd

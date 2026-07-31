@@ -171,7 +171,7 @@ class GP:
         scale: float = 0.2,
         noise: float = 1e-4,
     ) -> None:
-        self.bounds = bounds.astype(np.float64)
+        self.bounds: np.ndarray = bounds.astype(np.float64)
         self.d = bounds.shape[0]
         self.log = list(log or [])
         self.sigma = float(sigma)
@@ -185,7 +185,7 @@ class GP:
         self.y_std = 1.0
         self.length = float(scale)
 
-    def _transform(self, x: np.ndarray) -> np.ndarray:
+    def transform(self, x: np.ndarray) -> np.ndarray:
         x = np.atleast_2d(x).astype(np.float64)
         z = x.copy()
         for i in self.log:
@@ -195,15 +195,15 @@ class GP:
         z = (z - self.bounds[:, 0]) / (self.bounds[:, 1] - self.bounds[:, 0])
         return np.clip(z, 0.0, 1.0)
 
-    def _kernel(self, x1: np.ndarray, x2: np.ndarray) -> np.ndarray:
+    def kernel(self, x1: np.ndarray, x2: np.ndarray) -> np.ndarray:
         sq = np.sum(x1**2, axis=1).reshape(-1, 1) + np.sum(x2**2, axis=1) - 2 * np.dot(x1, x2.T)
         return self.sigma**2 * np.exp(-0.5 * sq / (self.length**2 + 1e-12))
 
-    def _ml(self, candidate: float) -> float:
+    def ml(self, candidate: float) -> float:
         old = self.length
         self.length = candidate
         try:
-            k = self._kernel(self.x, self.x)
+            k = self.kernel(self.x, self.x)
             k[np.diag_indices_from(k)] += self.noise**2
             try:
                 l = np.linalg.cholesky(k + 1e-8 * np.eye(k.shape[0]))
@@ -220,28 +220,28 @@ class GP:
 
     def fit(self, x: np.ndarray, y: np.ndarray) -> None:
         """Fit the GP to observations ``(x, y)`` with marginal-likelihood tuning."""
-        self.x = self._transform(x)
+        self.x = self.transform(x)
         self.y_mean = float(y.mean())
         self.y_std = float(y.std()) + 1e-8
         self.y = (y - self.y_mean) / self.y_std
         best = self.length
-        best_ml = float("-inf")
+        bestml = float("-inf")
         for cand in np.logspace(-2, 0, 20):
-            ml = self._ml(float(cand))
-            if ml > best_ml:
-                best_ml = ml
+            ml = self.ml(float(cand))
+            if ml > bestml:
+                bestml = ml
                 best = float(cand)
         self.length = best
-        k = self._kernel(self.x, self.x)
+        k = self.kernel(self.x, self.x)
         k[np.diag_indices_from(k)] += self.noise**2
         self.l = np.linalg.cholesky(k + 1e-8 * np.eye(k.shape[0]))
         self.alpha = np.linalg.solve(self.l.T, np.linalg.solve(self.l, self.y))
 
     def predict(self, x_new: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Return ``(mean, var)`` predictive distribution at ``x_new``."""
-        x_new_t = self._transform(x_new)
-        k_s = self._kernel(self.x, x_new_t)
-        k_ss = self._kernel(x_new_t, x_new_t)
+        x_new_t = self.transform(x_new)
+        k_s = self.kernel(self.x, x_new_t)
+        k_ss = self.kernel(x_new_t, x_new_t)
         k_ss[np.diag_indices_from(k_ss)] += self.noise**2
         v = np.linalg.solve(self.l, k_s)
         mu = np.dot(k_s.T, self.alpha)

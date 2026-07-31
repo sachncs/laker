@@ -80,8 +80,8 @@ class Scale:
         model.fit(locations, targets)
         fit_seconds = time.perf_counter() - t0
 
-        assert model.coef_.shape == (n,), "fit: coef shape mismatch"
-        assert model.embed_.shape == (n, embedding_dim), "fit: embeddings shape mismatch"
+        assert model.coef.shape == (n,), "fit: coef shape mismatch"
+        assert model.embed.shape == (n, embedding_dim), "fit: embeddings shape mismatch"
 
         # ---- predict (timed) ------------------------------------------------
         t0 = time.perf_counter()

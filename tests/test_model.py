@@ -9,10 +9,10 @@ from laker import Laker
 class TestConstruction:
     def test_default_construction(self):
         m = Laker()
-        assert m.coef_ is None
-        assert m.embed_ is None
-        assert m.kernel_ is None
-        assert m.prec_ is None
+        assert m.coef is None
+        assert m.embed is None
+        assert m.kernel is None
+        assert m.prec is None
 
     def test_repr(self):
         m = Laker()
@@ -93,8 +93,8 @@ class TestConstruction:
             Laker(prec_kind="bogus")
 
     def test_validation_kernel(self):
-        with pytest.raises(ValueError, match="kernel"):
-            Laker(kernel="bogus")
+        with pytest.raises(ValueError, match="kernel_type"):
+            Laker(kernel_type="bogus")
 
 
 class TestFit:
@@ -104,16 +104,16 @@ class TestFit:
         y = torch.sin(x[:, 0] / 50)
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
         m.fit(x, y)
-        assert m.coef_ is not None
-        assert m.coef_.shape == (30,)
-        assert m.embed_ is not None
-        assert m.embed_.shape == (30, 4)
-        assert m.kernel_ is not None
-        assert m.prec_ is not None
-        assert m.encoder_ is not None
-        assert m.inputs_ is not None
-        assert m.targets_ is not None
-        assert m.iters_ is not None and m.iters_ > 0
+        assert m.coef is not None
+        assert m.coef.shape == (30,)
+        assert m.embed is not None
+        assert m.embed.shape == (30, 4)
+        assert m.kernel is not None
+        assert m.prec is not None
+        assert m.encoder is not None
+        assert m.inputs is not None
+        assert m.targets is not None
+        assert m.iters is not None and m.iters > 0
 
     def test_fit_deterministic_with_seed(self):
         torch.manual_seed(0)
@@ -123,7 +123,7 @@ class TestFit:
         m1.fit(x, y, seed=42)
         m2 = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
         m2.fit(x, y, seed=42)
-        torch.testing.assert_close(m1.coef_, m2.coef_)
+        torch.testing.assert_close(m1.coef, m2.coef)
 
     def test_fit_accepts_numpy(self):
         import numpy as np
@@ -133,7 +133,7 @@ class TestFit:
         y = np.random.randn(30)
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
         m.fit(x, y)
-        assert m.coef_ is not None
+        assert m.coef is not None
 
     def test_fit_rejects_y_scalar(self):
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
@@ -180,9 +180,9 @@ class TestFit:
         y = torch.sin(x[:, 0] / 50)
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
         m.fit(x, y)
-        m.coef_ = None
+        m.coef = None
         m.fit(x, y)
-        assert m.coef_ is not None
+        assert m.coef is not None
 
 
 class TestPredict:
@@ -280,7 +280,7 @@ class TestGetParamsSetParams:
             embed_dim=8,
             lam=0.05,
             gamma=0.2,
-            kernel="nystrom",
+            kernel_type="nystrom",
             landmarks=12,
             dtype=torch.float64,
             verbose=False,
@@ -289,7 +289,7 @@ class TestGetParamsSetParams:
         assert params["embed_dim"] == 8
         assert params["lam"] == 0.05
         assert params["gamma"] == 0.2
-        assert params["kernel"] == "nystrom"
+        assert params["kernel_type"] == "nystrom"
         assert params["landmarks"] == 12
 
     def test_set_params_rejects_unknown(self):
@@ -333,7 +333,7 @@ class TestKernels:
         y = torch.sin(x[:, 0] / 50)
         m = Laker(
             embed_dim=4,
-            kernel=kernel,
+            kernel_type=kernel,
             dtype=torch.float64,
             verbose=False,
             **kwargs,

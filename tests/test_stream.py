@@ -14,13 +14,13 @@ class TestUpdate:
         y = torch.sin(x[:, 0] / 50)
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
         m.fit(x, y)
-        assert m.coef_.shape[0] == n
+        assert m.coef.shape[0] == n
 
         x_new = torch.rand(5, 2, dtype=torch.float64) * 100
         y_new = torch.sin(x_new[:, 0] / 50)
         m.update(x_new, y_new, threshold=100, seed=0)
-        assert m.coef_.shape[0] == n + 5
-        assert m.embed_.shape[0] == n + 5
+        assert m.coef.shape[0] == n + 5
+        assert m.embed.shape[0] == n + 5
 
     def test_update_rejects_unfitted(self):
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
@@ -94,7 +94,7 @@ class TestContinuation:
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
         m.continuation(x, y, lo=1e-3, hi=1.0, stages=3)
         assert m.lam == 1e-3
-        assert torch.isfinite(m.coef_).all()
+        assert torch.isfinite(m.coef).all()
 
     def test_continuation_rejects_bad_stages(self):
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)

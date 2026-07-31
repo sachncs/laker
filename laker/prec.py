@@ -305,21 +305,21 @@ class Adaptive:
             if self.verbose:
                 logger.info("Adaptive chose Jacobi (κ≈%.2e)", cond)
         elif cond < 1e6:
-            self.inner = self._make(num=self.num)
+            self.inner = self.make(num=self.num)
             self.inner.build(op, n, seed=seed)
             self.choice = "cccp"
             if self.verbose:
                 logger.info("Adaptive chose CCCP (κ≈%.2e)", cond)
         else:
             aggressive_num = (self.num if self.num is not None else max(200, int(2 * n**0.5))) * 2
-            self.inner = self._make(num=aggressive_num)
+            self.inner = self.make(num=aggressive_num)
             self.inner.build(op, n, seed=seed)
             self.choice = "aggressive"
             if self.verbose:
                 logger.info("Adaptive chose aggressive CCCP (κ≈%.2e)", cond)
         return self
 
-    def _make(self, num: Optional[int]) -> CCCP:
+    def make(self, num: Optional[int]) -> CCCP:
         return CCCP(
             num=num,
             gamma=self.gamma,

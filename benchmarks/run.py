@@ -29,9 +29,9 @@ class PerformanceBenchmarkSuite:
         self.lambda_reg = 1e-2
 
     @classmethod
-    def benchmark_kernel_matvec(cls, n: int = 5000, chunk_size: Optional[int] = 1024) -> dict:
+    def benchmark_kernelmatvec(cls, n: int = 5000, chunk_size: Optional[int] = 1024) -> dict:
         suite = cls()
-        return suite.kernel_matvec(n, chunk_size)
+        return suite.kernelmatvec(n, chunk_size)
 
     @classmethod
     def benchmark_preconditioner_build(cls, n: int = 5000, num_probes: int = 100) -> dict:
@@ -48,13 +48,13 @@ class PerformanceBenchmarkSuite:
         suite = cls()
         return suite.full_fit(n)
 
-    def kernel_matvec(self, n: int = 5000, chunk_size: Optional[int] = 1024) -> dict:
+    def kernelmatvec(self, n: int = 5000, chunk_size: Optional[int] = 1024) -> dict:
         embeddings = torch.randn(n, self.embedding_dim, dtype=self.dtype)
         vector = torch.randn(n, dtype=self.dtype)
         kernel = Exact(embeddings, lam=self.lambda_reg, chunk=chunk_size, dtype=self.dtype)
 
         result = self.executor.run_repeated(
-            f"kernel_matvec_n{n}",
+            f"kernelmatvec_n{n}",
             lambda: kernel.matvec(vector),
             repetitions=20,
         )
@@ -139,7 +139,7 @@ class PerformanceBenchmarkSuite:
         return {
             "n": n,
             "fit_ms": result["mean_ms"],
-            "pcg_iters": getattr(model, "iters_", None),
+            "pcg_iters": getattr(model, "iters", None),
         }
 
     def run_all(self) -> None:
@@ -148,7 +148,7 @@ class PerformanceBenchmarkSuite:
         logger.info("=" * 60)
 
         for n in [1000, 2000, 5000]:
-            result = self.kernel_matvec(n=n, chunk_size=1024)
+            result = self.kernelmatvec(n=n, chunk_size=1024)
             logger.info("Kernel matvec n=%d: %.2f ms", n, result["matvec_ms"])
 
         for n in [1000, 2000, 5000]:

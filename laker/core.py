@@ -51,7 +51,7 @@ class Core:
         pcg_max: int = 1000,
         chunk: Optional[int] = None,
         encoder: Optional[nn.Module] = None,
-        kernel: Optional[str] = None,
+        kernel_type: Optional[str] = None,
         landmarks: Optional[int] = None,
         features: Optional[int] = None,
         neighbors: Optional[int] = None,
@@ -79,7 +79,7 @@ class Core:
         self.pcg_max = pcg_max
         self.chunk = None if Backend.chunk_off else chunk
         self.encoder = encoder
-        self.kernel = kernel
+        self.kernel_type = kernel_type
         self.landmarks = landmarks
         self.features = features
         self.neighbors = neighbors
@@ -137,14 +137,6 @@ class Core:
                 )
         return embed, enc
 
-    def kernel(self, embed: torch.Tensor, lam: Optional[float] = None) -> Kernel:
-        """Build a kernel operator for the given embeddings.
-
-        Note: this method is also exposed as :meth:`Core.build_kernel`
-        to avoid name collision with the ``kernel`` config attribute.
-        """
-        return self.build_kernel(embed, lam)
-
     def build_kernel(self, embed: torch.Tensor, lam: Optional[float] = None) -> Kernel:
         """Build a kernel operator for the given embeddings."""
         n = embed.shape[0]
@@ -156,17 +148,17 @@ class Core:
                 logger.info("Auto-selected chunk=%d for n=%d", chunk, n)
 
         op: Kernel
-        if self.distributed and (self.kernel is None or self.kernel == "exact"):
+        if self.distributed and (self.kernel_type is None or self.kernel_type == "exact"):
             op = Distributed(embeddings=embed, lam=lam_value, master=self.device, dtype=self.dtype)
             if self.verbose:
                 logger.info(
                     "Distributed kernel on %d device(s)", len(cast(Distributed, op).devices)
                 )
-        elif self.kernel is None or self.kernel == "exact":
+        elif self.kernel_type is None or self.kernel_type == "exact":
             op = Exact(
                 embeddings=embed, lam=lam_value, chunk=chunk, device=self.device, dtype=self.dtype
             )
-        elif self.kernel == "nystrom":
+        elif self.kernel_type == "nystrom":
             op = Nystrom(
                 embeddings=embed,
                 lam=lam_value,
@@ -180,10 +172,10 @@ class Core:
             if self.verbose:
                 logger.info(
                     "Nystrom with m=%d landmarks (%s)",
-                    cast(Nystrom, op).m,
+                    cast(Nystrom, op).num_landmarks,
                     self.selection,
                 )
-        elif self.kernel == "fourier":
+        elif self.kernel_type == "fourier":
             op = Fourier(
                 embeddings=embed,
                 lam=lam_value,
@@ -193,7 +185,7 @@ class Core:
             )
             if self.verbose:
                 logger.info("Fourier with r=%d features", cast(Fourier, op).num)
-        elif self.kernel == "neighbors":
+        elif self.kernel_type == "neighbors":
             op = Neighbors(
                 embeddings=embed,
                 lam=lam_value,
@@ -203,8 +195,8 @@ class Core:
                 dtype=self.dtype,
             )
             if self.verbose:
-                logger.info("Neighbors with k=%d", cast(Neighbors, op).k)
-        elif self.kernel == "grid":
+                logger.info("Neighbors with k=%d", cast(Neighbors, op).num_neighbors)
+        elif self.kernel_type == "grid":
             op = Grid(
                 embeddings=embed,
                 lam=lam_value,
@@ -214,7 +206,7 @@ class Core:
             )
             if self.verbose:
                 logger.info("Grid with %d points", cast(Grid, op).points.shape[0])
-        elif self.kernel == "hybrid":
+        elif self.kernel_type == "hybrid":
             op = Hybrid(
                 embeddings=embed,
                 lam=lam_value,
@@ -227,7 +219,7 @@ class Core:
             )
             if self.verbose:
                 logger.info("Hybrid with alpha=%.2f", cast(Hybrid, op).alpha)
-        elif self.kernel == "spectrum":
+        elif self.kernel_type == "spectrum":
             op = Spectrum(
                 embeddings=embed,
                 lam=lam_value,
@@ -238,7 +230,7 @@ class Core:
             if self.verbose:
                 logger.info("Spectrum with %d knots", cast(Spectrum, op).shaper.knots)
         else:
-            raise ValueError(f"Unknown kernel={self.kernel}")
+            raise ValueError(f"Unknown kernel={self.kernel_type}")
         return op
 
     def prec(
@@ -282,7 +274,7 @@ class Core:
             prec.build(op, n, diag=diag, seed=seed)
             return prec
 
-        prec = CCCP(
+        cccp = CCCP(
             num=num if num is not None else self.num,
             gamma=gamma if gamma is not None else self.gamma,
             eps=self.eps,
@@ -293,8 +285,8 @@ class Core:
             device=self.device,
             dtype=self.dtype,
         )
-        prec.build(op, n, seed=seed)
-        return prec
+        cccp.build(op, n, seed=seed)
+        return cccp
 
     def solve(
         self,
@@ -349,7 +341,7 @@ class Core:
             if chunk_size is None or mem_per_chunk <= Backend.chunk:
                 k_q = kernel_op.eval(query_embed, embed, chunk=chunk_size)
                 out = k_q @ alpha
-            elif self.kernel is not None:
+            elif self.kernel_type is not None:
                 k_q = kernel_op.eval(query_embed, embed, chunk=chunk_size)
                 out = k_q @ alpha
             else:
@@ -390,7 +382,7 @@ class Core:
             m = query_embed.shape[0]
             n = embed.shape[0]
 
-            if self.kernel == "fourier" and hasattr(kernel_op, "phi"):
+            if self.kernel_type == "fourier" and hasattr(kernel_op, "phi"):
                 ko = cast(Fourier, kernel_op)
                 proj = query_embed @ ko.freq
                 phi_q = torch.cat(
@@ -471,7 +463,7 @@ class Core:
             if chunk_size is None or mem_per_chunk <= Backend.chunk:
                 k_q = kernel_op.eval(query_embed, embed, chunk=chunk_size)
                 out = k_q @ alpha
-            elif self.kernel is not None:
+            elif self.kernel_type is not None:
                 k_q = kernel_op.eval(query_embed, embed, chunk=chunk_size)
                 out = k_q @ alpha
             else:
@@ -509,7 +501,7 @@ class Core:
             if self.embed_dtype != self.dtype:
                 query_embed = query_embed.to(dtype=self.dtype)
 
-            if self.kernel == "fourier" and hasattr(kernel_op, "phi"):
+            if self.kernel_type == "fourier" and hasattr(kernel_op, "phi"):
                 ko = cast(Fourier, kernel_op)
                 proj = query_embed @ ko.freq
                 phi_q = torch.cat(

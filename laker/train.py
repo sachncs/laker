@@ -44,10 +44,10 @@ class Trainer:
         """Optimise embedding weights end-to-end on the regression objective."""
         x = Check.x(x)
         y = Check.y(y)
-        if model.encoder_ is None:
+        if model.encoder is None:
             raise RuntimeError("learn requires an encoder. Call fit() first or pass encoder.")
 
-        enc = model.encoder_
+        enc = model.encoder
         trainable = [p for p in enc.parameters() if p.requires_grad]
         if not trainable:
             for p in enc.parameters():
@@ -71,18 +71,18 @@ class Trainer:
 
             kernel = self.core.build_kernel(embed)
 
-            if epoch % rebuild == 0 or model.coef_ is None:
+            if epoch % rebuild == 0 or model.coef is None:
                 with torch.no_grad():
-                    kernel_d = self.core.build_kernel(embed.detach())
+                    kerneld = self.core.build_kernel(embed.detach())
                     prec = self.core.build_prec(
-                        kernel_d.matvec,
+                        kerneld.matvec,
                         embed.shape[0],
-                        diag=kernel_d.diag(),
+                        diag=kerneld.diag(),
                     )
-                    alpha, _ = self.core.solve(kernel_d, prec, y)
-                model.prec_ = prec
+                    alpha, _ = self.core.solve(kerneld, prec, y)
+                model.prec = prec
             else:
-                alpha = model.coef_.detach()
+                alpha = model.coef.detach()
 
             residual = kernel.matvec(alpha) - y
             loss = 0.5 * torch.dot(residual, residual)
@@ -112,13 +112,13 @@ class Trainer:
             prec = best_prec
             kernel = best_kernel
         else:
-            prec = model.prec_
+            prec = model.prec
             embed = embed.detach()
 
-        model.embed_ = embed
-        model.kernel_ = kernel
-        model.prec_ = prec
-        model.coef_, model.iters_ = self.core.solve(kernel, prec, y)
+        model.embed = embed
+        model.kernel = kernel
+        model.prec = prec
+        model.coef, model.iters = self.core.solve(kernel, prec, y)
         return model
 
     def correct(
@@ -136,7 +136,7 @@ class Trainer:
         """Train a residual corrector on ``y - y_hat``."""
         from laker.check import Check
 
-        if model.coef_ is None or model.embed_ is None:
+        if model.coef is None or model.embed is None:
             raise RuntimeError("Model has not been fitted. Call fit() before correct().")
 
         x = Check.x(x)
@@ -252,9 +252,9 @@ class Trainer:
         x = Check.x(x)
         y = Check.y(y)
 
-        if model.encoder_ is None:
+        if model.encoder is None:
             raise RuntimeError("calibrate requires an encoder. Call fit() first.")
-        enc = model.encoder_
+        enc = model.encoder
         trainable = [p for p in enc.parameters() if p.requires_grad]
         if not trainable:
             for p in enc.parameters():
@@ -277,9 +277,9 @@ class Trainer:
 
             kernel = self.core.build_kernel(embed)
             with torch.no_grad():
-                kernel_d = self.core.build_kernel(embed.detach())
-                prec = self.core.build_prec(kernel_d.matvec, n, diag=kernel_d.diag())
-                alpha, _ = self.core.solve(kernel_d, prec, y)
+                kerneld = self.core.build_kernel(embed.detach())
+                prec = self.core.build_prec(kerneld.matvec, n, diag=kerneld.diag())
+                alpha, _ = self.core.solve(kerneld, prec, y)
 
             mu = self.core.predict_train(x, enc, embed, kernel, alpha, model.corrector)
             gen = torch.Generator(device=x.device)
@@ -317,12 +317,12 @@ class Trainer:
                         logger.info("calibrate early stopping at epoch %d", epoch + 1)
                     break
 
-        model.embed_ = embed.detach()
-        kernel_op = self.core.build_kernel(model.embed_)
-        model.kernel_ = kernel_op
-        prec = self.core.build_prec(kernel_op.matvec, n, diag=kernel_op.diag())
-        model.prec_ = prec
-        model.coef_, model.iters_ = self.core.solve(kernel_op, prec, y)
+        model.embed = embed.detach()
+        kernelop = self.core.build_kernel(model.embed)
+        model.kernel = kernelop
+        prec = self.core.build_prec(kernelop.matvec, n, diag=kernelop.diag())
+        model.prec = prec
+        model.coef, model.iters = self.core.solve(kernelop, prec, y)
         return model
 
 

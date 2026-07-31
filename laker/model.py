@@ -8,11 +8,10 @@ Naming rules:
 
 * Hyperparameters use single-word canonical names (``lam``, ``gamma``,
   ``num``, ...).
-* Fitted state uses sklearn-style trailing-underscore names
-  (``coef_``, ``embed_``, ``kernel_``, ``prec_``, ``encoder_``,
-  ``inputs_``, ``targets_``, ``iters_``).
-* All sklearn-style parameters are validated against the public
-  parameter set.
+* Fitted state uses plain names without trailing underscores
+  (``coef``, ``embed``, ``kernel``, ``prec``, ``encoder``, ``inputs``,
+  ``targets``, ``iters``).
+* All parameters are validated against the public parameter set.
 """
 
 from __future__ import annotations
@@ -75,14 +74,14 @@ class Laker:
         warm: Carry forward fitted state across ``fit`` calls.
 
     Attributes:
-        coef_: Solution vector, shape ``(n,)``.
-        embed_: Training embeddings, shape ``(n, D)``.
-        kernel_: Fitted kernel operator.
-        prec_: Fitted preconditioner.
-        encoder_: Fitted embedding module.
-        inputs_: Training locations, shape ``(n, d)``.
-        targets_: Training observations, shape ``(n,)``.
-        iters_: Iterations used by the last PCG solve.
+        coef: Solution vector, shape ``(n,)``.
+        embed: Training embeddings, shape ``(n, D)``.
+        kernel: Fitted kernel operator.
+        prec: Fitted preconditioner.
+        encoder: Fitted embedding module.
+        inputs: Training locations, shape ``(n, d)``.
+        targets: Training observations, shape ``(n,)``.
+        iters: Iterations used by the last PCG solve.
     """
 
     PARAMS = (
@@ -121,7 +120,7 @@ class Laker:
         embed_dim: int = 10,
         lam: float = 1e-2,
         gamma: float = 1e-1,
-        kernel: str = "exact",
+        kernel_type: str = "exact",
         landmarks: Optional[int] = None,
         features: Optional[int] = None,
         neighbors: Optional[int] = None,
@@ -179,7 +178,7 @@ class Laker:
             raise ValueError(f"knots must be positive, got {knots}")
         if prec_kind not in ("cccp", "adaptive"):
             raise ValueError(f"prec_kind must be 'cccp' or 'adaptive', got {prec_kind!r}")
-        if kernel not in (
+        if kernel_type not in (
             "exact",
             "nystrom",
             "fourier",
@@ -189,15 +188,15 @@ class Laker:
             "hybrid",
         ):
             raise ValueError(
-                "kernel must be one of 'exact', 'nystrom', 'fourier', "
+                "kernel_type must be one of 'exact', 'nystrom', 'fourier', "
                 "'neighbors', 'grid', 'spectrum', 'hybrid'; "
-                f"got {kernel!r}"
+                f"got {kernel_type!r}"
             )
 
         self.embed_dim = embed_dim
         self.lam = lam
         self.gamma = gamma
-        self.kernel = kernel
+        self.kernel_type = kernel_type
         self.landmarks = landmarks
         self.features = features
         self.neighbors = neighbors
@@ -221,9 +220,9 @@ class Laker:
         self.dtype = dtype
         self.verbose = verbose
         self.warm = warm
-        self._init_encoder = encoder
+        self.init_encoder = encoder
 
-        self._core = Core(
+        self.core = Core(
             embed_dim=embed_dim,
             lam=lam,
             gamma=gamma,
@@ -236,7 +235,7 @@ class Laker:
             pcg_max=pcg_max,
             chunk=chunk,
             encoder=encoder,
-            kernel=kernel,
+            kernel_type=kernel_type,
             landmarks=landmarks,
             features=features,
             neighbors=neighbors,
@@ -252,37 +251,37 @@ class Laker:
             dtype=dtype,
             verbose=verbose,
         )
-        self._stream = Stream(self._core)
-        self._search = Search(self._core)
-        self._train = Trainer(self._core)
+        self.stream = Stream(self.core)
+        self.searcher = Search(self.core)
+        self.train = Trainer(self.core)
 
-        self.coef_: Optional[torch.Tensor] = None
-        self.embed_: Optional[torch.Tensor] = None
-        self.kernel_: Any = None
-        self.prec_: Any = None
-        self.encoder_: Optional[nn.Module] = None
-        self.inputs_: Optional[torch.Tensor] = None
-        self.targets_: Optional[torch.Tensor] = None
-        self.iters_: Optional[int] = None
+        self.coef: Optional[torch.Tensor] = None
+        self.embed: Optional[torch.Tensor] = None
+        self.kernel: Any = None
+        self.prec: Any = None
+        self.encoder: Optional[nn.Module] = None
+        self.inputs: Optional[torch.Tensor] = None
+        self.targets: Optional[torch.Tensor] = None
+        self.iters: Optional[int] = None
         self.corrector: Optional[nn.Module] = None
-        self._x_train: Optional[torch.Tensor] = None
-        self._y_train: Optional[torch.Tensor] = None
-        self._partial_count: int = 0
-        self._path: Optional[dict] = None
+        self.x_train: Optional[torch.Tensor] = None
+        self.y_train: Optional[torch.Tensor] = None
+        self.partial_count: int = 0
+        self.regpath: Optional[dict] = None
 
     def __repr__(self) -> str:
-        fitted = "fitted" if self.coef_ is not None else "not fitted"
+        fitted = "fitted" if self.coef is not None else "not fitted"
         return f"Laker(embed_dim={self.embed_dim}, lam={self.lam}, {fitted})"
 
     # ------------------------------------------------------------------
-    # Sklearn-style hyperparameter contract
+    # Hyperparameter contract
     # ------------------------------------------------------------------
     def get_params(self) -> dict:
         return {
             "embed_dim": self.embed_dim,
             "lam": self.lam,
             "gamma": self.gamma,
-            "kernel": self.kernel,
+            "kernel_type": self.kernel_type,
             "landmarks": self.landmarks,
             "features": self.features,
             "neighbors": self.neighbors,
@@ -301,7 +300,7 @@ class Laker:
             "pcg_tol": self.pcg_tol,
             "pcg_max": self.pcg_max,
             "chunk": self.chunk,
-            "encoder": getattr(self, "_init_encoder", None),
+            "encoder": getattr(self, "init_encoder", None),
             "embed_dtype": self.embed_dtype,
             "device": self.device,
             "dtype": self.dtype,
@@ -331,7 +330,7 @@ class Laker:
                     coerced[name] = torch.float32
         for key, value in coerced.items():
             setattr(self, key, value)
-        self._core = Core(
+        self.core = Core(
             embed_dim=self.embed_dim,
             lam=self.lam,
             gamma=self.gamma,
@@ -343,8 +342,8 @@ class Laker:
             pcg_tol=self.pcg_tol,
             pcg_max=self.pcg_max,
             chunk=self.chunk,
-            encoder=self._init_encoder,
-            kernel=self.kernel,
+            encoder=self.init_encoder,
+            kernel_type=self.kernel_type,
             landmarks=self.landmarks,
             features=self.features,
             neighbors=self.neighbors,
@@ -360,9 +359,9 @@ class Laker:
             dtype=self.dtype,
             verbose=self.verbose,
         )
-        self._stream = Stream(self._core)
-        self._search = Search(self._core)
-        self._train = Trainer(self._core)
+        self.stream = Stream(self.core)
+        self.searcher = Search(self.core)
+        self.train = Trainer(self.core)
         return self
 
     def __sklearn_clone__(self) -> "Laker":
@@ -378,56 +377,56 @@ class Laker:
         x0: Optional[torch.Tensor] = None,
         seed: Optional[int] = None,
     ) -> "Laker":
-        device = self._core.device
-        dtype = self._core.dtype
+        device = self.core.device
+        dtype = self.core.dtype
         x = Check.x(Backend.tensor(x, device=device, dtype=dtype))
         y = Check.y(Backend.tensor(y, device=device, dtype=dtype))
 
-        if not self.warm and self.coef_ is not None:
+        if not self.warm and self.coef is not None:
             params = self.get_params()
             fresh = Laker(**params)
             return fresh.fit(x, y, x0=x0, seed=seed)
 
-        embed, enc = self._core.embed(x)
-        kernel_op = self._core.build_kernel(embed)
-        prec = self._core.build_prec(
+        embed, enc = self.core.embed(x)
+        kernel_op = self.core.build_kernel(embed)
+        prec = self.core.build_prec(
             kernel_op.matvec, embed.shape[0], diag=kernel_op.diag(), seed=seed
         )
-        coef, iters = self._core.solve(kernel_op, prec, y, x0=x0)
+        coef, iters = self.core.solve(kernel_op, prec, y, x0=x0)
 
-        self.embed_ = embed
-        self.kernel_ = kernel_op
-        self.prec_ = prec
-        self.coef_ = coef
-        self.encoder_ = enc
-        self.inputs_ = x
-        self.targets_ = y
-        self.iters_ = iters
-        self._x_train = x
-        self._y_train = y
-        self._partial_count = 0
+        self.embed = embed
+        self.kernel = kernel_op
+        self.prec = prec
+        self.coef = coef
+        self.encoder = enc
+        self.inputs = x
+        self.targets = y
+        self.iters = iters
+        self.x_train = x
+        self.y_train = y
+        self.partial_count = 0
         return self
 
     def predict(self, x: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
-        if self.coef_ is None or self.embed_ is None or self.encoder_ is None:
+        if self.coef is None or self.embed is None or self.encoder is None:
             raise RuntimeError("Model has not been fitted. Call fit() first.")
-        x = Check.x(Backend.tensor(x, device=self._core.device, dtype=self._core.dtype))
-        if hasattr(self.encoder_, "input_dim") and x.shape[1] != self.encoder_.input_dim:
+        x = Check.x(Backend.tensor(x, device=self.core.device, dtype=self.core.dtype))
+        if hasattr(self.encoder, "input_dim") and x.shape[1] != self.encoder.input_dim:
             raise ValueError(
-                f"x has {x.shape[1]} features but model expects {self.encoder_.input_dim}"
+                f"x has {x.shape[1]} features but model expects {self.encoder.input_dim}"
             )
-        return self._core.predict(
-            x, self.encoder_, self.embed_, self.kernel_, self.coef_, self.corrector
+        return self.core.predict(
+            x, self.encoder, self.embed, self.kernel, self.coef, self.corrector
         )
 
     def variance(self, x: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
-        if self.coef_ is None or self.embed_ is None or self.prec_ is None:
+        if self.coef is None or self.embed is None or self.prec is None:
             raise RuntimeError("Model has not been fitted. Call fit() first.")
-        x = Backend.tensor(x, device=self._core.device, dtype=self._core.dtype)
+        x = Backend.tensor(x, device=self.core.device, dtype=self.core.dtype)
         if x.dim() != 2:
             raise ValueError(f"x must be 2-D, got shape {x.shape}")
-        return self._core.variance(
-            x, self.encoder_, self.embed_, self.kernel_, self.prec_, self.coef_, self.lam
+        return self.core.variance(
+            x, self.encoder, self.embed, self.kernel, self.prec, self.coef, self.lam
         )
 
     def score(
@@ -436,7 +435,7 @@ class Laker:
         y: Union[torch.Tensor, np.ndarray],
     ) -> float:
         """Coefficient of determination ``R^2``."""
-        y_true = Check.y(Backend.tensor(y, device=self._core.device, dtype=self._core.dtype))
+        y_true = Check.y(Backend.tensor(y, device=self.core.device, dtype=self.core.dtype))
         y_pred = self.predict(x)
         if y_true.shape != y_pred.shape:
             raise ValueError(
@@ -449,9 +448,9 @@ class Laker:
         return 1.0 - ss_res / ss_tot
 
     def condition(self) -> float:
-        if self.prec_ is None or self.kernel_ is None:
+        if self.prec is None or self.kernel is None:
             raise RuntimeError("Model has not been fitted.")
-        return self._core.condition(self.kernel_, self.prec_)
+        return self.core.condition(self.kernel, self.prec)
 
     # ------------------------------------------------------------------
     # Workflows
@@ -467,7 +466,7 @@ class Laker:
         warm: bool = True,
         seed: Optional[int] = None,
     ) -> "Laker":
-        return self._search.grid(
+        return self.searcher.grid(
             self,
             x,
             y,
@@ -491,7 +490,7 @@ class Laker:
         num_bounds: tuple[int, int] = (20, 300),
         seed: Optional[int] = None,
     ) -> "Laker":
-        return self._search.bayes(
+        return self.searcher.bayes(
             self,
             x,
             y,
@@ -512,9 +511,7 @@ class Laker:
         threshold: int = 100,
         seed: Optional[int] = None,
     ) -> "Laker":
-        return self._stream.update(
-            self, x_new, y_new, forget=forget, threshold=threshold, seed=seed
-        )
+        return self.stream.update(self, x_new, y_new, forget=forget, threshold=threshold, seed=seed)
 
     def path(
         self,
@@ -523,7 +520,7 @@ class Laker:
         grid: list[float],
         reuse: bool = True,
     ) -> dict:
-        return self._stream.path(self, x, y, grid=grid, reuse=reuse)
+        return self.stream.path(self, x, y, grid=grid, reuse=reuse)
 
     def continuation(
         self,
@@ -534,7 +531,7 @@ class Laker:
         stages: int = 5,
         reuse: bool = True,
     ) -> "Laker":
-        return self._stream.continuation(self, x, y, lo=lo, hi=hi, stages=stages, reuse=reuse)
+        return self.stream.continuation(self, x, y, lo=lo, hi=hi, stages=stages, reuse=reuse)
 
     def learn(
         self,
@@ -545,9 +542,9 @@ class Laker:
         rebuild: int = 10,
         patience: int = 5,
     ) -> "Laker":
-        x = Check.x(Backend.tensor(x, device=self._core.device, dtype=self._core.dtype))
-        y = Check.y(Backend.tensor(y, device=self._core.device, dtype=self._core.dtype))
-        return self._train.learn(
+        x = Check.x(Backend.tensor(x, device=self.core.device, dtype=self.core.dtype))
+        y = Check.y(Backend.tensor(y, device=self.core.device, dtype=self.core.dtype))
+        return self.train.learn(
             self, x, y, lr=lr, epochs=epochs, rebuild=rebuild, patience=patience
         )
 
@@ -562,9 +559,9 @@ class Laker:
         lr: float = 1e-3,
         seed: Optional[int] = None,
     ) -> "Laker":
-        x = Check.x(Backend.tensor(x, device=self._core.device, dtype=self._core.dtype))
-        y = Check.y(Backend.tensor(y, device=self._core.device, dtype=self._core.dtype))
-        return self._train.correct(
+        x = Check.x(Backend.tensor(x, device=self.core.device, dtype=self.core.dtype))
+        y = Check.y(Backend.tensor(y, device=self.core.device, dtype=self.core.dtype))
+        return self.train.correct(
             self,
             x,
             y,
@@ -586,11 +583,11 @@ class Laker:
         epochs: int = 20,
         patience: int = 5,
     ) -> "Laker":
-        x_train = Check.x(Backend.tensor(x_train, device=self._core.device, dtype=self._core.dtype))
-        y_train = Check.y(Backend.tensor(y_train, device=self._core.device, dtype=self._core.dtype))
-        x_val = Check.x(Backend.tensor(x_val, device=self._core.device, dtype=self._core.dtype))
-        y_val = Check.y(Backend.tensor(y_val, device=self._core.device, dtype=self._core.dtype))
-        return self._train.bilevel(
+        x_train = Check.x(Backend.tensor(x_train, device=self.core.device, dtype=self.core.dtype))
+        y_train = Check.y(Backend.tensor(y_train, device=self.core.device, dtype=self.core.dtype))
+        x_val = Check.x(Backend.tensor(x_val, device=self.core.device, dtype=self.core.dtype))
+        y_val = Check.y(Backend.tensor(y_val, device=self.core.device, dtype=self.core.dtype))
+        return self.train.bilevel(
             self, x_train, y_train, x_val, y_val, lr=lr, epochs=epochs, patience=patience
         )
 
@@ -605,9 +602,9 @@ class Laker:
         patience: int = 5,
         seed: Optional[int] = None,
     ) -> "Laker":
-        x = Check.x(Backend.tensor(x, device=self._core.device, dtype=self._core.dtype))
-        y = Check.y(Backend.tensor(y, device=self._core.device, dtype=self._core.dtype))
-        return self._train.calibrate(
+        x = Check.x(Backend.tensor(x, device=self.core.device, dtype=self.core.dtype))
+        y = Check.y(Backend.tensor(y, device=self.core.device, dtype=self.core.dtype))
+        return self.train.calibrate(
             self,
             x,
             y,

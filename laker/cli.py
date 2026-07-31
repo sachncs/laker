@@ -112,7 +112,7 @@ class CLI:
             num=args.num,
             device=args.device,
             dtype=dtype,
-            kernel=args.kernel,
+            kernel_type=args.kernel,
         )
         model.fit(x, y)
         model.save(args.output)

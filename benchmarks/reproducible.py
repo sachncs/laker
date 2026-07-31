@@ -43,7 +43,7 @@ class ReproducibleBenchmarkSuite:
         with torch.no_grad():
             return embed(x)
 
-    def kernel_matvec(
+    def kernelmatvec(
         self,
         n: int = 5000,
         chunk_size: Optional[int] = 1024,
@@ -61,7 +61,7 @@ class ReproducibleBenchmarkSuite:
         self.warmup(kernel, vector, warmup)
 
         result = self.executor.run(
-            f"kernel_matvec_n{n}",
+            f"kernelmatvec_n{n}",
             lambda: kernel.matvec(vector),
             trials=trials,
             warmup=0,
@@ -148,10 +148,10 @@ class ReproducibleBenchmarkSuite:
         return {
             "n": n,
             "fit_ms": result["mean_ms"],
-            "pcg_iters": getattr(model, "iters_", None),
+            "pcg_iters": getattr(model, "iters", None),
         }
 
-    def approx_kernel_matvec(self, n: int = 2000, trials: int = 20) -> dict:
+    def approx_kernelmatvec(self, n: int = 2000, trials: int = 20) -> dict:
         embeddings = self.make_embeddings(n, dim=self.embedding_dim)
         vector = torch.randn(n, dtype=self.dtype)
 
@@ -223,7 +223,7 @@ class ReproducibleBenchmarkSuite:
         lines.append("| n | chunk_size | mean (ms) | std (ms) |")
         lines.append("|---|------------|-----------|----------|")
         for n in [1000, 2000, 5000]:
-            result = self.kernel_matvec(n=n, chunk_size=1024, trials=50, warmup=20)
+            result = self.kernelmatvec(n=n, chunk_size=1024, trials=50, warmup=20)
             lines.append(
                 f"| {result['n']} | {result['chunk_size']} | "
                 f"{result['matvec_ms_mean']:.3f} | {result['matvec_ms_std']:.3f} |"
@@ -234,7 +234,7 @@ class ReproducibleBenchmarkSuite:
         lines.append("")
         lines.append("| method | mean (ms) | std (ms) |")
         lines.append("|--------|-----------|----------|")
-        result = self.approx_kernel_matvec(n=2000, trials=20)
+        result = self.approx_kernelmatvec(n=2000, trials=20)
         for method in ["exact", "nystrom", "rff", "knn", "ski"]:
             lines.append(
                 f"| {method} | {result[method]['mean']:.3f} | {result[method]['std']:.3f} |"

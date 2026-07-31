@@ -13,8 +13,8 @@ class TestLearn:
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
         m.fit(x, y)
         m.learn(x, y, lr=1e-2, epochs=5, rebuild=1, patience=5)
-        assert m.coef_.shape == (40,)
-        assert torch.isfinite(m.coef_).all()
+        assert m.coef.shape == (40,)
+        assert torch.isfinite(m.coef).all()
 
     def test_learn_rejects_unfitted(self):
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
@@ -54,4 +54,4 @@ class TestCalibrate:
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
         m.fit(x, y)
         m.calibrate(x, y, lr=1e-2, epochs=3, beta=0.1, subset=0.5, patience=5, seed=0)
-        assert torch.isfinite(m.coef_).all()
+        assert torch.isfinite(m.coef).all()

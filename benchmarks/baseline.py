@@ -152,7 +152,7 @@ class BaselineComparison:
             lambda: model.fit(x_train, y_train),
         )
         results["fit_1000"] = result["mean_ms"]
-        results["fit_1000_pcg_iters"] = getattr(model, "iters_", None)
+        results["fit_1000_pcg_iters"] = getattr(model, "iters", None)
 
         logger.info(
             "%20s  matvec=%sms  pre=%sms  fit=%sms  iters=%s",

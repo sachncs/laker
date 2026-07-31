@@ -195,7 +195,7 @@ class Search:
             lam_v = float(point[0])
             gamma_v = float(point[1])
             num_v = int(round(float(point[2])))
-            rmse = self._eval(
+            rmse = self.eval(
                 model,
                 train_embed,
                 x[val_idx],
@@ -228,7 +228,7 @@ class Search:
             lam_v = float(next_point[0])
             gamma_v = float(next_point[1])
             num_v = int(round(float(next_point[2])))
-            rmse = self._eval(
+            rmse = self.eval(
                 model,
                 train_embed,
                 x[val_idx],
@@ -252,7 +252,7 @@ class Search:
         model.num = int(best_params["num"])
         return model.fit(x, y, seed=seed)
 
-    def _eval(
+    def eval(
         self,
         model: "Laker",
         train_embed: torch.Tensor,

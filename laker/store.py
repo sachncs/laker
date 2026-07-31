@@ -26,7 +26,7 @@ class Store:
     @staticmethod
     def save(model: "Laker", path: str) -> None:
         """Serialise a fitted model to ``path``."""
-        if model.coef_ is None:
+        if model.coef is None:
             raise RuntimeError("Model has not been fitted. Call fit() before save().")
         state: dict[str, Any] = {
             "format": 2,
@@ -41,7 +41,7 @@ class Store:
             "pcg_tol": model.pcg_tol,
             "pcg_max": model.pcg_max,
             "chunk": model.chunk,
-            "kernel": model.kernel,
+            "kernel_type": model.kernel_type,
             "landmarks": model.landmarks,
             "features": model.features,
             "neighbors": model.neighbors,
@@ -56,26 +56,26 @@ class Store:
             "dtype": str(model.dtype),
             "embed_dtype": (str(model.embed_dtype) if model.embed_dtype else None),
             "verbose": model.verbose,
-            "embed": model.embed_.cpu() if model.embed_ is not None else None,
-            "coef": model.coef_.cpu() if model.coef_ is not None else None,
+            "embed": model.embed.cpu() if model.embed is not None else None,
+            "coef": model.coef.cpu() if model.coef is not None else None,
             "x_train": (
-                model._x_train.cpu() if getattr(model, "_x_train", None) is not None else None
+                model.x_train.cpu() if getattr(model, "x_train", None) is not None else None
             ),
             "y_train": (
-                model._y_train.cpu() if getattr(model, "_y_train", None) is not None else None
+                model.y_train.cpu() if getattr(model, "y_train", None) is not None else None
             ),
         }
-        if model.prec_ is not None:
-            prec = model.prec_
-            state["prec_class"] = prec.__class__.__name__
-            state["prec_module"] = prec.__class__.__module__
-            state["prec_state"] = {k: v for k, v in vars(prec).items() if torch.is_tensor(v)}
-        if model.encoder_ is not None:
-            state["encoder_state"] = model.encoder_.state_dict()
-            state["encoder_class"] = model.encoder_.__class__.__name__
-            state["encoder_module"] = model.encoder_.__class__.__module__
-            if hasattr(model.encoder_, "input_dim"):
-                state["input_dim"] = model.encoder_.input_dim
+        if model.prec is not None:
+            prec = model.prec
+            state["precclass"] = prec.__class__.__name__
+            state["precmodule"] = prec.__class__.__module__
+            state["precstate"] = {k: v for k, v in vars(prec).items() if torch.is_tensor(v)}
+        if model.encoder is not None:
+            state["encoderstate"] = model.encoder.state_dict()
+            state["encoderclass"] = model.encoder.__class__.__name__
+            state["encodermodule"] = model.encoder.__class__.__module__
+            if hasattr(model.encoder, "input_dim"):
+                state["input_dim"] = model.encoder.input_dim
         if model.corrector is not None:
             state["corrector_state"] = model.corrector.state_dict()
             state["corrector_class"] = model.corrector.__class__.__name__
@@ -110,7 +110,7 @@ class Store:
             pcg_tol=state["pcg_tol"],
             pcg_max=state["pcg_max"],
             chunk=state.get("chunk"),
-            kernel=state.get("kernel"),
+            kernel_type=state.get("kernel_type"),
             landmarks=state.get("landmarks"),
             features=state.get("features"),
             neighbors=state.get("neighbors"),
@@ -128,17 +128,17 @@ class Store:
         )
 
         if state.get("embed") is not None:
-            model.embed_ = state["embed"].to(model.device)
+            model.embed = state["embed"].to(model.device)
         if state.get("coef") is not None:
-            model.coef_ = state["coef"].to(model.device)
+            model.coef = state["coef"].to(model.device)
         if state.get("x_train") is not None:
-            model._x_train = state["x_train"].to(model.device)
+            model.x_train = state["x_train"].to(model.device)
         if state.get("y_train") is not None:
-            model._y_train = state["y_train"].to(model.device)
+            model.y_train = state["y_train"].to(model.device)
 
-        if "encoder_state" in state:
-            class_name = state["encoder_class"]
-            module_name = state.get("encoder_module", "laker.embed")
+        if "encoderstate" in state:
+            class_name = state["encoderclass"]
+            module_name = state.get("encodermodule", "laker.embed")
             try:
                 module = importlib.import_module(module_name)
                 cls = getattr(module, class_name)
@@ -156,7 +156,7 @@ class Store:
             embed_dtype_v = embed_dtype if embed_dtype else dtype
             enc_cls: Callable[..., Any] = cls
             if class_name == "Position":
-                model.encoder_ = enc_cls(
+                model.encoder = enc_cls(
                     input_dim=input_dim,
                     dim=model.embed_dim,
                     device=model.device,
@@ -164,16 +164,16 @@ class Store:
                 )
             else:
                 try:
-                    model.encoder_ = enc_cls(
+                    model.encoder = enc_cls(
                         input_dim=input_dim,
                         dim=model.embed_dim,
                         device=model.device,
                         dtype=embed_dtype_v,
                     )
                 except TypeError:
-                    model.encoder_ = cls()
-                    model.encoder_.to(device=model.device, dtype=embed_dtype_v)
-            model.encoder_.load_state_dict(state["encoder_state"])
+                    model.encoder = cls()
+                    model.encoder.to(device=model.device, dtype=embed_dtype_v)
+            model.encoder.load_state_dict(state["encoderstate"])
 
         if "corrector_state" in state:
             cn = state.get("corrector_class", "Corrector")
@@ -201,59 +201,59 @@ class Store:
             Spectrum,
         )
 
-        if model.kernel is None or model.kernel == "exact":
-            model.kernel_ = Exact(
-                embeddings=model.embed_,
+        if model.kernel_type is None or model.kernel_type == "exact":
+            model.kernel = Exact(
+                embeddings=model.embed,
                 lam=model.lam,
                 chunk=model.chunk,
                 device=model.device,
                 dtype=dtype,
             )
-        elif model.kernel == "nystrom":
-            model.kernel_ = Nystrom(
-                embeddings=model.embed_,
+        elif model.kernel_type == "nystrom":
+            model.kernel = Nystrom(
+                embeddings=model.embed,
                 lam=model.lam,
                 num=model.landmarks,
                 chunk=model.chunk,
                 device=model.device,
                 dtype=dtype,
             )
-        elif model.kernel == "fourier":
-            model.kernel_ = Fourier(
-                embeddings=model.embed_,
+        elif model.kernel_type == "fourier":
+            model.kernel = Fourier(
+                embeddings=model.embed,
                 lam=model.lam,
                 num=model.features,
                 device=model.device,
                 dtype=dtype,
             )
-        elif model.kernel == "neighbors":
-            model.kernel_ = Neighbors(
-                embeddings=model.embed_,
+        elif model.kernel_type == "neighbors":
+            model.kernel = Neighbors(
+                embeddings=model.embed,
                 lam=model.lam,
                 k=model.neighbors,
                 chunk=model.chunk,
                 device=model.device,
                 dtype=dtype,
             )
-        elif model.kernel == "grid":
-            model.kernel_ = Grid(
-                embeddings=model.embed_,
+        elif model.kernel_type == "grid":
+            model.kernel = Grid(
+                embeddings=model.embed,
                 lam=model.lam,
                 grid_size=model.grid_size,
                 device=model.device,
                 dtype=dtype,
             )
-        elif model.kernel == "spectrum":
-            model.kernel_ = Spectrum(
-                embeddings=model.embed_,
+        elif model.kernel_type == "spectrum":
+            model.kernel = Spectrum(
+                embeddings=model.embed,
                 lam=model.lam,
                 knots=model.knots,
                 device=model.device,
                 dtype=dtype,
             )
-        elif model.kernel == "hybrid":
-            model.kernel_ = Hybrid(
-                embeddings=model.embed_,
+        elif model.kernel_type == "hybrid":
+            model.kernel = Hybrid(
+                embeddings=model.embed,
                 lam=model.lam,
                 alpha=model.blend,
                 num=model.landmarks,
@@ -263,12 +263,12 @@ class Store:
                 dtype=dtype,
             )
 
-        if "prec_state" in state and "prec_class" in state and model.kernel_ is not None:
+        if "precstate" in state and "precclass" in state and model.kernel is not None:
             try:
-                pm = importlib.import_module(state["prec_module"])
-                pc = getattr(pm, state["prec_class"])
+                pm = importlib.import_module(state["precmodule"])
+                pc = getattr(pm, state["precclass"])
                 prec = pc.__new__(pc)
-                for key, value in state["prec_state"].items():
+                for key, value in state["precstate"].items():
                     if torch.is_tensor(value):
                         setattr(prec, key, value.to(model.device))
                     else:
@@ -290,7 +290,7 @@ class Store:
                     setattr(prec, "device", model.device)
                 if not hasattr(prec, "dtype"):
                     setattr(prec, "dtype", dtype)
-                model.prec_ = prec
+                model.prec = prec
             except Exception as exc:
                 logger.warning(
                     "Could not restore preconditioner (%s); "

@@ -112,10 +112,10 @@ class PCG:
             return x, Report(converged=True, iterations=0, residual=0.0, reason="zero_rhs")
 
         if rhs.dim() == 1:
-            return self._solve1(op, prec, rhs, x, r, z, p, rhs_norm, max_iter)
-        return self._solve2(op, prec, rhs, x, r, z, p, rhs_norm, max_iter)
+            return self.solve1(op, prec, rhs, x, r, z, p, rhs_norm, max_iter)
+        return self.solve2(op, prec, rhs, x, r, z, p, rhs_norm, max_iter)
 
-    def _solve1(
+    def solve1(
         self,
         op: Callable[[torch.Tensor], torch.Tensor],
         prec: Callable[[torch.Tensor], torch.Tensor],
@@ -174,7 +174,7 @@ class PCG:
             converged=False, iterations=self.iterations, residual=rel, reason="max_iter"
         )
 
-    def _solve2(
+    def solve2(
         self,
         op: Callable[[torch.Tensor], torch.Tensor],
         prec: Callable[[torch.Tensor], torch.Tensor],

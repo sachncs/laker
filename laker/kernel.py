@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 class Kernel(Protocol):
     """Protocol for matrix-free kernel operators."""
 
-    n: int
+    size: int
     dim: int
     lam: float
     dtype: torch.dtype
@@ -143,9 +143,9 @@ class Exact:
             raise ValueError(f"x must be 1-D or 2-D, got shape {x.shape}")
         if x.shape[0] != self.size:
             raise ValueError(f"x must have {self.size} rows, got {x.shape[0]}")
-        return self._impl(x)
+        return self.impl(x)
 
-    def _impl(self, x: torch.Tensor) -> torch.Tensor:
+    def impl(self, x: torch.Tensor) -> torch.Tensor:
         if self.chunk is None or self.size <= self.chunk:
             return exact_matvec(self.embeddings, self.lam, x, skip=self.skip)
 
@@ -246,14 +246,7 @@ class Exact:
 # ---------------------------------------------------------------------------
 
 
-def _nystrom_matvec(
-    cross_kernel: torch.Tensor, landmark_projection: torch.Tensor, x: torch.Tensor
-) -> torch.Tensor:
-    """Core matmul: ``K_approx @ x = cross_kernel @ landmark_projection @ cross_kernel.T @ x``."""
-    return cross_kernel @ (landmark_projection.T @ x)
-
-
-_nystrom_matvec = Backend.compile(
+nystrom_matvec = Backend.compile(
     lambda cross_kernel, landmark_projection, x: cross_kernel @ (landmark_projection.T @ x)
 )
 
@@ -317,12 +310,12 @@ class Nystrom:
 
     def landmarks(self) -> torch.Tensor:
         if self.method == "greedy":
-            return self._landmarks_greedy()
+            return self.landmarks_greedy()
         if self.method == "leverage":
-            return self._landmarks_leverage()
+            return self.landmarks_leverage()
         raise ValueError(f"Unknown method={self.method}")
 
-    def _landmarks_greedy(self) -> torch.Tensor:
+    def landmarks_greedy(self) -> torch.Tensor:
         idx = torch.zeros(self.num_landmarks, dtype=torch.long, device=self.device)
         idx[0] = torch.randint(0, self.size, (1,), device=self.device)
         for i in range(1, self.num_landmarks):
@@ -331,7 +324,7 @@ class Nystrom:
             idx[i] = dists.min(dim=1).values.argmax()
         return idx
 
-    def _landmarks_leverage(self) -> torch.Tensor:
+    def landmarks_leverage(self) -> torch.Tensor:
         pilot_size = min(self.pilot, self.size)
         if pilot_size == self.size:
             pilot_idx = torch.arange(self.size, device=self.device)
@@ -353,7 +346,7 @@ class Nystrom:
         return exp_safe(gram, skip=self.skip)
 
     def matvec(self, x: torch.Tensor) -> torch.Tensor:
-        return self.lam * x + _nystrom_matvec(self.cross_kernel, self.landmark_projection, x)
+        return self.lam * x + nystrom_matvec(self.cross_kernel, self.landmark_projection, x)
 
     def diag(self) -> torch.Tensor:
         diag_approx = torch.sum(self.landmark_projection * self.cross_kernel, dim=1)
@@ -376,12 +369,12 @@ class Nystrom:
         return exp_safe(gram, skip=self.skip)
 
 
-def _rff_matvec(phi: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+def rff_matvec(phi: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     temp = phi.T @ x
     return phi @ temp
 
 
-_rff_matvec = Backend.compile(_rff_matvec)
+rff_matvec = Backend.compile(rff_matvec)
 
 
 class Fourier:
@@ -425,7 +418,7 @@ class Fourier:
         self.skip = True
 
     def matvec(self, x: torch.Tensor) -> torch.Tensor:
-        return self.lam * x + _rff_matvec(self.phi, x)
+        return self.lam * x + rff_matvec(self.phi, x)
 
     def diag(self) -> torch.Tensor:
         sq = torch.sum(self.phi**2, dim=1)
@@ -487,7 +480,7 @@ class Neighbors:
         self.num_neighbors = min(num_neighbors_v, self.size)
 
         self.build()
-        self.mat = self._coo(self.size, self.size)
+        self.mat = self.coo(self.size, self.size)
         self.shape = (self.size, self.size)
         self.skip = True
 
@@ -567,7 +560,7 @@ class Neighbors:
         self.coo_indices = coo_indices
         self.coo_values = coo_values
 
-    def _coo(self, m: int, n: int) -> torch.Tensor:
+    def coo(self, m: int, n: int) -> torch.Tensor:
         with torch.sparse.check_sparse_tensor_invariants(enable=False):
             return torch.sparse_coo_tensor(
                 self.coo_indices,
@@ -597,7 +590,7 @@ class Neighbors:
         return self.lam + diag
 
     def dense(self) -> torch.Tensor:
-        dense = self._coo(self.size, self.size).to_dense()
+        dense = self.coo(self.size, self.size).to_dense()
         dense.diagonal().add_(self.lam)
         return dense
 
@@ -1000,13 +993,13 @@ class Shaper(nn.Module):
         return slope * t + (weights * torch.nn.functional.softplus(diffs)).sum(dim=-1)
 
 
-def _spectral_matvec(u: torch.Tensor, spectrum: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+def spectral_matvec(u: torch.Tensor, spectrum: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     coeffs = u.T @ x
     scaled = spectrum * coeffs if coeffs.dim() == 1 else spectrum.unsqueeze(-1) * coeffs
     return u @ scaled
 
 
-_spectral_matvec = Backend.compile(_spectral_matvec)
+spectral_matvec = Backend.compile(spectral_matvec)
 
 
 class Spectrum:
@@ -1060,7 +1053,7 @@ class Spectrum:
         self.sigma_inv = torch.where(s > 1e-12, s.reciprocal(), torch.zeros_like(s))
 
     def matvec(self, x: torch.Tensor) -> torch.Tensor:
-        return self.lam * x + _spectral_matvec(self.u, self.spectrum, x)
+        return self.lam * x + spectral_matvec(self.u, self.spectrum, x)
 
     def diag(self) -> torch.Tensor:
         diag_k = (self.u**2) @ self.spectrum

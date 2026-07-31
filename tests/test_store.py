@@ -68,7 +68,7 @@ class TestSaveLoad:
         path = str(tmp_path / "model.pt")
         m.save(path)
         state = torch.load(path, weights_only=True)
-        for key in ("embed_dim", "lam", "gamma", "num", "kernel"):
+        for key in ("embed_dim", "lam", "gamma", "num", "kernel_type"):
             assert key in state
 
     def test_save_includes_fitted_tensors(self, fitted_model, tmp_path):
@@ -92,24 +92,24 @@ class TestKernelRoundTrip:
             ("spectrum", {"knots": 5}),
         ],
     )
-    def test_kernel_persistence(self, tmp_path, kernel, kwargs):
+    def test_kernelpersistence(self, tmp_path, kernel, kwargs):
         torch.manual_seed(0)
         x = torch.rand(15, 2, dtype=torch.float64) * 100
         y = torch.sin(x[:, 0] / 50)
-        m = Laker(embed_dim=4, kernel=kernel, dtype=torch.float64, verbose=False, **kwargs)
+        m = Laker(embed_dim=4, kernel_type=kernel, dtype=torch.float64, verbose=False, **kwargs)
         m.fit(x, y)
         path = str(tmp_path / "model.pt")
         m.save(path)
         m2 = Laker.load(path)
         torch.testing.assert_close(m.predict(x), m2.predict(x), atol=1e-6, rtol=1e-6)
 
-    def test_hybrid_kernel_persistence(self, tmp_path):
+    def test_hybrid_kernelpersistence(self, tmp_path):
         torch.manual_seed(0)
         x = torch.rand(15, 2, dtype=torch.float64) * 100
         y = torch.sin(x[:, 0] / 50)
         m = Laker(
             embed_dim=4,
-            kernel="hybrid",
+            kernel_type="hybrid",
             landmarks=5,
             neighbors=4,
             dtype=torch.float64,
@@ -144,4 +144,4 @@ class TestDeviceDtype:
         m.save(path)
         m2 = Laker.load(path)
         assert m2.dtype == torch.float64
-        assert m2.coef_.dtype == torch.float64
+        assert m2.coef.dtype == torch.float64

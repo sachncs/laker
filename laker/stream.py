@@ -41,7 +41,7 @@ class Stream:
         """
         from laker.check import Check
 
-        if model.coef_ is None or model.embed_ is None:
+        if model.coef is None or model.embed is None:
             raise RuntimeError("Model has not been fitted. Call fit() before update().")
 
         x_new = Check.x(Check.tensor(x_new, device=model.device, dtype=model.dtype), "x_new")
@@ -51,24 +51,24 @@ class Stream:
         total = getattr(model, "_partial_count", 0) + m
 
         if total >= threshold:
-            model._partial_count = 0
+            model.partial_count = 0
             raise RuntimeError(
                 "update threshold exceeded. Concatenate all data and call fit() for a full refit."
             )
 
-        model._partial_count = total
+        model.partial_count = total
 
-        new_emb = model.encoder_(x_new.to(dtype=self.core.embed_dtype))
+        new_emb = model.encoder(x_new.to(dtype=self.core.embed_dtype))
         if self.core.embed_dtype != self.core.dtype:
             new_emb = new_emb.to(dtype=self.core.dtype)
 
-        old_n = model.embed_.shape[0]
-        model.embed_ = torch.cat([model.embed_, new_emb], dim=0)
+        old_n = model.embed.shape[0]
+        model.embed = torch.cat([model.embed, new_emb], dim=0)
 
-        kernel = self.core.build_kernel(model.embed_, lam=model.lam)
-        model.kernel_ = kernel
+        kernel = self.core.build_kernel(model.embed, lam=model.lam)
+        model.kernel = kernel
 
-        old_alpha = model.coef_ * forget
+        old_alpha = model.coef * forget
         y_old = getattr(model, "_y_train", None)
         if y_old is None:
             y_old = torch.zeros(old_n, device=self.core.device, dtype=self.core.dtype)
@@ -79,14 +79,14 @@ class Stream:
         with torch.no_grad():
             prec = self.core.build_prec(
                 kernel.matvec,
-                model.embed_.shape[0],
+                model.embed.shape[0],
                 diag=kernel.diag(),
                 seed=seed,
             )
-            model.prec_ = prec
-            model.coef_, model.iters_ = self.core.solve(kernel, prec, y_ext, x0=x0)
-        model._y_train = y_ext
-        model._x_train = (
+            model.prec = prec
+            model.coef, model.iters = self.core.solve(kernel, prec, y_ext, x0=x0)
+        model.y_train = y_ext
+        model.x_train = (
             torch.cat([getattr(model, "_x_train", x_new[:0]), x_new], dim=0)
             if getattr(model, "_x_train", None) is not None
             else x_new
@@ -96,8 +96,8 @@ class Stream:
             logger.info(
                 "update: added %d points, total=%d, iters=%d",
                 m,
-                model.embed_.shape[0],
-                model.iters_,
+                model.embed.shape[0],
+                model.iters,
             )
         return model
 
@@ -127,7 +127,7 @@ class Stream:
         n = embed.shape[0]
         sorted_grid = sorted(grid, reverse=True)
 
-        coefs, iters_list, rels = [], [], []
+        coefs, iterslist, rels = [], [], []
         x0 = None
         prec = None
 
@@ -143,28 +143,28 @@ class Stream:
                 )
             coef, it = self.core.solve(kernel, prec, y, x0=x0)
             coefs.append(coef)
-            iters_list.append(it)
+            iterslist.append(it)
             rels.append(
                 torch.linalg.norm(kernel.matvec(coef) - y).item() / torch.linalg.norm(y).item()
             )
             x0 = coef.clone()
 
-        model.embed_ = embed
-        model.encoder_ = enc
+        model.embed = embed
+        model.encoder = enc
         kernel = self.core.build_kernel(embed, lam=sorted_grid[-1])
-        model.kernel_ = kernel
-        model.prec_ = self.core.build_prec(
+        model.kernel = kernel
+        model.prec = self.core.build_prec(
             kernel.matvec,
             n,
             gamma=self.core.gamma,
             num=self.core.num,
             diag=kernel.diag(),
         )
-        model.coef_ = coefs[-1]
-        model.iters = iters_list[-1]
-        model._y_train = y
-        path = {"lam": sorted_grid, "coef": coefs, "iters": iters_list, "rel": rels}
-        model._path = path
+        model.coef = coefs[-1]
+        model.iters = iterslist[-1]
+        model.y_train = y
+        path = {"lam": sorted_grid, "coef": coefs, "iters": iterslist, "rel": rels}
+        model.regpath = path
         return path
 
     def continuation(
