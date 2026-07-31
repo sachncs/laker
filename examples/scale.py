@@ -8,6 +8,7 @@ Run::
 
     python -m examples.scale
 """
+
 from __future__ import annotations
 
 import argparse
@@ -79,25 +80,17 @@ class Scale:
         model.fit(locations, targets)
         fit_seconds = time.perf_counter() - t0
 
-        assert (
-            model.coef_.shape == (n,)
-        ), "fit: coef shape mismatch"
-        assert (
-            model.embeddings_.shape == (n, embedding_dim)
-        ), "fit: embeddings shape mismatch"
+        assert model.coef_.shape == (n,), "fit: coef shape mismatch"
+        assert model.embeddings_.shape == (n, embedding_dim), "fit: embeddings shape mismatch"
 
         # ---- predict (timed) ------------------------------------------------
         t0 = time.perf_counter()
         predictions = model.predict(grid)
         predict_seconds = time.perf_counter() - t0
 
-        assert (
-            predictions.shape == (n_grid,)
-        ), "predict: shape mismatch"
+        assert predictions.shape == (n_grid,), "predict: shape mismatch"
         assert torch.isfinite(predictions).all(), "predict: non-finite"
-        assert (
-            predictions.std().item() > 0.1
-        ), "predict: constant output"
+        assert predictions.std().item() > 0.1, "predict: constant output"
 
         print(f"sensors={n} grid={grid_size} dim={embedding_dim}")
         print(f"fit seconds={fit_seconds:.2f}")

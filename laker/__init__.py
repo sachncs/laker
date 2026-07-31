@@ -30,7 +30,6 @@ their module-qualified names:
 - ``laker.plot.Plot``
 - ``laker.preconditioner.Preconditioner`` (and ``.cccp``, ``.adaptive``, ``.jacobi``)
 - ``laker.solve.Solve`` (and ``.pcg``, ``.descent``, ``.jacobi``)
-- ``laker.kernel.Kernel`` (and ``.exact``, ``.nystrom``, ``.fourier``, ``.neighbors``, ``.grid``, ``.spectrum``, ``.hybrid``, ``.distribute``)
 - ``laker.search.Search``
 - ``laker.fit.Fit``
 - ``laker.stream.Stream``
@@ -43,7 +42,8 @@ for the most ill-conditioned problems. Environment variables documented in
 ``.env.example`` and ``README.md`` configure the runtime defaults.
 """
 
-from importlib.metadata import PackageNotFoundError, version as _version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _version
 
 try:
     __version__ = _version("laker")

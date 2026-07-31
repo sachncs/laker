@@ -3,13 +3,13 @@
 This module benchmarks and compares three kernel operator
 implementations available in the LAKER package:
 
-* **Exact** — :class:`~laker.kernels.AttentionKernelOperator`
+* **Exact** — :class:`~laker.kernels.Attention`
   computing :math:`K_{ij} = \\exp(x_i^\\top x_j)` directly.
-* **Nyström** — :class:`~laker.kernels.NystromAttentionKernelOperator`
+* **Nyström** — :class:`~laker.kernels.NystromAttention`
   using the Nyström method with :math:`m` landmark points for a
   rank-:math:`m` approximation of :math:`K`.
 * **Random Fourier Features (RFF)**
-  — :class:`~laker.kernels.RandomFeatureAttentionKernelOperator`
+  — :class:`~laker.kernels.RandomFeatureAttention`
   using :math:`p` random features for a Monte Carlo approximation of
   the kernel.
 
@@ -28,11 +28,7 @@ from typing import Optional
 import torch
 
 from benchmarks.executor import BenchmarkExecutor
-from laker.kernels import (
-    AttentionKernelOperator,
-    NystromAttentionKernelOperator,
-    RandomFeatureAttentionKernelOperator,
-)
+from laker.kernels import Attention, NystromAttention, RandomFeatureAttention
 from laker.models import LAKERRegressor
 
 logger = logging.getLogger(__name__)
@@ -110,7 +106,7 @@ class ApproximationBenchmarkSuite:
         vector = torch.randn(n, dtype=self.dtype)
 
         # Exact
-        exact = AttentionKernelOperator(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
+        exact = Attention(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
         exact_result = self.executor.run_repeated(
             "exact_matvec",
             lambda: exact.matvec(vector),
@@ -119,7 +115,7 @@ class ApproximationBenchmarkSuite:
         exact_ms = exact_result["mean_ms"]
 
         # Nyström
-        nystrom = NystromAttentionKernelOperator(
+        nystrom = NystromAttention(
             embeddings,
             lambda_reg=self.lambda_reg,
             num_landmarks=200,
@@ -133,7 +129,7 @@ class ApproximationBenchmarkSuite:
         nystrom_ms = nystrom_result["mean_ms"]
 
         # RFF
-        rff = RandomFeatureAttentionKernelOperator(
+        rff = RandomFeatureAttention(
             embeddings,
             lambda_reg=self.lambda_reg,
             num_features=400,

@@ -7,13 +7,9 @@ from typing import Callable, List, Optional
 
 import torch
 
-from laker.kernels import AttentionKernelOperator
+from laker.kernels import Attention
 from laker.preconditioner import CCCPPreconditioner
-from laker.solvers import (
-    GradientDescent,
-    JacobiPreconditioner,
-    PreconditionedConjugateGradient,
-)
+from laker.solvers import GradientDescent, JacobiPreconditioner, PreconditionedConjugateGradient
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +127,7 @@ class BaselineBenchmark:
 
         """
         n = self.embeddings.shape[0]
-        operator = AttentionKernelOperator(self.embeddings, lambda_reg=self.lambda_reg)
+        operator = Attention(self.embeddings, lambda_reg=self.lambda_reg)
 
         results = []
 

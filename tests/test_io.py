@@ -5,11 +5,11 @@ Every test asserts:
 - Dtype, device, and every constructor hyperparameter survives.
 - The format-version field exists and equals the documented value.
 """
+
 from __future__ import annotations
 
 import os
 import tempfile
-from pathlib import Path
 
 import pytest
 import torch
@@ -96,12 +96,13 @@ def test_save_load_preserves_every_hyperparameter(model_path):
     after = loaded.get_params()
     # Hyperparameters that don't enter std normal string conversion.
     for key in (
-        "embedding_dim", "regularization", "gamma",
-        "pcg_tol", "pcg_max_iter",
+        "embedding_dim",
+        "regularization",
+        "gamma",
+        "pcg_tol",
+        "pcg_max_iter",
     ):
-        assert (
-            before[key] == after[key]
-        ), f"{key}: saved={before[key]!r}, loaded={after[key]!r}"
+        assert before[key] == after[key], f"{key}: saved={before[key]!r}, loaded={after[key]!r}"
 
 
 def test_save_load_variance_is_bit_identical(model_path):
@@ -110,8 +111,12 @@ def test_save_load_variance_is_bit_identical(model_path):
     x = torch.rand(30, 2, dtype=torch.float64) * 10.0
     y = torch.sin(x[:, 0]) + 0.5 * torch.cos(x[:, 1])
     m = Laker(
-        embedding_dim=8, regularization=1e-2, probes=50,
-        cccp_max_iter=50, pcg_tol=1e-10, pcg_max_iter=1000,
+        embedding_dim=8,
+        regularization=1e-2,
+        probes=50,
+        cccp_max_iter=50,
+        pcg_tol=1e-10,
+        pcg_max_iter=1000,
         dtype=torch.float64,
     )
     m.fit(x, y)
@@ -130,8 +135,12 @@ def test_save_load_score_is_bit_identical(model_path):
     x = torch.rand(50, 2, dtype=torch.float64) * 10.0
     y = torch.sin(x[:, 0]) + torch.cos(x[:, 1])
     m = Laker(
-        embedding_dim=8, regularization=1e-3, probes=80,
-        cccp_max_iter=80, pcg_tol=1e-12, pcg_max_iter=1000,
+        embedding_dim=8,
+        regularization=1e-3,
+        probes=80,
+        cccp_max_iter=80,
+        pcg_tol=1e-12,
+        pcg_max_iter=1000,
         dtype=torch.float64,
     )
     m.fit(x, y)
@@ -188,9 +197,7 @@ def test_legacy_save_legacy_load_roundtrip(model_path):
     loaded = ModelPersistence.load(model_path)
     loaded_pred = loaded.predict(queries)
 
-    torch.testing.assert_close(
-        legacy_pred, loaded_pred, atol=1e-8, rtol=1e-8
-    )
+    torch.testing.assert_close(legacy_pred, loaded_pred, atol=1e-8, rtol=1e-8)
 
 
 # ---------------------------------------------------------------------------

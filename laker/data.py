@@ -2,6 +2,7 @@
 
 The single public type is :class:`Data`; helpers are static methods.
 """
+
 from __future__ import annotations
 
 import logging
@@ -9,7 +10,7 @@ from typing import Optional, Tuple
 
 import torch
 
-from laker.backend import get_default_device, get_default_dtype
+from laker.backend import Backend
 
 logger = logging.getLogger(__name__)
 
@@ -35,18 +36,12 @@ class Data:
         """
         if path_loss_exponent < 0:
             raise ValueError(
-                f"path_loss_exponent must be non-negative, got "
-                f"{path_loss_exponent}"
+                f"path_loss_exponent must be non-negative, got " f"{path_loss_exponent}"
             )
         if reference_distance <= 0:
-            raise ValueError(
-                f"reference_distance must be positive, got "
-                f"{reference_distance}"
-            )
+            raise ValueError(f"reference_distance must be positive, got " f"{reference_distance}")
         if shadow_sigma < 0:
-            raise ValueError(
-                f"shadow_sigma must be non-negative, got {shadow_sigma}"
-            )
+            raise ValueError(f"shadow_sigma must be non-negative, got {shadow_sigma}")
 
     @staticmethod
     def field(
@@ -123,20 +118,17 @@ class Data:
         for tx_location, tx_power in zip(transmitters, powers):
             distances = torch.norm(locations - tx_location, dim=1)
             distances = distances.clamp(min=reference_distance)
-            path_loss = (
-                10.0
-                * path_loss_exponent
-                * torch.log10(distances / reference_distance)
-            )
+            path_loss = 10.0 * path_loss_exponent * torch.log10(distances / reference_distance)
             rss_clean += tx_power - path_loss
 
-        noise = torch.randn(
-            n, device=locations.device, dtype=locations.dtype, generator=gen
-        )
+        noise = torch.randn(n, device=locations.device, dtype=locations.dtype, generator=gen)
         rss_noisy = rss_clean + shadow_sigma * noise
         logger.info(
             "Generated radio field: n=%d, tx=%d, path_loss_exp=%.1f, shadow_sigma=%.2f",
-            n, transmitters.shape[0], path_loss_exponent, shadow_sigma,
+            n,
+            transmitters.shape[0],
+            path_loss_exponent,
+            shadow_sigma,
         )
         return rss_clean, rss_noisy
 
@@ -162,17 +154,13 @@ class Data:
             raise ValueError(f"grid_size must be at least 2, got {grid_size}")
         x_min, x_max, y_min, y_max = bounds
         if x_min >= x_max:
-            raise ValueError(
-                f"x_min ({x_min}) must be strictly less than x_max ({x_max})"
-            )
+            raise ValueError(f"x_min ({x_min}) must be strictly less than x_max ({x_max})")
         if y_min >= y_max:
-            raise ValueError(
-                f"y_min ({y_min}) must be strictly less than y_max ({y_max})"
-            )
+            raise ValueError(f"y_min ({y_min}) must be strictly less than y_max ({y_max})")
         if device is None:
-            device = get_default_device()
+            device = Backend.device
         if dtype is None:
-            dtype = get_default_dtype()
+            dtype = Backend.dtype
         x = torch.linspace(x_min, x_max, grid_size, device=device, dtype=dtype)
         y = torch.linspace(y_min, y_max, grid_size, device=device, dtype=dtype)
         xx, yy = torch.meshgrid(x, y, indexing="ij")

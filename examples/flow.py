@@ -8,6 +8,7 @@ Run::
 
     python -m examples.flow
 """
+
 from __future__ import annotations
 
 import argparse
@@ -82,27 +83,17 @@ class Flow:
             # Verification after each batch
             score = float(model.score(locations, targets))
             preds = model.predict(new_loc)
-            assert (
-                score == score
-            ), f"batch {batch_idx}: NaN score ({score})"
-            assert (
-                preds.std().item() > 0.1
-            ), f"batch {batch_idx}: predictions are constant"
+            assert score == score, f"batch {batch_idx}: NaN score ({score})"
+            assert preds.std().item() > 0.1, f"batch {batch_idx}: predictions are constant"
 
         total = n_initial + n_batches * n_per_batch
         final_score = float(model.score(locations, targets))
-        print(
-            f"initial={n_initial} +{n_batches}*{n_per_batch}={total} total"
-        )
+        print(f"initial={n_initial} +{n_batches}*{n_per_batch}={total} total")
         print(f"final R^2={final_score:.4f}")
         print(f"coef shape={model.coef_.shape}, expected=({total},)")
 
-        assert (
-            model.coef_.shape[0] == total
-        ), "stream: coef has wrong sample count"
-        assert (
-            final_score == final_score
-        ), "stream: final score non-finite"
+        assert model.coef_.shape[0] == total, "stream: coef has wrong sample count"
+        assert final_score == final_score, "stream: final score non-finite"
 
 
 if __name__ == "__main__":

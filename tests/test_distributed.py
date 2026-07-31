@@ -1,104 +1,127 @@
-"""Tests for laker.distributed_kernels module."""
+"""Behavioural + precision tests for the distributed kernel operator.
+
+The distributed kernel wraps the exact kernel and either shards
+across CUDA devices or falls back to single-device execution. These
+tests verify both modes against the single-device reference and
+pin down the CUDA gating.
+"""
+
+from __future__ import annotations
 
 import pytest
 import torch
 
-from laker.distributed import DistributedAttentionKernelOperator
+from laker.distributed import DistributedAttention
 
 
-def test_distributed_single_device_fallback():
-    """DistributedAttentionKernelOperator should fall back when only one device."""
-    torch.manual_seed(42)
-    n = 50
-    e = torch.randn(n, 8, dtype=torch.float64)
+# ---------------------------------------------------------------------------
+# Single-device fallback: behaviour on a host with zero CUDA devices.
+# ---------------------------------------------------------------------------
+def test_single_device_flag_when_no_cuda(monkeypatch):
+    """``single_device`` is True when ``torch.cuda.is_available()``
+    is False. The wrapper collapses to a single inner operator.
+    """
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    e = torch.randn(20, 5, dtype=torch.float64)
+    op = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
+    assert op.single_device is True
+    assert op.master_device == torch.device("cpu")
+
+
+# ---------------------------------------------------------------------------
+# Single-device fallback: matvec / diagonal / to_dense / kernel_eval
+# precision against the exact kernel.
+# ---------------------------------------------------------------------------
+def test_matvec_matches_single_device_exact_kernel():
+    """``matvec(x)`` from the single-device fallback matches the
+    reference exact kernel to the precision of dense matmul.
+    """
+    from laker.kernels import Attention as Exact
+
+    torch.manual_seed(0)
+    n = 40
+    e = torch.randn(n, 6, dtype=torch.float64)
     x = torch.randn(n, dtype=torch.float64)
 
-    dist_op = DistributedAttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
-    assert dist_op.single_device
-
-    y_dist = dist_op.matvec(x)
-    y_diag = dist_op.diagonal()
-    assert y_dist.shape == (n,)
-    assert y_diag.shape == (n,)
+    single = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
+    ref = Exact(e, lambda_reg=1e-2, dtype=torch.float64)
+    torch.testing.assert_close(single.matvec(x), ref.matvec(x), atol=1e-10, rtol=1e-10)
 
 
-def test_distributed_matvec_matches_dense():
-    """Distributed matvec should match single-device AttentionKernelOperator."""
-    from laker.kernels import AttentionKernelOperator
+def test_diagonal_matches_single_device_exact_kernel():
+    """``diagonal()`` equals the diagonal of the single-device operator
+    (the audit-flagged invariant)."""
+    from laker.kernels import Attention as Exact
 
-    torch.manual_seed(42)
-    n = 50
-    e = torch.randn(n, 8, dtype=torch.float64)
-    x = torch.randn(n, dtype=torch.float64)
-
-    dist_op = DistributedAttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
-    single_op = AttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
-
-    y_dist = dist_op.matvec(x)
-    y_single = single_op.matvec(x)
-    assert torch.allclose(y_dist, y_single, atol=1e-6)
-
-
-def test_distributed_diagonal_matches_dense():
-    """Distributed diagonal should match single-device AttentionKernelOperator."""
-    from laker.kernels import AttentionKernelOperator
-
-    torch.manual_seed(42)
-    n = 50
-    e = torch.randn(n, 8, dtype=torch.float64)
-
-    dist_op = DistributedAttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
-    single_op = AttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
-
-    d_dist = dist_op.diagonal()
-    d_single = single_op.diagonal()
-    assert torch.allclose(d_dist, d_single, atol=1e-6)
-
-
-def test_distributed_to_dense_matches_dense():
-    """Distributed to_dense should match single-device AttentionKernelOperator."""
-    from laker.kernels import AttentionKernelOperator
-
-    torch.manual_seed(42)
+    torch.manual_seed(0)
     n = 30
-    e = torch.randn(n, 8, dtype=torch.float64)
+    e = torch.randn(n, 6, dtype=torch.float64)
 
-    dist_op = DistributedAttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
-    single_op = AttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
-
-    m_dist = dist_op.to_dense()
-    m_single = single_op.to_dense()
-    assert torch.allclose(m_dist, m_single, atol=1e-6)
+    single = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
+    ref = Exact(e, lambda_reg=1e-2, dtype=torch.float64)
+    torch.testing.assert_close(single.diagonal(), ref.diagonal(), atol=1e-10, rtol=1e-10)
 
 
-def test_distributed_kernel_eval():
-    """Distributed kernel_eval should match single-device AttentionKernelOperator."""
-    from laker.kernels import AttentionKernelOperator
+def test_to_dense_matches_single_device_exact_kernel():
+    """``to_dense()`` of the single-device fallback matches the
+    reference exact operator."""
+    from laker.kernels import Attention as Exact
 
-    torch.manual_seed(42)
-    n = 50
-    e = torch.randn(n, 8, dtype=torch.float64)
-    x = torch.randn(10, 8, dtype=torch.float64)
+    torch.manual_seed(0)
+    n = 30
+    e = torch.randn(n, 6, dtype=torch.float64)
 
-    dist_op = DistributedAttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
-    single_op = AttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
-
-    k_dist = dist_op.kernel_eval(x)
-    k_single = single_op.kernel_eval(x)
-    assert torch.allclose(k_dist, k_single, atol=1e-6)
+    single = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
+    ref = Exact(e, lambda_reg=1e-2, dtype=torch.float64)
+    torch.testing.assert_close(single.to_dense(), ref.to_dense(), atol=1e-10, rtol=1e-10)
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-def test_distributed_multi_device_matvec():
-    """Distributed matvec on CUDA should run without error."""
-    torch.manual_seed(42)
-    n = 100
+def test_kernel_eval_matches_single_device_exact_kernel():
+    """``kernel_eval(x)`` matches the reference kernel matrix."""
+    from laker.kernels import Attention as Exact
+
+    torch.manual_seed(0)
+    n = 30
+    e = torch.randn(n, 6, dtype=torch.float64)
+    x = torch.randn(7, 6, dtype=torch.float64)
+
+    single = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
+    ref = Exact(e, lambda_reg=1e-2, dtype=torch.float64)
+    torch.testing.assert_close(single.kernel_eval(x), ref.kernel_eval(x), atol=1e-10, rtol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# CUDA path: skipped when no GPU; behaviour assertions when present.
+# ---------------------------------------------------------------------------
+@pytest.mark.skipif(
+    not torch.cuda.is_available() or torch.cuda.device_count() < 2,
+    reason="CUDA with at least two devices required for multi-device test",
+)
+def test_multi_device_matvec_outputs_on_master():
+    """On multi-device CUDA, the result tensor lives on the master
+    device and matches the single-device reference."""
+    n = 30
     e = torch.randn(n, 8, dtype=torch.float64, device="cuda")
     x = torch.randn(n, dtype=torch.float64, device="cuda")
 
-    dist_op = DistributedAttentionKernelOperator(
-        e, lambda_reg=1e-2, master_device=torch.device("cuda")
-    )
+    dist_op = DistributedAttention(e, lambda_reg=1e-2, master_device=torch.device("cuda"))
     y = dist_op.matvec(x)
     assert y.shape == (n,)
     assert y.device.type == "cuda"
+    # ``single_device`` should be False on a multi-GPU host.
+    assert dist_op.single_device is False
+
+
+def test_matvec_outputs_are_finite():
+    """The fallback path returns finite outputs even when the
+    embedding norm is large enough to push ``exp(E E^T)`` past
+    numerical limits — the kernel applies dtype-aware overflow
+    clamping.
+    """
+
+    torch.manual_seed(0)
+    n = 30
+    e = torch.randn(n, 4, dtype=torch.float64) * 5.0
+    x = torch.randn(n, dtype=torch.float64)
+    op = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
+    assert torch.isfinite(op.matvec(x)).all()

@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Optional
 import numpy
 import torch
 
-from laker.backend import to_tensor
+from laker.backend import Backend
 
 if TYPE_CHECKING:
     from laker.core import LAKERCore
@@ -461,14 +461,20 @@ class Search:
         warm_start: bool = True,
     ):
         """Grid-search wrapper that delegates to ``HyperparameterSearch``."""
-        x = to_tensor(x, device=regressor.device, dtype=regressor.dtype)
-        y_t = to_tensor(y, device=regressor.device, dtype=regressor.dtype)
+        x = Backend.to_tensor(x, device=regressor.device, dtype=regressor.dtype)
+        y_t = Backend.to_tensor(y, device=regressor.device, dtype=regressor.dtype)
         if y_t.dim() == 2:
             y_t = y_t.squeeze(-1)
         helper = HyperparameterSearch(regressor.core)
         return helper.fit_with_search(
-            regressor, x, y_t,
-            val_fraction, regularizations, gammas, probes, warm_start,
+            regressor,
+            x,
+            y_t,
+            val_fraction,
+            regularizations,
+            gammas,
+            probes,
+            warm_start,
         )
 
     @staticmethod
@@ -484,21 +490,28 @@ class Search:
         probes_bounds=(20, 300),
     ):
         """Bayesian-Optimisation wrapper."""
-        x = to_tensor(x, device=regressor.device, dtype=regressor.dtype)
-        y_t = to_tensor(y, device=regressor.device, dtype=regressor.dtype)
+        x = Backend.to_tensor(x, device=regressor.device, dtype=regressor.dtype)
+        y_t = Backend.to_tensor(y, device=regressor.device, dtype=regressor.dtype)
         if y_t.dim() == 2:
             y_t = y_t.squeeze(-1)
         helper = HyperparameterSearch(regressor.core)
         return helper.fit_with_bo(
-            regressor, x, y_t,
-            val_fraction, n_calls, n_initial_points,
-            regularization_bounds, gamma_bounds, probes_bounds,
+            regressor,
+            x,
+            y_t,
+            val_fraction,
+            n_calls,
+            n_initial_points,
+            regularization_bounds,
+            gamma_bounds,
+            probes_bounds,
         )
 
     @staticmethod
     def gpsurrogate():
         """Construct a default ``GPSurrogate`` for direct use."""
         from laker.utils import GPSurrogate
+
         return GPSurrogate()
 
 

@@ -1,9 +1,16 @@
-"""Tests for input validation and edge cases."""
+"""Tests for input validation and edge cases.
+
+Covers the constructor's argument-validation contract on
+``LAKERRegressor``: every documented parameter range raises
+``ValueError`` outside its bounds, and the fit / predict pipeline
+rejects malformed inputs (wrong dimensionality, mismatched sample
+counts, non-finite values) before consuming any compute.
+"""
 
 import pytest
 import torch
 
-from laker.kernels import AttentionKernelOperator
+from laker.kernels import Attention
 from laker.models import LAKERRegressor
 
 
@@ -119,14 +126,16 @@ def test_invalid_preconditioner():
 
 def test_chunk_memory_budget_default():
     """Test default chunk budget is 64 MB."""
-    from laker.backend import get_chunk_memory_budget
-    assert get_chunk_memory_budget() == 64 * 1024 * 1024
+    from laker.backend import Backend
+
+    assert Backend.chunk_budget == 64 * 1024 * 1024
 
 
 def test_chunk_disabled_default():
     """Test chunk is not disabled by default."""
-    from laker.backend import get_chunk_disabled
-    assert not get_chunk_disabled()
+    from laker.backend import Backend
+
+    assert not Backend.chunk_disabled
 
 
 def test_fit_empty_tensor():
@@ -150,22 +159,22 @@ def test_get_set_params():
 def test_kernel_operator_invalid_embeddings():
     """Test that 1-D embeddings raises ValueError."""
     with pytest.raises(ValueError, match="embeddings must be 2-D"):
-        AttentionKernelOperator(torch.randn(10))
+        Attention(torch.randn(10))
 
 
 def test_kernel_operator_repr():
-    """Test AttentionKernelOperator repr shows key info."""
-    op = AttentionKernelOperator(torch.randn(10, 5), lambda_reg=0.01)
+    """Test Attention repr shows key info."""
+    op = Attention(torch.randn(10, 5), lambda_reg=0.01)
     r = repr(op)
     assert "n=10" in r
     assert "embedding_dim=5" in r
     assert "lambda_reg=0.01" in r
-    assert "AttentionKernelOperator" in r
+    assert "Attention" in r
 
 
 def test_kernel_operator_matvec_wrong_shape():
     """Test matvec with wrong-shaped input raises ValueError."""
-    op = AttentionKernelOperator(torch.randn(10, 4))
+    op = Attention(torch.randn(10, 4))
     with pytest.raises(ValueError, match="x must be 1-D or 2-D"):
         op.matvec(torch.randn(10, 4, 2))
 
@@ -175,9 +184,7 @@ def test_fit_with_search():
     x = torch.rand(40, 2)
     y = torch.randn(40)
     model = LAKERRegressor(embedding_dim=4, verbose=False)
-    model.fit_with_search(
-        x, y, lambda_reg_grid=[0.01], gamma_grid=[0.1], num_probes_grid=[20]
-    )
+    model.fit_with_search(x, y, lambda_reg_grid=[0.01], gamma_grid=[0.1], num_probes_grid=[20])
     assert model.alpha is not None
 
 
@@ -213,6 +220,7 @@ def test_fit_residual_corrector():
 def test_generate_radio_field_wrong_shapes():
     """Test generate_radio_field validates input shapes."""
     from laker.data import Data
+
     locs = torch.randn(10, 2)
     tx = torch.randn(3, 2)
     pwr = torch.randn(3)
@@ -229,12 +237,15 @@ def test_generate_radio_field_wrong_shapes():
 def test_radio_field_generator_repr():
     """Test that Data static methods respect path-loss parameters."""
     from laker.data import Data
+
     # Smoke test: ensure all kwargs are accepted and the field is finite.
     locs = torch.rand(20, 2) * 50.0
     tx = torch.tensor([[25.0, 25.0]])
     pwr = torch.tensor([-40.0])
     clean, noisy = Data.field(
-        locs, tx, pwr,
+        locs,
+        tx,
+        pwr,
         path_loss_exponent=3.0,
         reference_distance=1.5,
         shadow_sigma=2.0,
@@ -246,15 +257,15 @@ def test_radio_field_generator_repr():
 
 
 def test_matvec_wrong_size():
-    """AttentionKernelOperator matvec should reject mismatched n."""
-    op = AttentionKernelOperator(torch.randn(10, 5))
+    """Attention matvec should reject mismatched n."""
+    op = Attention(torch.randn(10, 5))
     with pytest.raises(ValueError, match="must have"):
         op.matvec(torch.randn(5))
 
 
 def test_matvec_wrong_size_2d():
-    """AttentionKernelOperator matvec 2-D should reject mismatched n."""
-    op = AttentionKernelOperator(torch.randn(10, 5))
+    """Attention matvec 2-D should reject mismatched n."""
+    op = Attention(torch.randn(10, 5))
     with pytest.raises(ValueError, match="must have"):
         op.matvec(torch.randn(5, 3))
 
@@ -262,6 +273,7 @@ def test_matvec_wrong_size_2d():
 def test_generate_grid_small():
     """generate_grid should reject grid_size < 2."""
     from laker.data import Data
+
     with pytest.raises(ValueError, match="grid_size must be at least 2"):
         Data.grid((0.0, 1.0, 0.0, 1.0), 1)
 
@@ -269,6 +281,7 @@ def test_generate_grid_small():
 def test_generate_grid_reversed_x():
     """generate_grid should reject reversed x bounds."""
     from laker.data import Data
+
     with pytest.raises(ValueError, match="x_min"):
         Data.grid((1.0, 0.0, 0.0, 1.0), 5)
 
@@ -276,6 +289,7 @@ def test_generate_grid_reversed_x():
 def test_generate_grid_reversed_y():
     """generate_grid should reject reversed y bounds."""
     from laker.data import Data
+
     with pytest.raises(ValueError, match="y_min"):
         Data.grid((0.0, 1.0, 1.0, 0.0), 5)
 
@@ -283,6 +297,7 @@ def test_generate_grid_reversed_y():
 def test_generate_radio_field_empty_locations():
     """generate_radio_field should reject empty locations."""
     from laker.data import Data
+
     with pytest.raises(ValueError, match="at least one"):
         Data.field(torch.empty(0, 2), torch.randn(1, 2), torch.randn(1))
 
@@ -290,6 +305,7 @@ def test_generate_radio_field_empty_locations():
 def test_generate_radio_field_empty_transmitters():
     """generate_radio_field should reject empty transmitters."""
     from laker.data import Data
+
     with pytest.raises(ValueError, match="at least one"):
         Data.field(torch.randn(5, 2), torch.empty(0, 2), torch.empty(0))
 

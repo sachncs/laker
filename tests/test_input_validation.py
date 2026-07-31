@@ -1,4 +1,11 @@
-"""Input validation tests."""
+"""Laker.fit input-validation contract.
+
+Laker.fit validates input data before training: equal sample
+counts between ``x`` and ``y``, finite values, 1-D ``y``, 2-D ``x``.
+This file pins those contracts so a regression in the input
+pipeline fails loudly instead of silently corrupting a fit.
+"""
+
 from __future__ import annotations
 
 import pytest

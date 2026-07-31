@@ -44,8 +44,8 @@ from laker.embeddings import PositionEmbedding
 from laker.kernels import Kernel
 from laker.models import LAKERRegressor
 from laker.preconditioner import CCCPPreconditioner
-from laker.solvers import Solve
 from laker.solvers import PreconditionedConjugateGradient as PCG  # noqa: F401
+from laker.solvers import Solve
 
 # Short aliases for kernel strategy selection; the full name is verbose.
 Exact = Kernel.exact
@@ -370,9 +370,7 @@ class ReproducibleBenchmarkSuite:
         results["knn"] = {"mean": result["mean_ms"], "std": result["std_ms"]}
 
         # SKI
-        operator = Grid(
-            embeddings, lambda_reg=self.lambda_reg, grid_size=1024, dtype=self.dtype
-        )
+        operator = Grid(embeddings, lambda_reg=self.lambda_reg, grid_size=1024, dtype=self.dtype)
         result = self.executor.run(
             "ski_matvec",
             lambda: operator.matvec(vector),

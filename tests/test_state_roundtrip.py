@@ -1,7 +1,13 @@
-"""Save / load parity tests."""
+"""Save / load parity tests for ``Laker`` and the legacy
+``LAKERRegressor``.
+
+Each test asserts bit-identical ``predict`` and ``variance``
+outputs after a save/load cycle, plus precision-checked preservation
+of every constructor hyperparameter across kernel strategies.
+"""
+
 from __future__ import annotations
 
-import math
 import tempfile
 from pathlib import Path
 
@@ -9,7 +15,6 @@ import pytest
 import torch
 
 from laker import Laker
-
 
 KERNEL_NAMES = ["exact", "nystrom", "fourier", "neighbors"]
 

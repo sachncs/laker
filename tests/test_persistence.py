@@ -1,8 +1,11 @@
 """Precision and behavioural tests for ``laker.persistence.ModelPersistence``.
 
-Every save/load cycle is verified bit-identically (or `allclose`-tight),
-across every supported kernel strategy.
+Every save/load cycle is verified bit-identically (or `allclose`-tight)
+across every supported kernel strategy. Preconditioner state must
+round-trip too: ``predict_variance`` depends on the preconditioner
+matrices being present and correct.
 """
+
 from __future__ import annotations
 
 import os
@@ -43,9 +46,14 @@ def test_save_load_roundtrip_is_precision_grade(kernel_kwargs):
     x = torch.rand(n, 2, dtype=torch.float64) * 50.0
     y = torch.sin(x[:, 0]) + torch.cos(x[:, 1])
     model = LAKERRegressor(
-        embedding_dim=8, lambda_reg=1e-2, num_probes=50,
-        cccp_max_iter=50, pcg_tol=1e-12, pcg_max_iter=500,
-        dtype=torch.float64, **kernel_kwargs,
+        embedding_dim=8,
+        lambda_reg=1e-2,
+        num_probes=50,
+        cccp_max_iter=50,
+        pcg_tol=1e-12,
+        pcg_max_iter=500,
+        dtype=torch.float64,
+        **kernel_kwargs,
     )
     model.fit(x, y)
     queries = torch.rand(10, 2, dtype=torch.float64) * 50.0
@@ -60,7 +68,10 @@ def test_save_load_roundtrip_is_precision_grade(kernel_kwargs):
         # Match the predictions to PCG precision (1e-8 relative),
         # not just shape.
         torch.testing.assert_close(
-            pred_before, pred_after, atol=1e-8, rtol=1e-8,
+            pred_before,
+            pred_after,
+            atol=1e-8,
+            rtol=1e-8,
         )
     finally:
         _cleanup(path)
@@ -74,8 +85,12 @@ def test_save_load_preserves_variance():
     x = torch.rand(30, 2, dtype=torch.float64) * 50.0
     y = torch.sin(x[:, 0]) + torch.cos(x[:, 1])
     model = LAKERRegressor(
-        embedding_dim=8, lambda_reg=1e-2, num_probes=50,
-        cccp_max_iter=50, pcg_tol=1e-10, pcg_max_iter=500,
+        embedding_dim=8,
+        lambda_reg=1e-2,
+        num_probes=50,
+        cccp_max_iter=50,
+        pcg_tol=1e-10,
+        pcg_max_iter=500,
         dtype=torch.float64,
     )
     model.fit(x, y)
@@ -124,8 +139,12 @@ def test_save_load_preserves_preconditioner_state_for_variance():
     y = torch.sin(x[:, 0])
 
     model = LAKERRegressor(
-        embedding_dim=6, lambda_reg=1e-3, num_probes=80,
-        cccp_max_iter=80, pcg_tol=1e-12, pcg_max_iter=500,
+        embedding_dim=6,
+        lambda_reg=1e-3,
+        num_probes=80,
+        cccp_max_iter=80,
+        pcg_tol=1e-12,
+        pcg_max_iter=500,
         dtype=torch.float64,
     )
     model.fit(x, y)
@@ -137,9 +156,7 @@ def test_save_load_preserves_preconditioner_state_for_variance():
         ModelPersistence.save(model, path)
         loaded = ModelPersistence.load(path)
         v_after = loaded.predict_variance(q)
-        torch.testing.assert_close(
-            v_before, v_after, atol=1e-8, rtol=1e-8
-        )
+        torch.testing.assert_close(v_before, v_after, atol=1e-8, rtol=1e-8)
 
         # Verify the preconditioner fields are populated on both
         # original and loaded.

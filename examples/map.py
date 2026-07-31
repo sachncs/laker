@@ -9,6 +9,7 @@ Run::
 
     python -m examples.map
 """
+
 from __future__ import annotations
 
 import argparse
@@ -73,9 +74,7 @@ class Map:
         n_grid = grid_size * grid_size
         assert ground_truth.shape == (n_grid,), "data: grid truth shape"
         assert torch.isfinite(ground_truth).all(), "data: ground truth"
-        assert (
-            ground_truth.std().item() > 5.0
-        ), "data: grid truth too flat"
+        assert ground_truth.std().item() > 5.0, "data: grid truth too flat"
 
         # ---- fit -----------------------------------------------------------
         model = Laker(
@@ -87,26 +86,16 @@ class Map:
         predictions = model.predict(grid)
 
         # ---- verification --------------------------------------------------
-        assert (
-            predictions.shape == ground_truth.shape
-        ), "predict: shape mismatch"
+        assert predictions.shape == ground_truth.shape, "predict: shape mismatch"
         assert torch.isfinite(predictions).all(), "predict: non-finite"
-        assert (
-            predictions.std().item() > 0.1
-        ), "predict: predictions are constant"
+        assert predictions.std().item() > 0.1, "predict: predictions are constant"
         train_r2 = model.score(locations, targets)
         assert train_r2 > 0.0, f"fit: train R^2 is non-positive ({train_r2:.4f})"
 
-        baseline_rmse = float(
-            ((ground_truth - ground_truth.mean()) ** 2).mean().sqrt().item()
-        )
-        model_rmse = float(
-            ((predictions - ground_truth) ** 2).mean().sqrt().item()
-        )
+        baseline_rmse = float(((ground_truth - ground_truth.mean()) ** 2).mean().sqrt().item())
+        model_rmse = float(((predictions - ground_truth) ** 2).mean().sqrt().item())
         improvement = (
-            (baseline_rmse - model_rmse) / baseline_rmse * 100.0
-            if baseline_rmse > 0
-            else 0.0
+            (baseline_rmse - model_rmse) / baseline_rmse * 100.0 if baseline_rmse > 0 else 0.0
         )
 
         print(f"sensors={n} grid={grid_size} dim={embedding_dim}")
@@ -114,9 +103,7 @@ class Map:
         print(f"grid RMSE={model_rmse:.2f} dBm (baseline={baseline_rmse:.2f})")
         print(f"improvement over mean baseline={improvement:.1f}%")
 
-        assert (
-            improvement > 0.0
-        ), f"predict: model is worse than mean baseline ({improvement:.1f}%)"
+        assert improvement > 0.0, f"predict: model is worse than mean baseline ({improvement:.1f}%)"
 
 
 if __name__ == "__main__":

@@ -272,9 +272,7 @@ class BilevelOptimizer:
         candidate_lambdas: list[float] = []
         if hyperparameters is not None and len(hyperparameters) == 1:
             with torch.no_grad():
-                candidate_lambdas.append(
-                    float(torch.exp(hyperparameters[0]).item())
-                )
+                candidate_lambdas.append(float(torch.exp(hyperparameters[0]).item()))
         if candidate_lambdas:
             self.core.lambda_reg = max(min(candidate_lambdas[0], 1e3), 1e-8)
             regressor.set_params(lambda_reg=self.core.lambda_reg)

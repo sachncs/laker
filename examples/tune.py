@@ -10,6 +10,7 @@ Run::
 
     python -m examples.tune
 """
+
 from __future__ import annotations
 
 import argparse
@@ -69,7 +70,7 @@ class Tune:
         assert torch.isfinite(y_val).all(), "data: non-finite val"
 
         # ---- search -------------------------------------------------------
-        log_grid = [10.0 ** k for k in (-4.0, -3.0, -2.0, -1.0, 0.0)]
+        log_grid = [10.0**k for k in (-4.0, -3.0, -2.0, -1.0, 0.0)]
         scores: list[float] = []
         for reg in log_grid:
             model = Laker(
@@ -93,17 +94,11 @@ class Tune:
         print(f"all R^2={[f'{s:.3f}' for s in scores]}")
 
         # ---- verification -------------------------------------------------
-        assert (
-            len(scores) == len(log_grid)
-        ), "tune: missing score for some candidate"
-        assert (
-            best >= -1.0
-        ), f"tune: best R^2 suspiciously low ({best:.4f})"
+        assert len(scores) == len(log_grid), "tune: missing score for some candidate"
+        assert best >= -1.0, f"tune: best R^2 suspiciously low ({best:.4f})"
         # Search must cover at least three decades (sanity on log-grid
         # design).
-        assert (
-            log_grid[-1] / log_grid[0] >= 1000.0
-        ), "tune: search grid must span >= 3 decades"
+        assert log_grid[-1] / log_grid[0] >= 1000.0, "tune: search grid must span >= 3 decades"
 
 
 if __name__ == "__main__":

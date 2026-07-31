@@ -120,9 +120,7 @@ class ModelPersistence:
             "landmark_method": getattr(regressor, "landmark_method", "greedy"),
             "landmark_pilot_size": getattr(regressor, "landmark_pilot_size", 1000),
             "spectral_knots": getattr(regressor, "spectral_knots", 5),
-            "preconditioner_strategy": getattr(
-                regressor, "preconditioner_strategy", "cccp"
-            ),
+            "preconditioner_strategy": getattr(regressor, "preconditioner_strategy", "cccp"),
             "device": str(regressor.device),
             "dtype": str(regressor.dtype),
             "embedding_dtype": (
@@ -137,18 +135,16 @@ class ModelPersistence:
         # Save the preconditioner tensors if available.
         if regressor.preconditioner is not None:
             prec = regressor.preconditioner
-            prec_state = getattr(prec, "state_dict", None)
             prec_class = prec.__class__.__name__
             prec_module = prec.__class__.__module__
             state["preconditioner_class"] = prec_class
             state["preconditioner_module"] = prec_module
-            if callable(prec_state):
-                state["preconditioner_state"] = prec.state_dict()
-            else:
-                # Fall back to attribute extraction.
-                state["preconditioner_state"] = {
-                    k: v for k, v in vars(prec).items() if torch.is_tensor(v)
-                }
+            # Both CCCPPreconditioner and AdaptivePreconditioner expose
+            # their state as torch tensors on self (set during build());
+            # we extract tensor attributes for the round-trip.
+            state["preconditioner_state"] = {
+                k: v for k, v in vars(prec).items() if torch.is_tensor(v)
+            }
         if regressor.embedding_model is not None:
             state["embedding_model_state"] = regressor.embedding_model.state_dict()
             state["embedding_model_class"] = regressor.embedding_model.__class__.__name__
@@ -310,17 +306,17 @@ class ModelPersistence:
                 model.residual_corrector.load_state_dict(state["residual_corrector_state"])
 
         from laker.kernels import (
-            AttentionKernelOperator,
-            NystromAttentionKernelOperator,
-            RandomFeatureAttentionKernelOperator,
-            SKIAttentionKernelOperator,
-            SparseKNNAttentionKernelOperator,
-            SpectralAttentionKernelOperator,
-            TwoScaleAttentionKernelOperator,
+            Attention,
+            NystromAttention,
+            RandomFeatureAttention,
+            SKIAttention,
+            SparseAttention,
+            SpectralAttention,
+            TwoScaleAttention,
         )
 
         if model.kernel_approx is None or model.kernel_approx == "exact":
-            model.kernel_operator = AttentionKernelOperator(
+            model.kernel_operator = Attention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 chunk_size=model.chunk_size,
@@ -328,7 +324,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "nystrom":
-            model.kernel_operator = NystromAttentionKernelOperator(
+            model.kernel_operator = NystromAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 num_landmarks=model.num_landmarks,
@@ -337,7 +333,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "rff":
-            model.kernel_operator = RandomFeatureAttentionKernelOperator(
+            model.kernel_operator = RandomFeatureAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 num_features=model.num_features,
@@ -345,7 +341,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "knn":
-            model.kernel_operator = SparseKNNAttentionKernelOperator(
+            model.kernel_operator = SparseAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 k_neighbors=model.k_neighbors,
@@ -354,7 +350,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "ski":
-            model.kernel_operator = SKIAttentionKernelOperator(
+            model.kernel_operator = SKIAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 grid_size=model.grid_size,
@@ -362,7 +358,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "spectral":
-            model.kernel_operator = SpectralAttentionKernelOperator(
+            model.kernel_operator = SpectralAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 num_knots=model.spectral_knots,
@@ -370,7 +366,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "twoscale":
-            model.kernel_operator = TwoScaleAttentionKernelOperator(
+            model.kernel_operator = TwoScaleAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 alpha=model.twoscale_alpha,
@@ -400,8 +396,17 @@ class ModelPersistence:
                     else:
                         setattr(prec, key, value)
                 # Reattach other required non-tensor state (gamma, base_rho).
-                for attr in ("gamma", "epsilon", "base_rho", "num_probes",
-                              "max_iter", "tol", "verbose", "device", "dtype"):
+                for attr in (
+                    "gamma",
+                    "epsilon",
+                    "base_rho",
+                    "num_probes",
+                    "max_iter",
+                    "tol",
+                    "verbose",
+                    "device",
+                    "dtype",
+                ):
                     if not hasattr(prec, attr) and hasattr(model, attr):
                         setattr(prec, attr, getattr(model, attr))
                 # Ensure device/dtype fields are correct torch types.
@@ -413,6 +418,7 @@ class ModelPersistence:
             except Exception as exc:
                 logger.warning(
                     "Could not restore preconditioner (%s); variance() "
-                    "after load will fail until refit.", exc
+                    "after load will fail until refit.",
+                    exc,
                 )
         return model

@@ -8,7 +8,7 @@ version = "0.5.0"
 description = "Learning-based Attention Kernel Regression for large-scale spectrum cartography"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.10,<3.14"
 authors = [
     { name = "LAKER Contributors", email = "sachncs@gmail.com" },
 ]
@@ -28,7 +28,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -49,25 +48,20 @@ dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
     "hypothesis>=6.148",
-    "black>=23",
-    "isort>=5.12",
-    "flake8>=6",
+    "ruff>=0.5",
     "mypy>=1.5",
-    "sphinx>=7",
-    "sphinx-rtd-theme>=1.3",
-    "myst-parser>=2",
 ]
 all = ["laker[viz,dev]"]
 
 [project.urls]
 Homepage = "https://github.com/sachncs/laker"
-Documentation = "https://laker.readthedocs.io"
+Issues = "https://github.com/sachncs/laker/issues"
 Repository = "https://github.com/sachncs/laker"
 Issues = "https://github.com/sachncs/laker/issues"
 Changelog = "https://github.com/sachncs/laker/blob/master/CHANGELOG.md"
 
 [project.scripts]
-laker = "laker.__main__:main"
+laker = "laker.cli:CLI.run"
 
 [tool.setuptools]
 zip-safe = false
@@ -87,7 +81,7 @@ line_length = 100
 known_first_party = ["laker", "tests", "examples", "benchmarks"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 mypy_path = "laker"
 warn_return_any = false
 warn_unused_configs = true
@@ -100,7 +94,7 @@ show_error_codes = true
 plugins = []
 
 [[tool.mypy.overrides]]
-module = ["torch.*", "numpy.*", "matplotlib.*"]
+module = ["torch.*", "matplotlib.*", "numpy.*"]
 follow_imports = "skip"
 ignore_missing_imports = true
 

@@ -21,7 +21,7 @@ The wrapper has two execution modes selected at construction time:
 
 * **Single-device**: when only one CUDA device is detected, the wrapper
   delegates everything to an inner
-  :class:`~laker.kernels.AttentionKernelOperator`. No sharding, no
+  :class:`~laker.kernels.Attention`. No sharding, no
   device transfers.
 * **Multi-device**: embeddings are split into ``num_dev`` contiguous
   chunks. Each device hosts one chunk and computes its local slice of
@@ -33,12 +33,12 @@ from typing import Optional
 
 import torch
 
-from laker.kernels import AttentionKernelOperator, exp_safe
+from laker.kernels import Attention, exp_safe
 
 logger = logging.getLogger(__name__)
 
 
-class DistributedAttentionKernelOperator:
+class DistributedAttention:
     """Wrapper that distributes a dense attention kernel across multiple GPUs.
 
     Embeddings are split evenly among devices. Each GPU computes its
@@ -74,7 +74,7 @@ class DistributedAttentionKernelOperator:
 
         Detection of available CUDA devices happens here. If only one
         CUDA device (or none) is detected, the wrapper constructs a
-        single inner :class:`AttentionKernelOperator` and delegates
+        single inner :class:`Attention` and delegates
         every call to it. Otherwise, embeddings are sharded across the
         available devices.
 
@@ -85,7 +85,7 @@ class DistributedAttentionKernelOperator:
             dtype: Floating-point dtype.
 
         Side effects:
-            Allocates one local :class:`AttentionKernelOperator` per
+            Allocates one local :class:`Attention` per
             CUDA device in single-device mode, or one per device in
             multi-device mode. The full embeddings are moved to
             ``master_device`` and copied once per shard.
@@ -107,7 +107,7 @@ class DistributedAttentionKernelOperator:
         # ``skip_clamp`` is recorded for diagnostic/inspection
         # purposes (e.g. ``LAKERCore`` may print it). The wrapper does
         # not use this flag directly — the per-device
-        # ``AttentionKernelOperator`` instances each compute their own
+        # ``Attention`` instances each compute their own
         # ``skip_clamp`` from their local embedding shard.
         self.skip_clamp = True
 
@@ -120,11 +120,11 @@ class DistributedAttentionKernelOperator:
 
         if len(self.devices) == 1:
             # Single-device fast path: build a regular
-            # ``AttentionKernelOperator`` and delegate everything to
+            # ``Attention`` and delegate everything to
             # it. ``self.operators`` is left empty so the multi-device
             # branches can short-circuit via ``self.single_device``.
             self.single_device = True
-            self.local_op = AttentionKernelOperator(
+            self.local_op = Attention(
                 embeddings=embeddings.to(device=master_device, dtype=dtype),
                 lambda_reg=lambda_reg,
                 chunk_size=None,
@@ -146,7 +146,7 @@ class DistributedAttentionKernelOperator:
         regardless of how ``n`` divides ``num_dev``.
 
         Each shard is moved to its target device and wrapped in a
-        local :class:`AttentionKernelOperator`.
+        local :class:`Attention`.
 
         Args:
             embeddings: Full embedding matrix of shape ``(n, d)`` in
@@ -171,7 +171,7 @@ class DistributedAttentionKernelOperator:
         for device, chunk_size_local in zip(self.devices, chunk_sizes):
             end = start + chunk_size_local
             local_embeddings = embeddings[start:end].to(device=device)
-            operator = AttentionKernelOperator(
+            operator = Attention(
                 embeddings=local_embeddings,
                 lambda_reg=self.lambda_reg,
                 chunk_size=None,
