@@ -22,7 +22,7 @@ class CLI:
     """Single class exposing the LAKER CLI."""
 
     @staticmethod
-    def setup_logging(verbose: bool) -> None:
+    def logging(verbose: bool) -> None:
         """Configure root logger level for the CLI invocation."""
         level = logging.DEBUG if verbose else logging.INFO
         logging.basicConfig(
@@ -32,7 +32,7 @@ class CLI:
         )
 
     @staticmethod
-    def load_tensor(path: str) -> torch.Tensor:
+    def load(path: str) -> torch.Tensor:
         """Load a tensor from ``.pt``/``.pth``/``.npy`` files."""
         if path.endswith(".npy"):
             return torch.from_numpy(numpy.load(path))
@@ -41,16 +41,16 @@ class CLI:
         raise ValueError(f"Unsupported file extension for {path}. Expected .pt, .pth, or .npy.")
 
     @staticmethod
-    def _build_parser() -> argparse.ArgumentParser:
+    def parser() -> argparse.ArgumentParser:
         from laker import __version__
 
-        parser = argparse.ArgumentParser(
+        arg_parser = argparse.ArgumentParser(
             description="LAKER: Learning-based Attention Kernel Regression",
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         )
-        parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-        parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging")
-        subparsers = parser.add_subparsers(dest="command")
+        arg_parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+        arg_parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging")
+        subparsers = arg_parser.add_subparsers(dest="command")
 
         fit_parser = subparsers.add_parser("fit", help="Fit a LAKER model to data")
         fit_parser.add_argument(
@@ -100,15 +100,15 @@ class CLI:
         pred_parser.add_argument("--model", required=True, help="Path to fitted model .pt file")
         pred_parser.add_argument("--locations", required=True, help="Path to query locations")
         pred_parser.add_argument("--output", required=True, help="Path to save predictions")
-        return parser
+        return arg_parser
 
     @staticmethod
-    def _run_fit(args) -> None:
+    def fit(args) -> None:
         from laker import Laker
 
         logger.info("Loading data...")
-        x = CLI.load_tensor(args.locations)
-        y = CLI.load_tensor(args.measurements)
+        x = CLI.load(args.locations)
+        y = CLI.load(args.measurements)
         dtype = {
             "float16": torch.float16,
             "bfloat16": torch.bfloat16,
@@ -129,12 +129,12 @@ class CLI:
         logger.info("Model saved to %s", args.output)
 
     @staticmethod
-    def _run_predict(args) -> None:
+    def predict(args) -> None:
         from laker import Laker
 
         logger.info("Loading model...")
         model = Laker.load(args.model)
-        x = CLI.load_tensor(args.locations)
+        x = CLI.load(args.locations)
         predictions = model.predict(x)
         torch.save(predictions, args.output)
         logger.info("Predictions saved to %s", args.output)
@@ -147,18 +147,18 @@ class CLI:
         invocation prints help and exits ``1``. The ``return`` value
         is documented for tests that patch ``sys.exit``.
         """
-        parser = cls._build_parser()
-        args = parser.parse_args(argv)
-        cls.setup_logging(args.verbose)
+        arg_parser = cls.parser()
+        args = arg_parser.parse_args(argv)
+        cls.logging(args.verbose)
         if args.command == "fit":
-            cls._run_fit(args)
+            cls.fit(args)
             sys.exit(0)
             return 0  # unreachable; satisfies static type checkers
         if args.command == "predict":
-            cls._run_predict(args)
+            cls.predict(args)
             sys.exit(0)
             return 0  # unreachable; satisfies static type checkers
-        parser.print_help()
+        arg_parser.print_help()
         sys.exit(1)
         return 1  # unreachable; satisfies static type checkers
 

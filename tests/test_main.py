@@ -22,24 +22,24 @@ from laker.cli import CLI
 # Logging.
 # ---------------------------------------------------------------------------
 def test_setup_logging_verbose_runs():
-    """``CLI.setup_logging(True)`` must not raise."""
-    CLI.setup_logging(verbose=True)
+    """``CLI.logging(True)`` must not raise."""
+    CLI.logging(verbose=True)
 
 
 def test_setup_logging_quiet_runs():
-    """``CLI.setup_logging(False)`` must not raise."""
-    CLI.setup_logging(verbose=False)
+    """``CLI.logging(False)`` must not raise."""
+    CLI.logging(verbose=False)
 
 
 # ---------------------------------------------------------------------------
-# ``CLI.load_tensor``: format dispatch + error paths.
+# ``CLI.load``: format dispatch + error paths.
 # ---------------------------------------------------------------------------
 def test_load_tensor_reads_npy(tmp_path):
     """``.npy`` files are loaded into a tensor with the same values."""
     arr = numpy.array([1.5, -2.25, 3.0, 4.75])
     path = tmp_path / "data.npy"
     numpy.save(path, arr)
-    t = CLI.load_tensor(str(path))
+    t = CLI.load(str(path))
     assert isinstance(t, torch.Tensor)
     torch.testing.assert_close(t, torch.from_numpy(arr))
 
@@ -49,7 +49,7 @@ def test_load_tensor_reads_pt(tmp_path):
     src = torch.tensor([1.0, 2.0, 3.0])
     path = tmp_path / "data.pt"
     torch.save(src, path)
-    loaded = CLI.load_tensor(str(path))
+    loaded = CLI.load(str(path))
     torch.testing.assert_close(loaded, src)
 
 
@@ -60,13 +60,13 @@ def test_load_tensor_rejects_unsupported_extension(tmp_path):
     path = tmp_path / "data.txt"
     path.write_text("hello")
     with pytest.raises(ValueError, match="Unsupported file extension"):
-        CLI.load_tensor(str(path))
+        CLI.load(str(path))
 
 
 def test_load_tensor_missing_file_raises():
     """A missing file raises ``FileNotFoundError``."""
     with pytest.raises(FileNotFoundError):
-        CLI.load_tensor("/nonexistent/path/data.npy")
+        CLI.load("/nonexistent/path/data.npy")
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ def test_main_no_subcommand_exits_one(capsys):
 
 
 # ---------------------------------------------------------------------------
-# ``CLI._run_fit`` / ``CLI._run_predict``: end-to-end with real on-disk
+# ``CLI.fit`` / ``CLI.predict``: end-to-end with real on-disk
 # artefacts.
 # ---------------------------------------------------------------------------
 def Laker_with_default_kwargs():
@@ -112,7 +112,7 @@ def Laker_with_default_kwargs():
 
 
 def test_cmd_fit_persists_alpha_and_predictions(tmp_path):
-    """``CLI._run_fit`` writes a model whose ``alpha`` and one prediction
+    """``CLI.fit`` writes a model whose ``alpha`` and one prediction
     agree with a separately-trained model. Precision-bound.
     """
     torch.manual_seed(0)
@@ -138,7 +138,7 @@ def test_cmd_fit_persists_alpha_and_predictions(tmp_path):
         kernel = "exact"
         verbose = False
 
-    CLI._run_fit(Args())
+    CLI.fit(Args())
     assert out_path.exists()
 
     # Re-fit independently for cross-check.
@@ -162,7 +162,7 @@ def test_cmd_fit_persists_alpha_and_predictions(tmp_path):
 
 
 def test_cmd_predict_writes_correct_shape_and_dtype(tmp_path):
-    """``CLI._run_predict`` writes predictions whose shape and dtype
+    """``CLI.predict`` writes predictions whose shape and dtype
     match the queries.
     """
     torch.manual_seed(0)
@@ -183,7 +183,7 @@ def test_cmd_predict_writes_correct_shape_and_dtype(tmp_path):
         locations = str(query_path)
         output = str(out_path)
 
-    CLI._run_predict(Args())
+    CLI.predict(Args())
     assert out_path.exists()
     preds = torch.load(out_path)
     assert preds.shape == (10,)
