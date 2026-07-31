@@ -2,7 +2,7 @@
   <h1 align="center">LAKER</h1>
   <p align="center">Learning-based Attention Kernel Regression for scalable spectrum cartography.</p>
   <p align="center">
-    <a href="#installation"><img src="https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue" alt="Python"></a>
+    <a href="#installation"><img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue" alt="Python"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
     <a href="https://github.com/sachncs/laker/actions"><img src="https://img.shields.io/github/actions/workflow/status/sachncs/laker/ci.yml?branch=master" alt="CI"></a>
     <a href="https://pypi.org/project/laker/"><img src="https://img.shields.io/pypi/v/laker" alt="PyPI"></a>
@@ -13,44 +13,52 @@
 **LAKER** is a PyTorch implementation of the algorithm from
 Tao & Tan (2026),
 [*Accelerating Regularized Attention Kernel Regression for Spectrum Cartography*](https://arxiv.org/abs/2604.25138).
-It solves regularised attention kernel regression using a **learned
-data-dependent preconditioner** that reduces the system condition number by up
-to three orders of magnitude.
+It solves regularised attention kernel regression problems of the form
 
-> **Disclaimer:** This repository is an independent implementation of the
-> LAKER algorithm. The author is not one of the paper's authors.
+$$\min_\alpha \|G \alpha - y\|_2^2 + \lambda \, \alpha^\top G \alpha$$
+
+where $G = \exp(E E^\top)$ is an exponential attention kernel induced by
+learned embeddings $E$. The dominant cost is solving the linear system
+$(G + \lambda I) \alpha = y$, which LAKER accelerates with a learned
+data-dependent preconditioner built by a shrinkage-regularised
+Convex-Concave Procedure (CCCP). The preconditioner reduces the system
+condition number by up to three orders of magnitude and yields near
+size-independent Preconditioned Conjugate Gradient (PCG) convergence.
 
 ---
 
 ## Features
 
-- **Scalable to 100k+ samples** — Matrix-free attention kernel with adaptive
-  1-D/2-D tiling and optional explicit mode for small problems.
-- **Low-rank kernel approximations** — Nyström, random Fourier features (RFF),
-  sparse k-NN, SKI, spectral shaping, and two-scale kernels reduce matvec cost
-  from `O(n^2)` to `O(n*r)`.
+- **Scalable to 100k+ samples** — Matrix-free attention kernel with
+  adaptive 1-D/2-D tiling and an optional `exact` mode for small problems.
+- **Low-rank kernel approximations** — Nyström, random Fourier features
+  (RFF), sparse k-NN, structured kernel interpolation (SKI), spectral
+  shaping, and a two-scale hybrid reduce matvec cost from `O(n^2)` to
+  `O(n * r)`.
 - **Learned preconditioner** — Factored CCCP preconditioner with `O(N_r^3)`
-  iterations independent of problem size; adaptive strategy selection.
-- **Predictive variance** — Exact variance via batched PCG; closed-form for RFF
-  via the Woodbury identity.
-- **Mixed-precision training** — Compute embeddings in `float16`/`bfloat16`
-  while keeping the solver in `float32`/`float64`.
-- **Automatic hyperparameter search** — Validation-based grid search and
-  Bayesian optimization with a lightweight GP surrogate.
-- **Streaming / online learning** — `partial_fit` with warm-start and optional
-  preconditioner rebuild; regularization paths and continuation schedules.
-- **Learned embeddings** — End-to-end optimization of `PositionEmbedding` MLP
-  weights via backprop through the kernel operator.
-- **Multi-GPU distributed matvec** — Shards embeddings across CUDA devices
-  and gathers results automatically.
-- **Bilevel hyperparameter learning** — Implicit differentiation through the
-  PCG fixed-point for joint optimization of `lambda_reg` and embeddings.
-- **Uncertainty-aware training** — NLL + calibration penalty objective for
-  well-calibrated predictive variances.
-- **Residual corrector** — Tiny MLP captures local misspecification without
-  destabilising the core solver.
-- **sklearn-compatible API** — `fit`/`predict`/`score` with `GridSearchCV`
-  and `Pipeline` support.
+  per-iteration cost independent of problem size, plus an adaptive
+  strategy selector (Jacobi / CCCP / aggressive CCCP).
+- **Predictive variance** — Exact posterior variance via batched PCG;
+  closed-form for RFF via the Woodbury identity.
+- **Mixed precision** — Compute embeddings in `float16` / `bfloat16`
+  while keeping the solver in `float32` / `float64`.
+- **Hyperparameter search** — Validation-based grid search and Bayesian
+  optimisation with a lightweight GP surrogate.
+- **Streaming / online learning** — `update` with warm-start and optional
+  preconditioner rebuild; regularisation paths and continuation schedules.
+- **Learned embeddings** — End-to-end optimisation of the `Position` /
+  `Visual` encoders via backprop through the kernel operator.
+- **Multi-GPU distributed matvec** — Shards embeddings across CUDA
+  devices and gathers results automatically.
+- **Bilevel hyperparameter learning** — Implicit differentiation through
+  the PCG fixed point for joint optimisation of `lam` and embeddings.
+- **Uncertainty-aware training** — NLL + calibration penalty objective
+  for well-calibrated predictive variances.
+- **Residual corrector** — Tiny MLP that captures local misspecification
+  without destabilising the core solver.
+- **sklearn-compatible API** — `fit` / `predict` / `score` with
+  `get_params` / `set_params` and `__sklearn_clone__` for use with
+  scikit-learn meta-estimators.
 
 ---
 
@@ -76,13 +84,13 @@ pip install -e .
 pip install -e ".[dev]"
 ```
 
-### Optional: Visualization
+### Optional: visualization
 
 ```bash
 pip install -e ".[viz]"
 ```
 
-**Requirements**: Python >= 3.9, PyTorch >= 2.0, NumPy >= 1.23
+**Requirements**: Python 3.10 – 3.13, PyTorch ≥ 2.0, NumPy ≥ 1.23.
 
 ---
 
@@ -95,6 +103,8 @@ laker fit --locations x_train.pt --measurements y_train.pt --output model.pt
 laker predict --model model.pt --locations x_test.pt --output y_pred.pt
 ```
 
+The full flag list is available via `laker fit --help`.
+
 ### Python API
 
 ```python
@@ -106,8 +116,8 @@ x_train = torch.rand(n, 2) * 100.0
 y_train = torch.randn(n)
 
 model = Laker(
-    embedding_dim=10,
-    regularization=1e-2,
+    embed_dim=10,
+    lam=1e-2,
     gamma=1e-1,
     device="cuda" if torch.cuda.is_available() else "cpu",
 )
@@ -115,93 +125,123 @@ model.fit(x_train, y_train)
 
 x_test = torch.rand(2000, 2) * 100.0
 y_pred = model.predict(x_test)
-print(f"R^2 score: {model.score(x_test, y_test):.4f}")
 ```
+
+`Laker` exposes the full sklearn API: `fit`, `predict`, `score`,
+`variance`, `condition`, and the workflows `search`, `bayes`, `update`,
+`path`, `continuation`, `learn`, `correct`, `bilevel`, `calibrate`,
+`tune`. Fitted state is on `m.coef`, `m.embed`, `m.kernel`, `m.prec`,
+`m.encoder`, `m.inputs`, `m.targets`, `m.iters`.
 
 ---
 
 ## Configuration
 
-### Core Parameters
-
-| Parameter | Env Variable | Default | Description |
-|-----------|--------------|---------|-------------|
-| `embedding_dim` | — | 10 | Dimension of the embedding space |
-| `regularization` | — | 1e-2 | Ridge regularization weight |
-| `gamma` | — | 0.1 | Kernel bandwidth for CCCP preconditioner |
-| `probes` | — | `None` | Random probe vectors for preconditioner |
-| `pcg_tol` | — | 1e-6 | PCG relative residual tolerance |
-| `pcg_max_iter` | — | 1000 | Maximum PCG iterations |
-| `cccp_max_iter` | — | 200 | Maximum CCCP iterations |
-| `device` | — | `None` | PyTorch device (`"cpu"`, `"cuda"`, `"mps"`) |
-| `dtype` | — | `float32` | Floating-point dtype for the solver |
-
-### Kernel Approximation
+### Core parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `kernel` | `"exact"` | `"exact"`, `"nystrom"`, `"fourier"`, `"neighbors"`, `"grid"`, `"spectrum"`, `"hybrid"` |
-| `landmarks` | `None` | Landmarks for Nyström / hybrid kernels |
+| `embed_dim` | `10` | Dimension of the embedding space |
+| `lam` | `1e-2` | Ridge weight `λ` |
+| `gamma` | `0.1` | Kernel bandwidth for the CCCP preconditioner |
+| `num` | `None` | Random-probe count for preconditioner construction |
+| `eps` | `1e-8` | Numerical stability constant |
+| `base` | `0.05` | Base spectral norm bound for CCCP |
+| `pcg_tol` | `1e-6` | PCG relative residual tolerance |
+| `pcg_max` | `1000` | Maximum PCG iterations |
+| `cccp_max` | `200` | Maximum CCCP iterations |
+| `cccp_tol` | `1e-6` | CCCP convergence tolerance |
+| `chunk` | `None` | Tile size for chunked kernel evaluation |
+| `device` | `None` | PyTorch device (`"cpu"`, `"cuda"`, `"mps"`) |
+| `dtype` | `None` | Floating-point dtype for the solver |
+| `embed_dtype` | `None` | Dtype for embedding computation (defaults to `dtype`) |
+| `verbose` | `True` | Whether to log diagnostics |
+| `warm` | `False` | Carry fitted state across `fit` calls |
+
+### Kernel approximation
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `kernel_type` | `"exact"` | `"exact"`, `"nystrom"`, `"fourier"`, `"neighbors"`, `"grid"`, `"spectrum"`, `"hybrid"` |
+| `landmarks` | `None` | Nyström landmark count |
 | `features` | `None` | Random Fourier features for the Fourier kernel |
-| `neighbors` | `None` | Nearest neighbours for the sparse k-NN kernel |
-| `grid_size` | `None` | Grid resolution for the grid (SKI) kernel |
-| `blend` | 0.5 | Blending weight for the hybrid kernel |
+| `neighbors` | `None` | k-NN sparsity count for the sparse kernel |
+| `grid_size` | `None` | SKI grid resolution |
+| `blend` | `0.5` | Hybrid kernel blend weight in `[0, 1]` |
 | `selection` | `"greedy"` | `"greedy"` or `"leverage"` landmark selection |
-| `knots` | 5 | Spline knots for the spectrum kernel |
+| `pilot` | `1000` | Leverage-score pilot size |
+| `knots` | `5` | Spline knots for the spectrum kernel |
+| `distributed` | `False` | Use multi-device distributed kernel |
 
 ### Preconditioner
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `preconditioner` | `"cccp"` | `"cccp"` or `"adaptive"` strategy |
-| `epsilon` | 1e-8 | Numerical stability constant |
-| `base_rho` | 0.05 | Base spectral norm bound for CCCP |
+| `prec_kind` | `"cccp"` | `"cccp"` or `"adaptive"` strategy |
 
-### Training (Learned Embeddings / Bilevel)
+### Custom embedding
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `lr` | 1e-3 | Learning rate for embedding optimization |
-| `epochs` | 50 | Training epochs |
-| `rebuild_freq` | 10 | Preconditioner rebuild frequency |
-| `patience` | 5 | Early stopping patience |
-| `beta` | 0.1 | Calibration penalty weight (uncertainty-aware) |
+Pass any `torch.nn.Module` as `encoder` to replace the default positional
+embedding. The module must accept a `(n, d)` tensor and return a
+`(n, embed_dim)` tensor.
 
-See [docs/](docs/) for detailed configuration options.
+See [docs/guides/](docs/guides/) for detailed configuration.
 
 ---
 
-## API
+## Public API
 
-| Symbol | Type | Description |
-|--------|------|-------------|
-| `Laker` | class | sklearn-compatible estimator (`fit`/`predict`/`score`/`variance`) |
-| `Laker.save` | method | Serialise fitted model to disk |
-| `Laker.load` | classmethod | Load fitted model from disk |
-| `Kernel` (`Nystrom`, `Fourier`, `Neighbors`, `Grid`, `Hybrid`, `Spectrum`) | class | Low-rank kernel operators under `laker.kernel` |
-| `Preconditioner` (`Adaptive`, `CCCP`, `Jacobi`) | class | Preconditioner strategies under `laker.preconditioner` |
-| `Solve` (`PCG`, `Descent`) | class | Linear solvers under `laker.solve` |
-| `Embed` (`Position`, `Visual`) | class | Embedding modules under `laker.embed` |
-| `Search`, `Fit`, `Stream`, `Implicit` | class | Workflow modules under `laker.{search,fit,stream,implicit}` |
-| `Plot`, `Data`, `Helpers`, `Backend`, `Base` | class | Plotting, data, math, env, validation under `laker.{plot,data,helpers,backend,base}` |
-| `CLI` | class | Argparse entry points under `laker.cli` |
+The single public entry point is `laker.Laker`. The rest of the package
+exposes the building blocks under single-word names:
+
+| Module | Public classes |
+|--------|----------------|
+| `laker.backend` | `Backend` |
+| `laker.check` | `Check` |
+| `laker.corrector` | `Corrector` |
+| `laker.data` | `Data` |
+| `laker.embed` | `Embed`, `Position`, `Visual` |
+| `laker.math` | `Math`, `GP`, `pdf_np`, `cdf_np` |
+| `laker.core` | `Core` |
+| `laker.kernel` | `Exact`, `Nystrom`, `Fourier`, `Neighbors`, `Grid`, `Hybrid`, `Spectrum`, `Shaper` |
+| `laker.solve` | `PCG`, `Descent`, `Jacobi`, `Report` |
+| `laker.prec` | `CCCP`, `Adaptive` |
+| `laker.distributed` | `Distributed` |
+| `laker.search` | `Search` |
+| `laker.bilevel` | `Bilevel` |
+| `laker.implicit` | `hypergradient` |
+| `laker.train` | `Trainer` |
+| `laker.stream` | `Stream` |
+| `laker.store` | `Store` |
+| `laker.plot` | `Plot` |
+| `laker.bench` | `Bench`, `BaseBench`, `SolveBench` |
+| `laker.cli` | `CLI` |
+
+Per-module documentation lives under [docs/api/](docs/api/). Algorithm
+notes live under [docs/algorithms/](docs/algorithms/).
 
 ---
 
 ## Examples
 
-The package ships with end-to-end worked examples under [`examples/`](examples/):
+End-to-end worked examples under [`examples/`](examples/):
 
 ```bash
-# Basic pipeline
-python -m examples.basic
-
-# Large-scale pipeline with chunking
-python -m examples.large
+python examples/simple.py     # minimal fit / predict
+python examples/learn.py      # end-to-end with learned embeddings
+python examples/scale.py      # scaling with sample size
+python examples/flow.py       # streaming updates
+python examples/tune.py       # hyperparameter tuning
+python examples/map.py        # radio-map visualisation (requires [viz])
 ```
 
-A full reproduction of the paper's Table 5 fit lives in
-[`benchmarks/reproducible.py`](benchmarks/reproducible.py).
+The benchmark suite reproduces the paper's headline numbers:
+
+```bash
+python -m benchmarks.reproducible   # full reproducible benchmark
+python -m benchmarks.baseline       # pre-optimisation vs current
+python -m benchmarks.approximations # kernel approximation speed
+```
 
 ---
 
@@ -211,26 +251,33 @@ A full reproduction of the paper's Table 5 fit lives in
 laker/
 ├── laker/                     # Main package
 │   ├── __init__.py            # Public API: `Laker`
-│   ├── __main__.py            # CLI entry point
-│   ├── cli.py                 # CLI class (argparse handlers)
+│   ├── cli.py                 # CLI entry point
 │   ├── model.py               # `Laker` estimator (sklearn-compatible API)
-│   ├── kernel.py              # `Kernel` and eight strategy subclasses
-│   ├── preconditioner.py      # `Preconditioner`, `Adaptive`, `CCCP`, `Jacobi`
-│   ├── solve.py               # `Solve`, `PCG`, `Descent`
-│   ├── embed.py               # `Embed`, `Position`, `Visual`
-│   ├── search.py              # `Search` (grid, Bayesian)
-│   ├── fit.py                 # `Fit` (learn, correct, calibrate, tune)
-│   ├── stream.py              # `Stream` (path, continuation, update)
-│   ├── implicit.py            # `Implicit` (hypergradient)
-│   ├── plot.py                # `Plot` (field, convergence, image)
-│   ├── data.py                # `Data` (field, grid)
-│   ├── helpers.py             # `Helpers` (math/RNG utilities)
-│   ├── backend.py             # `Backend` (env/dtype/device)
-│   └── base.py                # `Base` (validation/protocols)
-├── tests/                     # Test suite (24 files)
+│   ├── core.py                # emb → kernel → prec → solve → predict
+│   ├── backend.py             # device / dtype / compile / seed
+│   ├── check.py               # input validation and tensor coercion
+│   ├── data.py                # synthetic radio-field generation
+│   ├── embed.py               # `Position`, `Visual` encoders
+│   ├── math.py                # `Math` helpers, `GP` Bayesian surrogate
+│   ├── kernel.py              # `Exact`, `Nystrom`, `Fourier`, ...,
+│   │                          # `Neighbors`, `Grid`, `Hybrid`, `Spectrum`
+│   ├── solve.py               # `PCG`, `Descent`, `Jacobi`
+│   ├── prec.py                # `CCCP`, `Adaptive`
+│   ├── distributed.py         # multi-GPU wrapper
+│   ├── search.py              # grid + Bayesian search
+│   ├── train.py               # `Trainer` (learn, correct, calibrate)
+│   ├── bilevel.py             # implicit-diff hyperparameter learning
+│   ├── implicit.py            # `hypergradient` adjoint
+│   ├── corrector.py           # residual MLP
+│   ├── stream.py              # `Stream` update + path + continuation
+│   ├── store.py               # save / load
+│   ├── plot.py                # radio-map + convergence plots
+│   ├── bench.py               # benchmark harness
+│   └── executor.py            # async execution helpers
+├── tests/                     # Test suite (23 files, 310 tests)
 ├── examples/                  # Worked examples
 ├── benchmarks/                # Benchmark suite
-├── docs/                      # Documentation
+├── docs/                      # API + algorithm + guide docs
 ├── pyproject.toml             # Build & tool config
 ├── CHANGELOG.md               # Release history
 └── CONTRIBUTING.md            # Contribution guidelines
@@ -245,42 +292,31 @@ laker/
 pip install -e ".[dev]"
 
 # Run tests
-pytest tests/ -v
+pytest tests/
 
 # Run tests with coverage
 pytest tests/ --cov=laker
 
-# Format
-black laker/ tests/
-
-# Sort imports
-isort laker/ tests/
-
 # Lint
-flake8 laker/ tests/
+ruff check laker/ tests/ examples/ benchmarks/
+
+# Format
+ruff format laker/ tests/ examples/ benchmarks/
 
 # Type check
 mypy laker/
 ```
 
-### Running Benchmarks
-
-```bash
-python -m benchmarks.reproducible    # Full reproducible benchmark suite
-python -m benchmarks.baseline        # Baseline vs optimised comparison
-python -m benchmarks.approximations  # Approximation speed comparison
-python -m benchmarks.run             # Legacy quick benchmarks
-```
-
-### Code Style
+### Code style
 
 - Line length: 100
-- Formatting: black
-- Type hints: required on all public signatures
-- Docstrings: Google-style with Args/Returns/Raises/Examples sections
-- No semi-private naming (`_foo`) — all identifiers are public
+- Linter / formatter: `ruff`
+- Type hints throughout; `mypy` runs in CI
+- Google-style docstrings with `Args` / `Returns` / `Raises` / `Examples`
+- Single-word public names — no leading or trailing underscores on
+  identifiers anywhere in the repo
 
-### Commit Conventions
+### Commit conventions
 
 We use [Conventional Commits](https://www.conventionalcommits.org/):
 
@@ -295,152 +331,31 @@ chore: update ruff config
 
 ---
 
-## Testing
-
-```bash
-pytest tests/ -v
-pytest tests/ --cov=laker
-```
-
----
-
-## Build
-
-```bash
-python -m build
-```
-
----
-
-## Release
-
-See [docs/release.md](docs/release.md) — version is bumped in `pyproject.toml`,
-the changelog updated, a `vX.Y.Z` tag is cut, and the PyPI publishing workflow
-publishes the source and wheel distributions.
-
----
-
-## Tech Stack
-
-| Category | Technology |
-|----------|------------|
-| Language | Python 3.9+ |
-| Numerical | [PyTorch](https://pytorch.org/) >= 2.0, [NumPy](https://numpy.org/) >= 1.23 |
-| Machine Learning | [scikit-learn](https://scikit-learn.org/) (optional, for `GridSearchCV`) |
-| Lint/Format | [black](https://github.com/psf/black), [flake8](https://flake8.pycqa.org/), [isort](https://pycqa.github.io/isort/) |
-| Type Check | [mypy](https://mypy-lang.org/) |
-| Testing | [pytest](https://docs.pytest.org/) + pytest-cov |
-| Build | [setuptools](https://setuptools.pypa.io/) |
-
----
-
-## Performance
-
-All numbers below were measured on an Apple M3 (Darwin) with PyTorch 2.11.0,
-fixed seed `42`, and 50 measurement trials for matvec. The **baseline** is the
-pre-optimisation code run under identical conditions (`float64`, `pcg_tol=1e-10`).
-The **optimised** column is the new code with the same settings, isolating
-algorithmic changes from the float32 switch.
-
-### Speedup vs Baseline (float64)
-
-| Metric | Baseline | Optimised | Speedup |
-|---|---|---|---|
-| Kernel matvec n=5000 | 30.40 ms | 25.96 ms | **1.17x** |
-| Preconditioner build n=5000 | 103.84 ms | 84.78 ms | **1.22x** |
-| Full fit n=1000 | 346.98 ms | 322.38 ms | **1.08x** |
-
-### Memory Reduction
-
-For `n = 100,000` and `chunk_size = 8192`, peak block memory drops from
-**3.2 GB** (original 1-D chunking) to **256 MB** (2-D tiling), a **12x memory
-reduction**.
-
-### Approximation Matvec Comparison (n=2000)
-
-| Method | Mean (ms) | Speedup vs Exact |
-|---|---|---|
-| exact | 6.82 | 1.0x |
-| nystrom | 0.04 | **170x** |
-| rff | 0.09 | **76x** |
-| knn | 4.31 | 1.6x |
-| ski | 60.41 | 0.11x |
-
-### How It Works
-
-**Adaptive Tiling** — For `n <= chunk_size` or when a single chunk against the
-full input fits in a 64 MB budget, we use 1-D chunking (fastest path).
-Otherwise we tile over both the output and reduction dimensions, keeping peak
-memory bounded.
-
-**Factored Preconditioner** — The learned covariance `Sigma` is maintained as
-`a*I + Q*C*Q^T` where `Q` is an orthonormal basis for the random-probe span.
-This reduces each CCCP iteration to `O(N_r^3)` instead of `O(n^3)`.
-
-**PCG Solver** — The solver uses standard preconditioned conjugate gradient
-with explicit breakdown detection (`p^T A p <= 0`). Optional residual
-replacement (`restart_freq`) can suppress round-off drift in very long float64
-runs, but it is **disabled by default** because it causes catastrophic
-cancellation in float32.
-
----
-
 ## Limitations
 
-1. **PCG does not always converge within max_iter.** On very ill-conditioned
-   problems or with `float32`, the solver may hit the iteration cap. Using
-   `dtype=torch.float64` and `pcg_tol=1e-10` usually fixes this at a ~2x runtime
-   cost.
+1. **PCG may not converge within `pcg_max`.** On very ill-conditioned
+   problems or with `float32`, the solver may hit the iteration cap.
+   Switching to `dtype=torch.float64` and `pcg_tol=1e-10` usually fixes
+   this at a ~2× runtime cost.
 
-2. **Default float32 trades accuracy for speed.** The float32 path is suitable
-   for most ML workloads but can struggle when `lambda_reg` is very small
-   (`< 1e-4`) or when the kernel matrix has entries near the float32 dynamic
-   range.
+2. **`float32` trades accuracy for speed.** The default path is suitable
+   for most ML workloads but can struggle when `lam < 1e-4` or when the
+   kernel matrix has entries near the `float32` dynamic range.
 
-3. **Low-rank approximations are rough for exponential kernels.** The Nyström
-   and RFF approximations reduce matvec cost but can have high relative error on
-   the fast-growing exponential kernel. They are best used for very large `n`
-   where exact evaluation is infeasible, or when speed dominates accuracy.
+3. **Low-rank approximations are rough for exponential kernels.** Nyström
+   and RFF reduce matvec cost but can have high relative error on the
+   fast-growing exponential kernel. They are best used for very large
+   `n` where exact evaluation is infeasible, or when speed dominates
+   accuracy.
 
-4. **SKI grid grows exponentially with embedding_dim.** Because SKI builds a
-   product grid in the embedding space, the grid size scales as `gpd^d`. For
-   `embedding_dim > 10`, the grid becomes impractical; use Nyström or RFF instead.
+4. **SKI grid grows exponentially with `embed_dim`.** Because SKI builds
+   a product grid in the embedding space, the grid size scales as
+   `per_dim ** embed_dim`. For `embed_dim > 10`, the grid becomes
+   impractical; use Nyström or RFF instead.
 
-5. **Custom embeddings must be importable for save/load.** If you pass a custom
-   `embedding_module` to `LAKERRegressor`, the module and class must be importable
-   when calling `LAKERRegressor.load()`.
-
----
-
-## Roadmap
-
-- [ ] Warm-start preconditioner for incremental datasets
-- [ ] Distributed model parallelism (all-reduce over partial contributions)
-- [ ] Improved landmark-selection heuristics for exponential kernels
-- [ ] Batch prediction for multiple independent query sets
-- [ ] Sparse tensor backends (`torch.sparse_csr`, `scipy.sparse`)
-- [ ] GPU-accelerated Nyström landmark selection
-- [ ] ONNX export for deployed models
-
----
-
-## Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
-
-- Development setup
-- Pull request process
-- Coding standards
-- Test expectations
-
-## Code of Conduct
-
-This project follows the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md).
-By participating you agree to abide by its terms.
-
-## Security
-
-Report vulnerabilities to **sachncs@gmail.com** — see [SECURITY.md](SECURITY.md).
+5. **Custom encoders must be importable for save / load.** If you pass a
+   custom `encoder` to `Laker`, the module and class must be importable
+   when calling `Laker.load()`.
 
 ---
 
@@ -450,13 +365,16 @@ If you use LAKER in your research, please cite:
 
 ```bibtex
 @article{tao2026laker,
-  title={Accelerating Regularized Attention Kernel Regression for Spectrum Cartography},
-  author={Tao, Liping and Tan, Chee Wei},
-  journal={arXiv preprint arXiv:2604.25138},
-  year={2026}
+  title  = {Accelerating Regularized Attention Kernel Regression for Spectrum Cartography},
+  author = {Tao, Liping and Tan, Chee Wei},
+  year   = {2026},
+  journal= {arXiv preprint arXiv:2604.25138},
+  url    = {https://arxiv.org/abs/2604.25138}
 }
 ```
 
+---
+
 ## License
 
-[MIT](LICENSE) © 2026 Sachin
+[MIT](LICENSE) © 2026 LAKER Contributors
