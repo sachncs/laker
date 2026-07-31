@@ -1,13 +1,15 @@
 """Command-line interface (CLI) class.
 
-The legacy ``laker.__main__`` module re-exports the same handlers
-from this module. New code should depend on :class:`CLI` directly.
+The ``laker`` console script entry point declared in
+``pyproject.toml`` invokes :meth:`CLI.run` directly. New code should
+depend on :class:`CLI` directly.
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from typing import Optional, Sequence
 
 import numpy
@@ -139,18 +141,26 @@ class CLI:
 
     @classmethod
     def run(cls, argv: Optional[Sequence[str]] = None) -> int:
-        """Run the CLI; returns the process exit code."""
+        """Run the CLI and ``sys.exit`` with the appropriate status.
+
+        Successful fit / predict exits ``0``; a no-subcommand
+        invocation prints help and exits ``1``. The ``return`` value
+        is documented for tests that patch ``sys.exit``.
+        """
         parser = cls._build_parser()
         args = parser.parse_args(argv)
         cls.setup_logging(args.verbose)
         if args.command == "fit":
             cls._run_fit(args)
-        elif args.command == "predict":
+            sys.exit(0)
+            return 0  # unreachable; satisfies static type checkers
+        if args.command == "predict":
             cls._run_predict(args)
-        else:
-            parser.print_help()
-            return 1
-        return 0
+            sys.exit(0)
+            return 0  # unreachable; satisfies static type checkers
+        parser.print_help()
+        sys.exit(1)
+        return 1  # unreachable; satisfies static type checkers
 
 
 __all__ = ["CLI"]

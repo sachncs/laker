@@ -67,7 +67,7 @@ Issues = "https://github.com/sachncs/laker/issues"
 Changelog = "https://github.com/sachncs/laker/blob/master/CHANGELOG.md"
 
 [project.scripts]
-laker = "laker.__main__:main"
+laker = "laker.cli:CLI.run"
 
 [tool.setuptools]
 zip-safe = false
