@@ -7,6 +7,7 @@ through the structural migration.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import warnings
@@ -83,6 +84,19 @@ class Backend:
         os.environ["LAKER_SEED"] = str(int(value))
 
     @staticmethod
+    def autocast():
+        """Return an autocast context when ``LAKER_AUTOCAST=1``.
+
+        When on CUDA this uses float16/bfloat16 for matmuls; on
+        CPU/MPS the context is a no-op. The autocast flag is read from
+        the ``LAKER_AUTOCAST`` env var on import; call ``load_env``
+        after changing the env var to refresh.
+        """
+        if not _AUTOCAST_ENABLED:
+            return contextlib.nullcontext()
+        return torch.amp.autocast("cuda" if torch.cuda.is_available() else "cpu")
+
+    @staticmethod
     def load_env() -> None:
         """Re-read all ``LAKER_*`` env vars."""
         _init_from_env()
@@ -109,6 +123,7 @@ DEFAULT_DTYPE: torch.dtype = torch.float32
 _LAKER_COMPILE_MODE = os.environ.get("LAKER_COMPILE_MODE", "")
 _LAKER_CHUNK_BUDGET_MB = int(os.environ.get("LAKER_CHUNK_MEMORY_BUDGET", "64"))
 _LAKER_DISABLE_CHUNK = os.environ.get("LAKER_DISABLE_CHUNK", "") == "1"
+_AUTOCAST_ENABLED = os.environ.get("LAKER_AUTOCAST", "") == "1"
 
 _ENV_INIT_DONE = False
 

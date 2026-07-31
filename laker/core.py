@@ -48,15 +48,14 @@ by the high-level estimator, the streaming updater, and training loops.
 
 from __future__ import annotations
 
-import contextlib
 import logging
-import os
 from typing import Callable, Optional, Union, cast
 
 import torch
 import torch.nn as nn
 
 from laker.backend import (
+    Backend,
     get_chunk_disabled,
     get_chunk_memory_budget,
     get_default_device,
@@ -81,19 +80,8 @@ from laker.solvers import PreconditionedConjugateGradient
 logger = logging.getLogger(__name__)
 
 
-# Autocast context manager, enabled via the LAKER_AUTOCAST env var.
-# When on CUDA this uses float16/bfloat16 for matmuls; on CPU/MPS it
-# is a no-op (the autocast context still works but the underlying math
-# stays in float32 on those backends).
-_LAKER_AUTOCAST = os.environ.get("LAKER_AUTOCAST", "") == "1"
-
-
-def _autocast_if_enabled():
-    """Return an autocast context when ``LAKER_AUTOCAST=1``, else null context."""
-    if not _LAKER_AUTOCAST:
-        return contextlib.nullcontext()
-    # gate in autocast  # ponytail: autocast
-    return torch.amp.autocast("cuda" if torch.cuda.is_available() else "cpu")
+# Autocast support is exposed via ``Backend.autocast`` (single-word
+# public name). See ``laker.backend.Backend.autocast``.
 
 
 class LAKERCore:
@@ -578,7 +566,7 @@ class LAKERCore:
             max_iter=self.pcg_max_iter,
             verbose=self.verbose,
         )
-        with _autocast_if_enabled():
+        with Backend.autocast():
             alpha, _status = pcg.solve(
                 operator=kernel_operator.matvec,
                 preconditioner=preconditioner.apply,
@@ -637,7 +625,7 @@ class LAKERCore:
         Returns:
             Predicted field values of shape ``(m,)``.
         """
-        with torch.no_grad(), _autocast_if_enabled():
+        with torch.no_grad(), Backend.autocast():
             embedded_input = x.to(dtype=self.embedding_dtype)
             query_embeddings = embedding_model(embedded_input)
             if self.embedding_dtype != self.dtype:
@@ -727,7 +715,7 @@ class LAKERCore:
             Predictive variance of shape ``(m,)``, clamped to
             :math:`\\geq 0`.
         """
-        with torch.no_grad(), _autocast_if_enabled():
+        with torch.no_grad(), Backend.autocast():
             embedded_input = x.to(dtype=self.embedding_dtype)
             query_embeddings = embedding_model(embedded_input)
             if self.embedding_dtype != self.dtype:
@@ -831,7 +819,7 @@ class LAKERCore:
         Returns:
             Differentiable predicted field values of shape ``(m,)``.
         """
-        with _autocast_if_enabled():
+        with Backend.autocast():
             embedded_input = x.to(dtype=self.embedding_dtype)
             query_embeddings = embedding_model(embedded_input)
             if self.embedding_dtype != self.dtype:
@@ -916,7 +904,7 @@ class LAKERCore:
             Differentiable predictive variance of shape ``(m,)``, clamped
             to be non-negative.
         """
-        with _autocast_if_enabled():
+        with Backend.autocast():
             embedded_input = x.to(dtype=self.embedding_dtype)
             query_embeddings = embedding_model(embedded_input)
             if self.embedding_dtype != self.dtype:
