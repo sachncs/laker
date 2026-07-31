@@ -1,10 +1,7 @@
 """Embedding modules.
 
-Public entry point is :class:`Embed` (with the abstract base),
-:class:`Position` (default encoder), and :class:`Visual` (patch
-embeddings). The ``Position`` class preserves the API of the prior
-``laker.embeddings.PositionEmbedding`` so existing code keeps working
-while consumers migrate to the new namespace.
+Public types: :class:`Embed` (abstract base), :class:`Position`,
+:class:`Visual`.
 """
 
 from __future__ import annotations
@@ -25,31 +22,29 @@ class Embed(nn.Module):
     """Abstract base class for all LAKER embedding modules.
 
     Subclasses must implement :meth:`forward` returning a 2-D tensor
-    of shape ``(batch, embedding_dim)``.
+    of shape ``(batch, dim)``.
     """
 
-    embedding_dim: int
+    dim: int
     input_dim: int
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # pragma: no cover
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
 
 class Position(Embed):
-    r"""Deterministic position-driven embedding.
+    """Deterministic position-driven embedding (Fourier features + MLP).
 
-    Maps ``x in R^{d_x}`` to a feature vector in ``R^{d_e}`` via a
-    random Fourier feature bank followed by a deterministic MLP.
-    Drawing Fourier frequencies and MLP initialisation from a
-    dedicated local ``torch.Generator`` keeps the module fully
-    reproducible and thread-safe at construction time.
+    Drawing Fourier frequencies and MLP initialisation from a dedicated
+    local :class:`torch.Generator` keeps the module fully reproducible
+    and thread-safe at construction time.
     """
 
     def __init__(
         self,
         input_dim: int,
-        embedding_dim: int,
-        num_fourier: Optional[int] = None,
+        dim: int,
+        num: Optional[int] = None,
         sigma: float = 10.0,
         seed: int = 42,
         device: Optional[torch.device] = None,
@@ -57,11 +52,11 @@ class Position(Embed):
     ) -> None:
         super().__init__()
         self.input_dim = int(input_dim)
-        self.embedding_dim = int(embedding_dim)
+        self.dim = int(dim)
         self.sigma = float(sigma)
-        if num_fourier is None:
-            num_fourier = embedding_dim * 2
-        self.num_fourier = int(num_fourier)
+        if num is None:
+            num = dim * 2
+        self.num = int(num)
         if device is None:
             device = Backend.device
         if dtype is None:
@@ -72,7 +67,7 @@ class Position(Embed):
             "freq",
             torch.randn(
                 self.input_dim,
-                self.num_fourier,
+                self.num,
                 generator=gen,
                 device=device,
                 dtype=dtype,
@@ -81,13 +76,13 @@ class Position(Embed):
         )
         self.register_buffer(
             "phase",
-            torch.rand(self.num_fourier, generator=gen, device=device, dtype=dtype) * 2.0 * math.pi,
+            torch.rand(self.num, generator=gen, device=device, dtype=dtype) * 2.0 * math.pi,
         )
-        mlp_hidden = max(self.embedding_dim, self.num_fourier // 2)
+        hidden = max(self.dim, self.num // 2)
         self.mlp = nn.Sequential(
-            nn.Linear(self.num_fourier, mlp_hidden, device=device, dtype=dtype),
+            nn.Linear(self.num, hidden, device=device, dtype=dtype),
             nn.Tanh(),
-            nn.Linear(mlp_hidden, self.embedding_dim, device=device, dtype=dtype),
+            nn.Linear(hidden, self.dim, device=device, dtype=dtype),
         )
         with torch.no_grad():
             for layer in self.mlp:
@@ -122,34 +117,33 @@ class Position(Embed):
         features = torch.cos(2.0 * math.pi * (x @ self.freq) + self.phase)
         return self.mlp(features)
 
-    def extra_repr(self) -> str:
+    def info(self) -> str:
         return (
-            f"input_dim={self.input_dim}, embedding_dim={self.embedding_dim}, "
-            f"num_fourier={self.num_fourier}, sigma={self.sigma}"
+            f"input_dim={self.input_dim}, dim={self.dim}, "
+            f"num={self.num}, sigma={self.sigma}"
         )
 
 
 class Visual(Embed):
     """Patch-based visual embedding (image-to-features).
 
-    A small ``Conv2d`` encoder followed by a linear projection to
-    ``embedding_dim``. ``input_dim`` denotes the number of colour
-    channels.
+    A small :class:`Conv2d` encoder followed by a linear projection to
+    ``dim``. ``input_dim`` is the number of colour channels.
     """
 
     def __init__(
         self,
         input_dim: int = 3,
-        embedding_dim: int = 10,
-        patch_size: int = 4,
+        dim: int = 10,
+        patch: int = 4,
         seed: int = 42,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
         super().__init__()
         self.input_dim = int(input_dim)
-        self.embedding_dim = int(embedding_dim)
-        self.patch_size = int(patch_size)
+        self.dim = int(dim)
+        self.patch = int(patch)
         if device is None:
             device = Backend.device
         if dtype is None:
@@ -157,13 +151,13 @@ class Visual(Embed):
         gen = torch.Generator(device=device).manual_seed(int(seed))
         self.encoder = nn.Conv2d(
             input_dim,
-            embedding_dim,
-            kernel_size=patch_size,
-            stride=patch_size,
+            dim,
+            kernel_size=patch,
+            stride=patch,
             device=device,
             dtype=dtype,
         )
-        self.proj = nn.Linear(embedding_dim, embedding_dim, device=device, dtype=dtype)
+        self.proj = nn.Linear(dim, dim, device=device, dtype=dtype)
         with torch.no_grad():
             bound = math.sqrt(1.0 / self.encoder.weight.shape[1])
             self.encoder.weight.copy_(
@@ -177,22 +171,16 @@ class Visual(Embed):
                 - bound
             )
             if self.encoder.bias is not None:
-                self.encoder.bias.copy_(
-                    torch.zeros_like(self.encoder.bias, device=device, dtype=dtype)
-                )
+                self.encoder.bias.zero_()
         self.to(device=device, dtype=dtype)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: (batch, channels, height, width)
-        h = self.encoder(x)  # (batch, embedding_dim, h', w')
-        h = h.mean(dim=(-2, -1))  # (batch, embedding_dim)
+        h = self.encoder(x)
+        h = h.mean(dim=(-2, -1))
         return self.proj(h)
 
-    def extra_repr(self) -> str:
-        return (
-            f"input_dim={self.input_dim}, embedding_dim={self.embedding_dim}, "
-            f"patch_size={self.patch_size}"
-        )
+    def info(self) -> str:
+        return f"input_dim={self.input_dim}, dim={self.dim}, patch={self.patch}"
 
 
 __all__ = ["Embed", "Position", "Visual"]

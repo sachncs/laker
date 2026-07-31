@@ -51,16 +51,16 @@ class Scale:
             locations,
             transmitters,
             powers,
-            path_loss_exponent=2.7,
-            reference_distance=1.0,
-            shadow_sigma=1.0,
+            loss=2.7,
+            ref=1.0,
+            shadow=1.0,
             seed=seed,
         )
 
         n_grid = grid_size * grid_size
         grid = Data.grid(
             (0.0, area, 0.0, area),
-            grid_size=grid_size,
+            size=grid_size,
             dtype=torch.float64,
         )
 
@@ -72,8 +72,8 @@ class Scale:
 
         # ---- fit (timed) ---------------------------------------------------
         model = Laker(
-            embedding_dim=embedding_dim,
-            regularization=1e-3,
+            embed_dim=embedding_dim,
+            lam=1e-3,
             dtype=torch.float64,
         )
         t0 = time.perf_counter()
@@ -81,7 +81,7 @@ class Scale:
         fit_seconds = time.perf_counter() - t0
 
         assert model.coef_.shape == (n,), "fit: coef shape mismatch"
-        assert model.embeddings_.shape == (n, embedding_dim), "fit: embeddings shape mismatch"
+        assert model.embed_.shape == (n, embedding_dim), "fit: embeddings shape mismatch"
 
         # ---- predict (timed) ------------------------------------------------
         t0 = time.perf_counter()
@@ -102,14 +102,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--n", type=int, default=5000)
     parser.add_argument("--area", type=float, default=200.0)
-    parser.add_argument("--grid-size", type=int, default=30)
-    parser.add_argument("--embedding-dim", type=int, default=10)
+    parser.add_argument("--size", type=int, default=30)
+    parser.add_argument("--embed-dim", type=int, default=10)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
     Scale.run(
         n=args.n,
         area=args.area,
-        grid_size=args.grid_size,
-        embedding_dim=args.embedding_dim,
+        grid_size=args.size,
+        embedding_dim=args.embed_dim,
         seed=args.seed,
     )

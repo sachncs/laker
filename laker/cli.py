@@ -1,8 +1,6 @@
-"""Command-line interface (CLI) class.
+"""Command-line interface for LAKER.
 
-The ``laker`` console script entry point declared in
-``pyproject.toml`` invokes :meth:`CLI.run` directly. New code should
-depend on :class:`CLI` directly.
+Public class :class:`CLI` with single-word static methods.
 """
 
 from __future__ import annotations
@@ -12,7 +10,7 @@ import logging
 import sys
 from typing import Optional, Sequence
 
-import numpy
+import numpy as np
 import torch
 
 logger = logging.getLogger("laker")
@@ -35,75 +33,67 @@ class CLI:
     def load(path: str) -> torch.Tensor:
         """Load a tensor from ``.pt``/``.pth``/``.npy`` files."""
         if path.endswith(".npy"):
-            return torch.from_numpy(numpy.load(path))
+            return torch.from_numpy(np.load(path))
         if path.endswith(".pt") or path.endswith(".pth"):
             return torch.load(path, weights_only=True)
         raise ValueError(f"Unsupported file extension for {path}. Expected .pt, .pth, or .npy.")
 
     @staticmethod
     def parser() -> argparse.ArgumentParser:
+        """Build the argument parser with single-word flags."""
         from laker import __version__
 
-        arg_parser = argparse.ArgumentParser(
+        p = argparse.ArgumentParser(
             description="LAKER: Learning-based Attention Kernel Regression",
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         )
-        arg_parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-        arg_parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging")
-        subparsers = arg_parser.add_subparsers(dest="command")
+        p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+        p.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging")
+        sub = p.add_subparsers(dest="command")
 
-        fit_parser = subparsers.add_parser("fit", help="Fit a LAKER model to data")
-        fit_parser.add_argument(
-            "--locations",
-            required=True,
-            help="Path to locations .pt or .npy file",
-        )
-        fit_parser.add_argument(
-            "--measurements",
-            required=True,
-            help="Path to measurements .pt or .npy file",
-        )
-        fit_parser.add_argument("--output", required=True, help="Path to save fitted model")
-        fit_parser.add_argument(
+        fit_p = sub.add_parser("fit", help="Fit a LAKER model to data")
+        fit_p.add_argument("--locations", required=True, help="Locations .pt/.npy")
+        fit_p.add_argument("--measurements", required=True, help="Measurements .pt/.npy")
+        fit_p.add_argument("--output", required=True, help="Where to save the model")
+        fit_p.add_argument(
             "--regularization",
-            "--lambda-reg",
-            dest="regularization",
+            "--lam",
+            dest="lam",
             type=float,
             default=1e-2,
             help="Regularisation lambda",
         )
-        fit_parser.add_argument(
-            "--gamma", type=float, default=1e-1, help="CCCP regularisation gamma"
-        )
-        fit_parser.add_argument("--embedding-dim", type=int, default=10, help="Embedding dimension")
-        fit_parser.add_argument(
+        fit_p.add_argument("--gamma", type=float, default=1e-1, help="CCCP gamma")
+        fit_p.add_argument("--embed-dim", type=int, default=10, help="Embedding dimension")
+        fit_p.add_argument(
             "--probes",
-            "--num-probes",
-            dest="probes",
+            "--num",
+            dest="num",
             type=int,
             default=None,
             help="Number of random probes",
         )
-        fit_parser.add_argument("--device", default="cpu", help="torch device")
-        fit_parser.add_argument(
+        fit_p.add_argument("--device", default="cpu", help="torch device")
+        fit_p.add_argument(
             "--dtype",
             default="float32",
             choices=["float16", "bfloat16", "float32", "float64"],
         )
-        fit_parser.add_argument(
+        fit_p.add_argument(
             "--kernel",
             default="exact",
             choices=["exact", "nystrom", "fourier", "neighbors", "grid", "spectrum", "hybrid"],
         )
 
-        pred_parser = subparsers.add_parser("predict", help="Predict using a fitted model")
-        pred_parser.add_argument("--model", required=True, help="Path to fitted model .pt file")
-        pred_parser.add_argument("--locations", required=True, help="Path to query locations")
-        pred_parser.add_argument("--output", required=True, help="Path to save predictions")
-        return arg_parser
+        pred_p = sub.add_parser("predict", help="Predict using a fitted model")
+        pred_p.add_argument("--model", required=True, help="Fitted model .pt path")
+        pred_p.add_argument("--locations", required=True, help="Query locations")
+        pred_p.add_argument("--output", required=True, help="Where to save predictions")
+        return p
 
     @staticmethod
     def fit(args) -> None:
+        """Dispatch the ``fit`` subcommand."""
         from laker import Laker
 
         logger.info("Loading data...")
@@ -116,10 +106,10 @@ class CLI:
             "float64": torch.float64,
         }[args.dtype]
         model = Laker(
-            regularization=args.regularization,
+            lam=args.lam,
             gamma=args.gamma,
-            embedding_dim=args.embedding_dim,
-            probes=args.probes,
+            embed_dim=args.embed_dim,
+            num=args.num,
             device=args.device,
             dtype=dtype,
             kernel=args.kernel,
@@ -130,37 +120,30 @@ class CLI:
 
     @staticmethod
     def predict(args) -> None:
+        """Dispatch the ``predict`` subcommand."""
         from laker import Laker
 
         logger.info("Loading model...")
         model = Laker.load(args.model)
         x = CLI.load(args.locations)
-        predictions = model.predict(x)
-        torch.save(predictions, args.output)
+        preds = model.predict(x)
+        torch.save(preds, args.output)
         logger.info("Predictions saved to %s", args.output)
 
     @classmethod
     def run(cls, argv: Optional[Sequence[str]] = None) -> int:
-        """Run the CLI and ``sys.exit`` with the appropriate status.
-
-        Successful fit / predict exits ``0``; a no-subcommand
-        invocation prints help and exits ``1``. The ``return`` value
-        is documented for tests that patch ``sys.exit``.
-        """
-        arg_parser = cls.parser()
-        args = arg_parser.parse_args(argv)
+        """Run the CLI and exit with the appropriate status."""
+        p = cls.parser()
+        args = p.parse_args(argv)
         cls.logging(args.verbose)
         if args.command == "fit":
             cls.fit(args)
             sys.exit(0)
-            return 0  # unreachable; satisfies static type checkers
         if args.command == "predict":
             cls.predict(args)
             sys.exit(0)
-            return 0  # unreachable; satisfies static type checkers
-        arg_parser.print_help()
+        p.print_help()
         sys.exit(1)
-        return 1  # unreachable; satisfies static type checkers
 
 
 __all__ = ["CLI"]

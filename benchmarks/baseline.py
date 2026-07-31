@@ -6,7 +6,7 @@ bottlenecks of LAKER:
 
 1. Attention kernel matrix-vector product at :math:`n = 5000`.
 2. CCCP preconditioner build at :math:`n = 5000`.
-3. Full :class:`~laker.models.LAKERRegressor` fit at :math:`n = 1000`.
+3. Full :class:`~laker.model.Laker` fit at :math:`n = 1000`.
 
 Each configuration is run with fixed random seeds
 (``torch.manual_seed(42)``) so that results are deterministic on the
@@ -25,9 +25,9 @@ from typing import Optional
 import torch
 
 from benchmarks.executor import BenchmarkExecutor
-from laker.kernels import Kernel
-from laker.models import LAKERRegressor
-from laker.preconditioner import CCCPPreconditioner
+from laker.kernel import Exact as KernelExact
+from laker.prec import CCCP
+from laker.model import Laker
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ class BaselineComparison:
         # 1. Kernel matvec n=5000
         embeddings = torch.randn(5000, 10, dtype=dtype)
         vector = torch.randn(5000, dtype=dtype)
-        kernel = Kernel.exact(embeddings, lambda_reg=1e-2, chunk_size=1024, dtype=dtype)
+        kernel = KernelExact(embeddings, lam=1e-2, chunk=1024, dtype=dtype)
         for i in range(20):
             kernel.matvec(vector)
 
@@ -116,9 +116,9 @@ class BaselineComparison:
         # 2. Preconditioner build n=5000
         torch.manual_seed(42)
         embeddings = torch.randn(5000, 10, dtype=dtype)
-        kernel = Kernel.exact(embeddings, lambda_reg=1e-2, dtype=dtype)
-        preconditioner = CCCPPreconditioner(
-            num_probes=100,
+        kernel = KernelExact(embeddings, lam=1e-2, dtype=dtype)
+        preconditioner = CCCP(
+            num=100,
             gamma=1e-1,
             max_iter=20,
             tol=1e-4,
@@ -135,15 +135,15 @@ class BaselineComparison:
         torch.manual_seed(42)
         x_train = torch.rand(1000, 2, dtype=dtype) * 100.0
         y_train = torch.randn(1000, dtype=dtype)
-        model = LAKERRegressor(
-            embedding_dim=10,
-            lambda_reg=1e-2,
+        model = Laker(
+            embed_dim=10,
+            lam=1e-2,
             gamma=1e-1,
-            num_probes=50,
-            cccp_max_iter=20,
+            num=50,
+            cccp_max=20,
             cccp_tol=1e-4,
             pcg_tol=pcg_tol,
-            pcg_max_iter=500,
+            pcg_max=500,
             verbose=False,
             dtype=dtype,
         )
@@ -152,7 +152,7 @@ class BaselineComparison:
             lambda: model.fit(x_train, y_train),
         )
         results["fit_1000"] = result["mean_ms"]
-        results["fit_1000_pcg_iters"] = getattr(model, "pcg_iterations_", None)
+        results["fit_1000_pcg_iters"] = getattr(model, "iters_", None)
 
         logger.info(
             "%20s  matvec=%sms  pre=%sms  fit=%sms  iters=%s",

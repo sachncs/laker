@@ -48,9 +48,9 @@ class Learn:
             locations,
             transmitters,
             powers,
-            path_loss_exponent=2.5,
-            reference_distance=1.0,
-            shadow_sigma=1.0,
+            loss=2.5,
+            ref=1.0,
+            shadow=1.0,
             seed=seed,
         )
 
@@ -62,19 +62,19 @@ class Learn:
 
         # ---- fit -----------------------------------------------------------
         model = Laker(
-            embedding_dim=embedding_dim,
-            regularization=1e-2,
+            embed_dim=embedding_dim,
+            lam=1e-2,
             dtype=torch.float64,
         )
         model.fit(locations, targets)
         train_r2 = model.score(locations, targets)
 
         assert model.coef_ is not None, "fit: coef is None after fit"
-        assert model.embeddings_ is not None, "fit: embeddings is None"
+        assert model.embed_ is not None, "fit: embeddings is None"
         assert model.coef_.shape == (n,), "fit: coef shape mismatch"
-        assert model.embeddings_.shape == (n, embedding_dim), "fit: embeddings shape"
+        assert model.embed_.shape == (n, embedding_dim), "fit: embeddings shape"
         assert (
-            model.embeddings_.requires_grad is False
+            model.embed_.requires_grad is False
         ), "fit: frozen embeddings expected at fit time"
 
         # ---- predict -------------------------------------------------------
@@ -106,12 +106,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--n", type=int, default=200)
     parser.add_argument("--area", type=float, default=100.0)
-    parser.add_argument("--embedding-dim", type=int, default=10)
+    parser.add_argument("--embed-dim", type=int, default=10)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
     Learn.run(
         n=args.n,
         area=args.area,
-        embedding_dim=args.embedding_dim,
+        embedding_dim=args.embed_dim,
         seed=args.seed,
     )

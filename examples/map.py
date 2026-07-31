@@ -50,24 +50,24 @@ class Map:
             locations,
             transmitters,
             powers,
-            path_loss_exponent=2.5,
-            reference_distance=1.0,
-            shadow_sigma=1.0,
+            loss=2.5,
+            ref=1.0,
+            shadow=1.0,
             seed=seed,
         )
 
         grid = Data.grid(
             (0.0, area, 0.0, area),
-            grid_size=grid_size,
+            size=grid_size,
             dtype=torch.float64,
         )
         _, ground_truth = Data.field(
             grid,
             transmitters,
             powers,
-            path_loss_exponent=2.5,
-            reference_distance=1.0,
-            shadow_sigma=0.0,
+            loss=2.5,
+            ref=1.0,
+            shadow=0.0,
         )
 
         # ---- data sanity ---------------------------------------------------
@@ -78,8 +78,8 @@ class Map:
 
         # ---- fit -----------------------------------------------------------
         model = Laker(
-            embedding_dim=embedding_dim,
-            regularization=1e-2,
+            embed_dim=embedding_dim,
+            lam=1e-2,
             dtype=torch.float64,
         )
         model.fit(locations, targets)
@@ -110,14 +110,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--n", type=int, default=2000)
     parser.add_argument("--area", type=float, default=100.0)
-    parser.add_argument("--grid-size", type=int, default=50)
-    parser.add_argument("--embedding-dim", type=int, default=12)
+    parser.add_argument("--size", type=int, default=50)
+    parser.add_argument("--embed-dim", type=int, default=12)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
     Map.run(
         n=args.n,
         area=args.area,
-        grid_size=args.grid_size,
-        embedding_dim=args.embedding_dim,
+        grid_size=args.size,
+        embedding_dim=args.embed_dim,
         seed=args.seed,
     )

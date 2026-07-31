@@ -50,15 +50,15 @@ class Flow:
             locations,
             transmitters,
             powers,
-            path_loss_exponent=2.5,
-            reference_distance=1.0,
-            shadow_sigma=1.0,
+            loss=2.5,
+            ref=1.0,
+            shadow=1.0,
             seed=seed,
         )
 
         model = Laker(
-            embedding_dim=embedding_dim,
-            regularization=1e-2,
+            embed_dim=embedding_dim,
+            lam=1e-2,
             dtype=torch.float64,
         )
         model.fit(locations, targets)
@@ -70,9 +70,9 @@ class Flow:
                 new_loc,
                 transmitters,
                 powers,
-                path_loss_exponent=2.5,
-                reference_distance=1.0,
-                shadow_sigma=1.0,
+                loss=2.5,
+                ref=1.0,
+                shadow=1.0,
                 seed=seed + batch_idx + 1,
             )
             locations = torch.cat([locations, new_loc], dim=0)
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     parser.add_argument("--n-per-batch", type=int, default=20)
     parser.add_argument("--n-batches", type=int, default=4)
     parser.add_argument("--area", type=float, default=100.0)
-    parser.add_argument("--embedding-dim", type=int, default=10)
+    parser.add_argument("--embed-dim", type=int, default=10)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
     Flow.run(
@@ -110,6 +110,6 @@ if __name__ == "__main__":
         n_per_batch=args.n_per_batch,
         n_batches=args.n_batches,
         area=args.area,
-        embedding_dim=args.embedding_dim,
+        embedding_dim=args.embed_dim,
         seed=args.seed,
     )

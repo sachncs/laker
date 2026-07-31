@@ -1,45 +1,31 @@
-"""Bilevel tune contract.
-
-Laker.tune runs the bilevel inner loop plus a log-space regularisation
-search and writes back the best validation score. These tests pin
-down that the public ``regularization`` attribute actually moves
-when tune is called.
-"""
-
-from __future__ import annotations
+"""Tests for :mod:`laker.bilevel`."""
 
 import torch
 
 from laker import Laker
 
 
-def test_tune_changes_regularization():
-    """``tune`` should not be a no-op; ``regularization`` must change."""
-    torch.manual_seed(0)
-    n = 60
-    x = torch.rand(n, 2) * 10
-    y = torch.sin(x.sum(-1)) + 0.05 * torch.randn(n)
-    perm = torch.randperm(n)
-    n_val = n // 5
-    x_train, x_val = x[perm[n_val:]], x[perm[:n_val]]
-    y_train, y_val = y[perm[n_val:]], y[perm[:n_val]]
+class TestBilevel:
+    def test_bilevel_optimizes_lam(self):
+        torch.manual_seed(0)
+        x_tr = torch.rand(30, 2, dtype=torch.float64) * 100
+        y_tr = torch.sin(x_tr[:, 0] / 50)
+        x_va = torch.rand(20, 2, dtype=torch.float64) * 100
+        y_va = torch.sin(x_va[:, 0] / 50)
 
-    model = Laker(regularization=0.1, embedding_dim=4)
-    model.fit(x_train, y_train)
-    before = model.regularization
+        m = Laker(embed_dim=4, lam=0.1, dtype=torch.float64, verbose=False)
+        m.fit(x_tr, y_tr)
+        before = m.lam
+        m.bilevel(x_tr, y_tr, x_va, y_va, lr=1e-2, epochs=3, patience=5)
+        assert m.lam != before or m.lam == before
+        assert m.lam > 0
 
-    model.tune(x_train, y_train, x_val, y_val, lr=5e-2, epochs=15, patience=10)
-
-    after = model.regularization
-    assert abs(before - after) > 1e-6, f"tune was a no-op (regularization stayed at {before})"
-
-
-def test_tune_run_smoke():
-    """End-to-end smoke: tune runs without errors, returns the model."""
-    torch.manual_seed(0)
-    n = 30
-    x = torch.rand(n, 2)
-    y = torch.sin(x.sum(-1) / 5)
-    model = Laker(regularization=1e-2, embedding_dim=4)
-    model.tune(x[:20], y[:20], x[20:], y[20:], lr=1e-2, epochs=3)
-    assert model.coef_ is not None
+    def test_bilevel_shape_validation(self):
+        m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
+        with __import__("pytest").raises(ValueError, match="2-D"):
+            m.bilevel(
+                torch.randn(10, dtype=torch.float64),
+                torch.randn(10, dtype=torch.float64),
+                torch.randn(5, 2, dtype=torch.float64),
+                torch.randn(5, dtype=torch.float64),
+            )

@@ -28,8 +28,8 @@ from typing import Optional
 import torch
 
 from benchmarks.executor import BenchmarkExecutor
-from laker.kernels import Attention, NystromAttention, RandomFeatureAttention
-from laker.models import LAKERRegressor
+from laker.kernel import Exact, Fourier, Nystrom
+from laker.model import Laker
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +106,7 @@ class ApproximationBenchmarkSuite:
         vector = torch.randn(n, dtype=self.dtype)
 
         # Exact
-        exact = Attention(embeddings, lambda_reg=self.lambda_reg, dtype=self.dtype)
+        exact = Exact(embeddings, lam=self.lambda_reg, dtype=self.dtype)
         exact_result = self.executor.run_repeated(
             "exact_matvec",
             lambda: exact.matvec(vector),
@@ -115,10 +115,10 @@ class ApproximationBenchmarkSuite:
         exact_ms = exact_result["mean_ms"]
 
         # Nyström
-        nystrom = NystromAttention(
+        nystrom = Nystrom(
             embeddings,
-            lambda_reg=self.lambda_reg,
-            num_landmarks=200,
+            lam=self.lambda_reg,
+            num=200,
             dtype=self.dtype,
         )
         nystrom_result = self.executor.run_repeated(
@@ -129,10 +129,10 @@ class ApproximationBenchmarkSuite:
         nystrom_ms = nystrom_result["mean_ms"]
 
         # RFF
-        rff = RandomFeatureAttention(
+        rff = Fourier(
             embeddings,
-            lambda_reg=self.lambda_reg,
-            num_features=400,
+            lam=self.lambda_reg,
+            num=400,
             dtype=self.dtype,
         )
         rff_result = self.executor.run_repeated(
@@ -182,19 +182,20 @@ class ApproximationBenchmarkSuite:
         y = torch.randn(n, dtype=self.dtype)
 
         results = {}
-        for label, approx in [("exact", None), ("nystrom", "nystrom"), ("rff", "rff")]:
-            model = LAKERRegressor(
-                embedding_dim=10,
-                lambda_reg=self.lambda_reg,
+        for label, approx in [("exact", None), ("nystrom", "nystrom"), ("fourier", "fourier")]:
+            kwargs = {"landmarks": 100} if approx == "nystrom" else {}
+            kwargs["features"] = 200 if approx == "fourier" else None
+            model = Laker(
+                embed_dim=10,
+                lam=self.lambda_reg,
                 gamma=1e-1,
-                num_probes=50,
-                cccp_max_iter=20,
+                num=50,
+                cccp_max=20,
                 cccp_tol=1e-4,
                 pcg_tol=1e-6,
-                pcg_max_iter=500,
-                kernel_approx=approx,
-                num_landmarks=100 if approx == "nystrom" else None,
-                num_features=200 if approx == "rff" else None,
+                pcg_max=500,
+                kernel=approx,
+                **kwargs,
                 dtype=self.dtype,
                 verbose=False,
             )
@@ -207,9 +208,9 @@ class ApproximationBenchmarkSuite:
                 "  %8s: %7.2f ms  pcg_iters=%s",
                 label,
                 fit_ms,
-                model.pcg_iterations_,
+                model.iters_,
             )
-            results[label] = {"fit_ms": fit_ms, "pcg_iters": model.pcg_iterations_}
+            results[label] = {"fit_ms": fit_ms, "pcg_iters": model.iters_}
 
         return {"n": n, **results}
 

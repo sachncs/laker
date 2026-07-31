@@ -1,6 +1,6 @@
-"""Synthetic data generation.
+"""Synthetic data generation for spectrum cartography.
 
-The single public type is :class:`Data`; helpers are static methods.
+Single public class :class:`Data` with single-word static methods.
 """
 
 from __future__ import annotations
@@ -19,66 +19,49 @@ class Data:
     """Synthetic data generation for spectrum cartography."""
 
     @staticmethod
-    def validate_params(
-        path_loss_exponent: float,
-        reference_distance: float,
-        shadow_sigma: float,
+    def validate(
+        loss: float,
+        ref: float,
+        shadow: float,
     ) -> None:
         """Validate path-loss parameters.
 
         Args:
-            path_loss_exponent: ``eta``, must be non-negative.
-            reference_distance: ``d_0``, must be positive.
-            shadow_sigma: Shadowing std-dev, must be non-negative.
-
-        Raises:
-            ValueError: if any value is out of range.
+            loss: path-loss exponent, must be non-negative.
+            ref: reference distance, must be positive.
+            shadow: shadowing std-dev, must be non-negative.
         """
-        if path_loss_exponent < 0:
-            raise ValueError(
-                f"path_loss_exponent must be non-negative, got " f"{path_loss_exponent}"
-            )
-        if reference_distance <= 0:
-            raise ValueError(f"reference_distance must be positive, got " f"{reference_distance}")
-        if shadow_sigma < 0:
-            raise ValueError(f"shadow_sigma must be non-negative, got {shadow_sigma}")
+        if loss < 0:
+            raise ValueError(f"loss must be non-negative, got {loss}")
+        if ref <= 0:
+            raise ValueError(f"ref must be positive, got {ref}")
+        if shadow < 0:
+            raise ValueError(f"shadow must be non-negative, got {shadow}")
 
     @staticmethod
     def field(
         locations: torch.Tensor,
         transmitters: torch.Tensor,
         powers: torch.Tensor,
-        path_loss_exponent: float = 2.0,
-        reference_distance: float = 1.0,
-        shadow_sigma: float = 1.5,
+        loss: float = 2.0,
+        ref: float = 1.0,
+        shadow: float = 1.5,
         seed: Optional[int] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        r"""Generate a synthetic radio field from multiple transmitters.
+        """Generate a synthetic radio field from multiple transmitters.
 
-        Computes a received signal strength (RSS) field via the standard
-        log-distance path-loss model with optional log-normal shadowing:
+        Computes received signal strength (RSS) via the log-distance
+        path-loss model with optional log-normal shadowing:
 
         .. math::
 
-            r(x) = \sum_j \bigl(P_j - 10 \eta \log_{10}
-            \frac{d_j}{d_0} \bigr) + \sigma_\epsilon \epsilon
-
-        where :math:`d_j = \|x - \text{tx}_j\|_2`,
-        :math:`\epsilon \sim \mathcal{N}(0, 1)`.
-
-        Args:
-            locations: Sensor locations of shape ``(n, d)``.
-            transmitters: Transmitter coordinates of shape ``(k, d)``.
-            powers: Transmitter power levels (dBm) of shape ``(k,)``.
-            path_loss_exponent: Path-loss exponent ``eta``.
-            reference_distance: Reference distance ``d_0``.
-            shadow_sigma: Shadowing standard deviation.
-            seed: Optional seed for reproducible shadowing.
+            r(x) = \\sum_j \\bigl(P_j - 10 \\eta \\log_{10} d_j/d_0\\bigr)
+            + \\sigma_\\epsilon \\epsilon
 
         Returns:
-            Tuple ``(rss_clean, rss_noisy)``, each of shape ``(n,)``.
+            ``(rss_clean, rss_noisy)``, each of shape ``(n,)``.
         """
-        Data.validate_params(path_loss_exponent, reference_distance, shadow_sigma)
+        Data.validate(loss, ref, shadow)
         if locations.dim() != 2:
             raise ValueError(f"locations must be 2-D, got shape {locations.shape}")
         if locations.shape[0] == 0:
@@ -102,8 +85,6 @@ class Data:
                 f"got {locations.shape[1]} and {transmitters.shape[1]}"
             )
 
-        # Coerce transmitter and power tensors onto the same device/dtype
-        # as locations so cross-tensor arithmetic works without surprise.
         transmitters = transmitters.to(device=locations.device, dtype=locations.dtype)
         powers = powers.to(device=locations.device, dtype=locations.dtype)
 
@@ -117,25 +98,53 @@ class Data:
         rss_clean = torch.zeros(n, device=locations.device, dtype=locations.dtype)
         for tx_location, tx_power in zip(transmitters, powers):
             distances = torch.norm(locations - tx_location, dim=1)
-            distances = distances.clamp(min=reference_distance)
-            path_loss = 10.0 * path_loss_exponent * torch.log10(distances / reference_distance)
+            distances = distances.clamp(min=ref)
+            path_loss = 10.0 * loss * torch.log10(distances / ref)
             rss_clean += tx_power - path_loss
 
         noise = torch.randn(n, device=locations.device, dtype=locations.dtype, generator=gen)
-        rss_noisy = rss_clean + shadow_sigma * noise
+        rss_noisy = rss_clean + shadow * noise
         logger.info(
-            "Generated radio field: n=%d, tx=%d, path_loss_exp=%.1f, shadow_sigma=%.2f",
+            "Generated radio field: n=%d, tx=%d, loss=%.1f, shadow=%.2f",
             n,
             transmitters.shape[0],
-            path_loss_exponent,
-            shadow_sigma,
+            loss,
+            shadow,
         )
         return rss_clean, rss_noisy
 
     @staticmethod
+    def split(
+        n: int,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        val: float = 0.2,
+        seed: Optional[int] = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Deterministic train/val split.
+
+        Args:
+            n: number of samples.
+            x: inputs of shape ``(n, d)``.
+            y: targets of shape ``(n,)``.
+            val: validation fraction in ``(0, 1)``.
+            seed: optional seed (otherwise uses ``Backend.seed``).
+        """
+        from laker.check import Check
+
+        n_train, n_val = Check.split(n, val)
+        gen = torch.Generator(device=x.device)
+        seed_val = int(seed) if seed is not None else int(torch.initial_seed())
+        gen.manual_seed(seed_val)
+        perm = torch.randperm(n, generator=gen, device=x.device)
+        train_idx = perm[n_val:]
+        val_idx = perm[:n_val]
+        return x[train_idx], y[train_idx], x[val_idx], y[val_idx]
+
+    @staticmethod
     def grid(
         bounds: Tuple[float, float, float, float],
-        grid_size: int,
+        size: int,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> torch.Tensor:
@@ -143,15 +152,15 @@ class Data:
 
         Args:
             bounds: ``(x_min, x_max, y_min, y_max)``.
-            grid_size: Number of points per axis.
-            device: Target device.
-            dtype: Target dtype.
+            size: number of points per axis.
+            device: target device.
+            dtype: target dtype.
 
         Returns:
-            Tensor of shape ``(grid_size**2, 2)``.
+            Tensor of shape ``(size**2, 2)``.
         """
-        if grid_size < 2:
-            raise ValueError(f"grid_size must be at least 2, got {grid_size}")
+        if size < 2:
+            raise ValueError(f"size must be at least 2, got {size}")
         x_min, x_max, y_min, y_max = bounds
         if x_min >= x_max:
             raise ValueError(f"x_min ({x_min}) must be strictly less than x_max ({x_max})")
@@ -161,8 +170,8 @@ class Data:
             device = Backend.device
         if dtype is None:
             dtype = Backend.dtype
-        x = torch.linspace(x_min, x_max, grid_size, device=device, dtype=dtype)
-        y = torch.linspace(y_min, y_max, grid_size, device=device, dtype=dtype)
+        x = torch.linspace(x_min, x_max, size, device=device, dtype=dtype)
+        y = torch.linspace(y_min, y_max, size, device=device, dtype=dtype)
         xx, yy = torch.meshgrid(x, y, indexing="ij")
         return torch.stack([xx, yy], dim=-1).reshape(-1, 2)
 

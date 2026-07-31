@@ -57,7 +57,6 @@ all = ["laker[viz,dev]"]
 Homepage = "https://github.com/sachncs/laker"
 Issues = "https://github.com/sachncs/laker/issues"
 Repository = "https://github.com/sachncs/laker"
-Issues = "https://github.com/sachncs/laker/issues"
 Changelog = "https://github.com/sachncs/laker/blob/master/CHANGELOG.md"
 
 [project.scripts]
@@ -142,7 +141,6 @@ omit = [
     "*/docs/*",
     "*/benchmarks/*",
     "laker/__main__.py",
-    "laker/_visualize_impl.py",
 ]
 
 [tool.coverage.report]

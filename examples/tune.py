@@ -49,9 +49,9 @@ class Tune:
             locations,
             transmitters,
             powers,
-            path_loss_exponent=2.0,
-            reference_distance=1.0,
-            shadow_sigma=0.2,
+            loss=2.0,
+            ref=1.0,
+            shadow=0.2,
             seed=seed,
         )
 
@@ -74,8 +74,8 @@ class Tune:
         scores: list[float] = []
         for reg in log_grid:
             model = Laker(
-                embedding_dim=embedding_dim,
-                regularization=reg,
+                embed_dim=embedding_dim,
+                lam=reg,
                 dtype=torch.float64,
                 verbose=False,
             )
@@ -105,12 +105,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--n", type=int, default=800)
     parser.add_argument("--area", type=float, default=10.0)
-    parser.add_argument("--embedding-dim", type=int, default=12)
+    parser.add_argument("--embed-dim", type=int, default=12)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
     Tune.run(
         n=args.n,
         area=args.area,
-        embedding_dim=args.embedding_dim,
+        embedding_dim=args.embed_dim,
         seed=args.seed,
     )

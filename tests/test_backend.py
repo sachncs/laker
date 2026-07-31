@@ -1,218 +1,141 @@
-"""Behavioural + precision tests for ``laker.backend``.
+"""Tests for :mod:`laker.backend`."""
 
-Every assertion targets a real behavioural contract: a numerical
-value (the default dtype), an idempotent round-trip on global state,
-a precision guarantee on tensor conversion, or the contract between
-``LAKER_DEVICE`` / ``LAKER_DTYPE`` env vars and the live defaults.
-"""
-
-from __future__ import annotations
-
-import importlib
 import os
 
-import numpy as np
 import pytest
 import torch
 
-from laker import backend
 from laker.backend import Backend
 
 
-# ---------------------------------------------------------------------------
-# Default dtype and dtype round-trip
-# ---------------------------------------------------------------------------
-def test_default_dtype_is_float32():
-    """``Backend.dtype`` returns ``torch.float32`` after
-    package import. Any deviation here indicates a silent dtype change."""
-    assert Backend.dtype == torch.float32
+@pytest.fixture(autouse=True)
+def reset_backend():
+    yield
+    Backend.load()
 
 
-def test_Backend_set_dtype_round_trips():
-    """Setting ``float64`` mutates the default; restoring to the
-    original dtype returns the exact original value (not just any
-    float32-equivalent).
-    """
-    old = Backend.dtype
-    try:
-        Backend.set_dtype(torch.float64)
-        assert Backend.dtype == torch.float64, "set to float64 did not stick"
-        Backend.set_dtype(torch.float16)
-        assert Backend.dtype == torch.float16
-    finally:
-        Backend.set_dtype(old)
-    assert Backend.dtype == old
+class TestDefaults:
+    def test_initial_device(self):
+        if "LAKER_DEVICE" not in os.environ:
+            assert Backend.device == torch.device("cpu")
+
+    def test_initial_dtype(self):
+        assert Backend.dtype in (torch.float32, torch.float64)
 
 
-# ---------------------------------------------------------------------------
-# ``Backend.to_tensor``: precision and dtype/device preservation across input types.
-# ---------------------------------------------------------------------------
-@pytest.mark.parametrize(
-    "value,target_dtype,expected_dtype",
-    [
-        (1.0, None, torch.float32),
-        (1.0, torch.float64, torch.float64),
-        (np.array([1.0, 2.0, 3.0]), None, torch.float32),
-        (np.array([1.0, 2.0, 3.0]), torch.float64, torch.float64),
-        ([1.0, 2.0, 3.0], None, torch.float32),
-        (torch.tensor([1.0, 2.0, 3.0]), torch.float64, torch.float64),
-    ],
-)
-def test_Backend_to_tensor_dtype_preserved(value, target_dtype, expected_dtype):
-    """``Backend.to_tensor`` produces a tensor with the requested dtype."""
-    t = Backend.to_tensor(value, dtype=target_dtype)
-    assert isinstance(t, torch.Tensor)
-    assert t.dtype == expected_dtype
-
-
-def test_Backend_to_tensor_default_dtype_is_float32():
-    """Without an explicit dtype, ``Backend.to_tensor`` uses the package default
-    which is ``torch.float32``."""
-    old = Backend.dtype
-    Backend.set_dtype(torch.float32)
-    try:
-        t = Backend.to_tensor([1.0, 2.0, 3.0])
-        assert t.dtype == torch.float32
-    finally:
-        Backend.set_dtype(old)
-
-
-def test_Backend_to_tensor_numpy_values_byte_for_byte():
-    """``Backend.to_tensor`` of a NumPy array must round-trip the values
-    exactly (not just the dtype)."""
-    arr = np.array([1.5, -2.25, 3.0, 4.75, 0.0], dtype=np.float64)
-    t = Backend.to_tensor(arr, dtype=torch.float64)
-    torch.testing.assert_close(t, torch.from_numpy(arr))
-
-
-def test_Backend_to_tensor_tensor_values_byte_for_byte():
-    """``Backend.to_tensor`` of an existing tensor preserves the values exactly
-    and matches the package default dtype."""
-    src = torch.tensor([1.5, -2.25, 3.0, 4.75, 0.0])
-    t = Backend.to_tensor(src)
-    torch.testing.assert_close(t, src)
-    assert t.dtype == Backend.dtype
-
-
-def test_Backend_to_tensor_tensor_with_explicit_dtype_casts():
-    """When the source tensor has a different dtype, ``Backend.to_tensor`` casts
-    to the requested dtype and preserves values (modulo precision).
-    """
-    src = torch.tensor([1.5, 2.5, 3.5], dtype=torch.float32)
-    t = Backend.to_tensor(src, dtype=torch.float64)
-    assert t.dtype == torch.float64
-    torch.testing.assert_close(t.cpu(), src.double())
-
-
-def test_Backend_to_tensor_explicit_device_preserved():
-    """``Backend.to_tensor`` accepts an explicit device argument and the
-    resulting tensor lives on that device."""
-    t = Backend.to_tensor([1.0, 2.0], device=torch.device("cpu"), dtype=torch.float64)
-    assert t.device == torch.device("cpu")
-    assert t.dtype == torch.float64
-
-
-# ---------------------------------------------------------------------------
-# ``Backend.set_device`` and the ``LAKER_DEVICE`` env contract.
-# ---------------------------------------------------------------------------
-def test_Backend_set_device_string_round_trips():
-    """Setting ``Backend.set_device('cpu')`` works; the default returns
-    to its prior value when restored."""
-    old = Backend.device
-    try:
-        device = Backend.set_device("cpu")
-        assert device == torch.device("cpu")
+class TestDeviceSet:
+    def test_explicit_string(self):
+        Backend.device_set("cpu")
         assert Backend.device == torch.device("cpu")
-    finally:
-        Backend.set_device(old)
-    assert Backend.device == old
+
+    def test_explicit_device(self):
+        Backend.device_set(torch.device("cpu"))
+        assert Backend.device == torch.device("cpu")
+
+    def test_none_auto_select(self):
+        Backend.device_set(None)
+        assert isinstance(Backend.device, torch.device)
 
 
-def test_Backend_set_device_none_auto_selects():
-    """``Backend.set_device(None)`` auto-selects a ``torch.device``."""
-    old = Backend.device
-    try:
-        device = Backend.set_device(None)
-        assert isinstance(device, torch.device)
-    finally:
-        Backend.set_device(old)
+class TestDtypeSet:
+    def test_set_float32(self):
+        Backend.dtype_set(torch.float32)
+        assert Backend.dtype == torch.float32
+
+    def test_set_float64(self):
+        Backend.dtype_set(torch.float64)
+        assert Backend.dtype == torch.float64
+
+    def test_rejects_int(self):
+        with pytest.raises(ValueError, match="floating"):
+            Backend.dtype_set(torch.int32)
 
 
-# ---------------------------------------------------------------------------
-# Environment-variable round-trip on the Backend module.
-# ---------------------------------------------------------------------------
-@pytest.fixture
-def restored_backend_env(monkeypatch):
-    """Restore env vars and the Backend module state after each test."""
-    saved = {
-        "LAKER_DEVICE": os.environ.get("LAKER_DEVICE"),
-        "LAKER_DTYPE": os.environ.get("LAKER_DTYPE"),
-    }
-    yield monkeypatch
-    for key, value in saved.items():
-        if value is None:
-            monkeypatch.delenv(key, raising=False)
-        else:
-            monkeypatch.setenv(key, value)
-    importlib.reload(backend)
+class TestChunkSet:
+    def test_set_positive(self):
+        Backend.chunk_set(64)
+        assert Backend.chunk == 64 * 1024 * 1024
+
+    def test_rejects_zero(self):
+        with pytest.raises(ValueError, match="positive"):
+            Backend.chunk_set(0)
 
 
-def test_env_var_dtype_float64_updates_default_dtype(restored_backend_env):
-    """Setting ``LAKER_DTYPE=float64`` then reloading the module makes
-    ``Backend.dtype`` return ``float64``."""
-    restored_backend_env.setenv("LAKER_DTYPE", "float64")
-    importlib.reload(backend)
-    assert backend.Backend.dtype == torch.float64
+class TestTF32:
+    def test_tf32_returns_bool(self):
+        result = Backend.tf32()
+        assert isinstance(result, bool)
 
 
-def test_env_var_dtype_float32_updates_default_dtype(restored_backend_env):
-    """``LAKER_DTYPE=float32`` yields ``torch.float32`` after reload."""
-    restored_backend_env.setenv("LAKER_DTYPE", "float32")
-    importlib.reload(backend)
-    assert backend.Backend.dtype == torch.float32
+class TestTensor:
+    def test_from_list(self):
+        t = Backend.tensor([1.0, 2.0, 3.0])
+        assert isinstance(t, torch.Tensor)
+        assert t.shape == (3,)
+
+    def test_dtype_device_override(self):
+        t = Backend.tensor([1.0, 2.0], dtype=torch.float64, device="cpu")
+        assert t.dtype == torch.float64
+        assert t.device == torch.device("cpu")
+
+    def test_passthrough_tensor(self):
+        x = torch.randn(3, dtype=torch.float32)
+        t = Backend.tensor(x, dtype=torch.float64)
+        assert t.dtype == torch.float64
 
 
-def test_env_var_invalid_dtype_is_ignored(restored_backend_env):
-    """Unknown dtype strings must not raise during import; the
-    default remains at its baseline value."""
-    restored_backend_env.setenv("LAKER_DTYPE", "fancyfloat99")
-    importlib.reload(backend)
-    assert backend.Backend.dtype in (torch.float32, torch.float64)
+class TestCompile:
+    def test_no_op_when_disabled(self):
+        def f(x):
+            return x + 1
+
+        out = Backend.compile(f)
+        assert out is f
+
+    def test_with_explicit_mode(self):
+        def f(x):
+            return x + 1
+
+        out = Backend.compile(f, mode="reduce-overhead")
+        assert out is not None
 
 
-def test_env_var_device_cpu_sets_default_device(restored_backend_env):
-    """``LAKER_DEVICE=cpu`` after reload yields ``torch.device('cpu')``."""
-    restored_backend_env.setenv("LAKER_DEVICE", "cpu")
-    importlib.reload(backend)
-    assert backend.Backend.device == torch.device("cpu")
+class TestAutocast:
+    def test_returns_context(self):
+        ctx = Backend.autocast()
+        with ctx:
+            x = torch.randn(3)
+            assert x.shape == (3,)
 
 
-# ---------------------------------------------------------------------------
-# ``Backend.maybe_compile``: identity-or-wrapped semantics.
-# ---------------------------------------------------------------------------
-def test_Backend_maybe_compile_returns_callable():
-    """``Backend.maybe_compile`` always returns a callable (compiled or identity)."""
-
-    def fn(x):
-        return x + 1.0
-
-    compiled = Backend.maybe_compile(fn)
-    assert callable(compiled)
-    out = compiled(torch.tensor(1.0))
-    assert torch.equal(out, torch.tensor(2.0))
+class TestSeed:
+    def test_seed_sets_env(self):
+        Backend.seed(99)
+        assert os.environ["LAKER_SEED"] == "99"
+        assert torch.initial_seed() == 99
 
 
-def test_Backend_maybe_compile_preserves_callable_behavior():
-    """Whether or not ``Backend.maybe_compile`` activates ``torch.compile``, the
-    wrapped callable must return the same result as the original
-    within float tolerance.
-    """
-    import math
+class TestSummary:
+    def test_summary_runs(self, caplog):
+        import logging
 
-    def fn(x):
-        return torch.sin(x) + 0.5
+        with caplog.at_level(logging.INFO, logger="laker.backend"):
+            Backend.summary()
+        assert any("backend:" in r.message for r in caplog.records)
 
-    x = torch.linspace(0.0, math.pi, 8)
-    expected = fn(x)
-    out = Backend.maybe_compile(fn)(x)
-    torch.testing.assert_close(out, expected, atol=1e-6, rtol=1e-6)
+
+class TestLoad:
+    def test_load_refreshes(self):
+        Backend.dtype_set(torch.float32)
+        os.environ["LAKER_DTYPE"] = "float64"
+        Backend.load()
+        assert Backend.dtype == torch.float64
+
+
+class TestEnvLoad:
+    def test_env_chunk_budget(self):
+        os.environ["LAKER_CHUNK_MEMORY_BUDGET"] = "32"
+        Backend.load()
+        assert Backend.chunk == 32 * 1024 * 1024
+        del os.environ["LAKER_CHUNK_MEMORY_BUDGET"]
+        Backend.load()

@@ -1,30 +1,8 @@
 """Bilevel hyperparameter learning via implicit differentiation.
 
-Bilevel optimisation treats hyperparameter selection as a nested
-optimisation problem:
-
-* **Inner problem.** Given hyperparameters :math:`\\theta` (e.g.
-  regularisation strength :math:`\\lambda`, embedding weights), solve
-  the kernel regression system
-
-  .. math::
-      (K(\\theta) + \\lambda I) \\alpha = y
-
-  via preconditioned conjugate gradient (PCG).
-
-* **Outer problem.** Minimise a validation loss
-  :math:`\\mathcal{L}_{\\mathrm{val}}(\\alpha(\\theta))` with respect
-  to :math:`\\theta` using an Adam optimiser.
-
-Gradients of the outer loss with respect to :math:`\\theta` are
-computed by :mod:`laker.implicit_diff`, which implements the adjoint
-method: one additional PCG solve for the adjoint vector, followed by
-cheap per-parameter dot products.  This avoids differentiating through
-every CG iteration, which would be prohibitively expensive.
-
-The :class:`BilevelOptimizer` class orchestrates this outer loop,
-alternating between the inner PCG solve, outer loss evaluation, and
-hypergradient computation until convergence or early stopping.
+Outer-loop Adam optimiser over hyperparameters with an inner PCG solve.
+Hypergradients are computed by the adjoint method
+(:mod:`laker.implicit`).
 """
 
 from __future__ import annotations
@@ -35,207 +13,128 @@ from typing import TYPE_CHECKING, List, Optional
 
 import torch
 
-from laker.implicit_diff import hypergradient as implicit_hypergradient
+from laker.implicit import hypergradient
 
 if TYPE_CHECKING:
-    from laker.core import LAKERCore
-    from laker.models import LAKERRegressor
+    from laker.core import Core
+    from laker.model import Laker
 
 logger = logging.getLogger(__name__)
 
 
-class BilevelOptimizer:
-    """Outer-loop Adam optimizer over hyperparameters with inner PCG solve.
-
-    The inner problem solves :math:`(K(\\theta) + \\lambda I) \\alpha = y`
-    via preconditioned conjugate gradient (PCG), where :math:`K(\\theta)`
-    is a kernel operator whose construction depends on learnable
-    hyperparameters :math:`\\theta`.
-
-    The outer problem minimises validation mean-squared error with respect
-    to :math:`\\theta` using Adam. Hypergradients are computed by the
-    adjoint method (:mod:`laker.implicit_diff`), which requires only one
-    additional PCG solve per outer iteration.
-
-    By default the only learnable hyperparameter is a logit for the
-    regularisation strength :math:`\\lambda`, but custom parameter lists
-    (e.g. embedding-network weights) can be supplied.
-
-    Args:
-        core: The :class:`LAKERCore` instance providing kernel-operator
-            construction, preconditioner building, and PCG solving.
-        lr: Learning rate for the outer Adam optimiser.
-        epochs: Maximum number of outer iterations.
-        patience: Early-stopping patience (number of outer iterations
-            without validation-loss improvement before stopping).
-        pcg_tol: Tolerance forwarded to the inner PCG solve.
-        pcg_max_iter: Maximum iterations forwarded to the inner PCG solve.
-        verbose: Whether to log progress.
-
-    """
+class Bilevel:
+    """Bilevel optimiser: outer Adam over hyperparameters, inner PCG solve."""
 
     def __init__(
         self,
-        core: "LAKERCore",
+        core: "Core",
         lr: float = 1e-3,
         epochs: int = 20,
         patience: int = 5,
-        pcg_tol: float = 1e-6,
-        pcg_max_iter: int = 500,
+        tol: float = 1e-6,
+        max_iter: int = 500,
         verbose: bool = True,
     ) -> None:
-        """Initialise the bilevel optimiser.
-
-        Args:
-            core: :class:`LAKERCore` instance that provides
-                :meth:`compute_embeddings`, :meth:`build_kernel_operator`,
-                :meth:`build_preconditioner`, and :meth:`solve_pcg`.
-            lr: Adam learning rate for the outer optimisation loop.
-            epochs: Maximum number of outer iterations.
-            patience: Early-stopping patience. Training stops if the
-                validation loss has not improved for this many
-                consecutive iterations.
-            pcg_tol: Relative tolerance for the inner PCG solve.
-            pcg_max_iter: Maximum PCG iterations for the inner solve.
-            verbose: Whether to log per-epoch progress.
-
-        """
         self.core = core
         self.lr = lr
         self.epochs = epochs
         self.patience = patience
-        self.pcg_tol = pcg_tol
-        self.pcg_max_iter = pcg_max_iter
+        self.tol = tol
+        self.max_iter = max_iter
         self.verbose = verbose
 
-    def fit_bilevel(
+    def bilevel(
         self,
-        regressor: "LAKERRegressor",
+        model: "Laker",
         x_train: torch.Tensor,
         y_train: torch.Tensor,
         x_val: torch.Tensor,
         y_val: torch.Tensor,
-        hyperparameters: Optional[List[torch.Tensor]] = None,
-    ) -> "LAKERRegressor":
+        params: Optional[List[torch.Tensor]] = None,
+    ) -> "Laker":
         """Optimise hyperparameters via bilevel learning.
 
-        Performs the full outer loop:
-
-        1. Compute embeddings and build the kernel operator from
-           ``x_train``.
-        2. Solve the inner PCG system for :math:`\\alpha`.
-        3. Evaluate the validation MSE on ``x_val`` / ``y_val``.
-        4. Compute hypergradients via the adjoint method.
-        5. Update hyperparameters with Adam.
-        6. Repeat until convergence or early stopping, then refit the
-           model on the full training set with the best hyperparameters.
-
         Args:
-            regressor: The :class:`LAKERRegressor` to train. Its
-                :meth:`fit` method is called at the end with the full
-                training data.
-            x_train: Training input locations of shape ``(n_train, dx)``.
-            y_train: Training targets of shape ``(n_train,)``.
-            x_val: Validation input locations of shape ``(n_val, dx)``.
-            y_val: Validation targets of shape ``(n_val,)``.
-            hyperparameters: List of tensors to optimise in the outer
-                loop. If ``None``, defaults to a single learnable logit
-                for ``regressor.lambda_reg``.
-
-        Returns:
-            The fitted ``regressor`` (after a final refit on all data).
-
-        Raises:
-            ValueError: If input tensors have incorrect dimensionality.
-
+            model: The :class:`Laker` to optimise.
+            x_train, y_train: Training data.
+            x_val, y_val: Validation data for outer-loss evaluation.
+            params: Hyperparameters to optimise. Defaults to a learnable
+                logit for ``lam``.
         """
-        if x_train.dim() != 2:
-            raise ValueError(f"x_train must be 2-D, got shape {x_train.shape}")
-        if y_train.dim() != 1:
-            raise ValueError(f"y_train must be 1-D, got shape {y_train.shape}")
-        if x_val.dim() != 2:
-            raise ValueError(f"x_val must be 2-D, got shape {x_val.shape}")
-        if y_val.dim() != 1:
-            raise ValueError(f"y_val must be 1-D, got shape {y_val.shape}")
+        from laker.check import Check
 
-        # Default hyperparameter: a learnable logit for lambda_reg
-        if hyperparameters is None:
-            lambda_logit = torch.tensor(
-                [math.log(regressor.lambda_reg)],
+        x_train = Check.x(Check.tensor(x_train, device=model.device, dtype=model.dtype))
+        y_train = Check.y(Check.tensor(y_train, device=model.device, dtype=model.dtype))
+        x_val = Check.x(Check.tensor(x_val, device=model.device, dtype=model.dtype))
+        y_val = Check.y(Check.tensor(y_val, device=model.device, dtype=model.dtype))
+
+        if params is None:
+            lam_logit = torch.tensor(
+                [math.log(model.lam)],
                 device=self.core.device,
                 dtype=self.core.dtype,
                 requires_grad=True,
             )
-            hyperparameters = [lambda_logit]
+            params = [lam_logit]
 
-        optimizer = torch.optim.Adam(hyperparameters, lr=self.lr)
-        best_val_loss = float("inf")
-        patience_counter = 0
+        opt = torch.optim.Adam(params, lr=self.lr)
+        best_val = float("inf")
+        patience_count = 0
 
         for epoch in range(self.epochs):
-            optimizer.zero_grad()
+            opt.zero_grad()
 
-            # Push the current ``lambda_logit`` back into the regressor
-            # so ``build_kernel_operator`` uses the optimisable value.
-            if hyperparameters is not None and len(hyperparameters) == 1:
-                lambda_logit = hyperparameters[0]
+            if len(params) == 1:
+                lam_logit = params[0]
                 with torch.no_grad():
-                    candidate_lambda = float(torch.exp(lambda_logit).item())
-                candidate_lambda = max(candidate_lambda, 1e-8)
-                self.core.lambda_reg = candidate_lambda
+                    cand_lam = float(torch.exp(lam_logit).item())
+                cand_lam = max(cand_lam, 1e-8)
+                self.core.lam = cand_lam
 
-            # ---- inner solve (detach alpha) --------------------------------
-            embeddings, model = self.core.compute_embeddings(x_train)
-            regressor.embedding_model = model
+            embed, enc = self.core.embed(x_train)
+            model.encoder = enc
 
-            # If we are optimising embedding weights, ensure they require grad
-            hyper_ids = {id(h) for h in hyperparameters}
-            for p in model.parameters():
+            hyper_ids = {id(p) for p in params}
+            for p in enc.parameters():
                 if id(p) in hyper_ids:
                     p.requires_grad = True
 
-            kernel_op = self.core.build_kernel_operator(embeddings)
-            precond = self.core.build_preconditioner(
-                kernel_op.matvec,
-                embeddings.shape[0],
-                diagonal=kernel_op.diagonal(),
+            kernel = self.core.build_kernel(embed)
+            prec = self.core.build_prec(
+                kernel.matvec,
+                embed.shape[0],
+                diag=kernel.diag(),
             )
-            alpha, _ = self.core.solve_pcg(kernel_op, precond, y_train)
-            alpha_detached = alpha.detach()
+            alpha, _ = self.core.solve(kernel, prec, y_train)
+            alpha_d = alpha.detach()
 
-            # ---- outer loss on validation set ------------------------------
             with torch.no_grad():
-                val_embeddings, _ = self.core.compute_embeddings(x_val)
-            k_val = kernel_op.kernel_eval(val_embeddings, embeddings)
-            y_val_pred = k_val @ alpha_detached
-            val_loss = torch.mean((y_val_pred - y_val) ** 2)
+                val_embed, _ = self.core.embed(x_val)
+            k_val = kernel.eval(val_embed, embed)
+            y_pred = k_val @ alpha_d
+            val_loss = torch.mean((y_pred - y_val) ** 2)
 
-            # ---- hypergradient via implicit differentiation ------------------
-            # Analytical gradient of MSE w.r.t. alpha:
-            # dL/dalpha = (2/n) * K_val^T @ (K_val @ alpha - y_val)
             n_val = y_val.shape[0]
-            residual_val = y_val_pred - y_val
-            dL_dalpha = (2.0 / n_val) * (k_val.T @ residual_val)
+            resid = y_pred - y_val
+            dl = (2.0 / n_val) * (k_val.T @ resid)
 
-            hypergrads = implicit_hypergradient(
-                operator_fn=kernel_op.matvec,
-                preconditioner_fn=precond.apply,
-                alpha=alpha_detached,
-                dL_dalpha=dL_dalpha,
-                param_list=hyperparameters,
-                pcg_tol=self.pcg_tol,
-                pcg_max_iter=self.pcg_max_iter,
+            hgs = hypergradient(
+                op=kernel.matvec,
+                prec=prec.apply,
+                alpha=alpha_d,
+                dl=dl,
+                params=params,
+                tol=self.tol,
+                max_iter=self.max_iter,
                 verbose=False,
             )
 
-            # Apply hypergradients manually (Adam doesn't know about them)
-            for param, hg in zip(hyperparameters, hypergrads):
-                if param.grad is None:
-                    param.grad = hg
+            for p, hg in zip(params, hgs):
+                if p.grad is None:
+                    p.grad = hg
                 else:
-                    param.grad.add_(hg)
-
-            optimizer.step()
+                    p.grad.add_(hg)
+            opt.step()
 
             val_loss_item = val_loss.item()
             if self.verbose and (epoch + 1) % 5 == 0:
@@ -245,35 +144,27 @@ class BilevelOptimizer:
                     self.epochs,
                     val_loss_item,
                 )
-
-            if val_loss_item < best_val_loss:
-                best_val_loss = val_loss_item
-                patience_counter = 0
+            if val_loss_item < best_val:
+                best_val = val_loss_item
+                patience_count = 0
             else:
-                patience_counter += 1
-                if patience_counter >= self.patience:
+                patience_count += 1
+                if patience_count >= self.patience:
                     if self.verbose:
                         logger.info(
-                            "Bilevel early stopping at epoch %d (val_loss=%.4e)",
-                            epoch + 1,
-                            val_loss_item,
+                            "Bilevel early stopping at epoch %d", epoch + 1
                         )
                     break
 
-        # Final fit with best hyperparameters on full data
         if self.verbose:
             logger.info("Bilevel complete. Refitting on full training set.")
-        # Pull the final value of any learnable ``lambda`` logit into
-        # the regressor's published configuration so downstream
-        # ``score``/``predict`` use it. The hypergradient path is
-        # currently approximate (the kernel_op is built with the value
-        # at construction time, so the gradient through the matvec is
-        # not propagated); this hook keeps the parameter honest.
-        candidate_lambdas: list[float] = []
-        if hyperparameters is not None and len(hyperparameters) == 1:
+
+        if len(params) == 1:
             with torch.no_grad():
-                candidate_lambdas.append(float(torch.exp(hyperparameters[0]).item()))
-        if candidate_lambdas:
-            self.core.lambda_reg = max(min(candidate_lambdas[0], 1e3), 1e-8)
-            regressor.set_params(lambda_reg=self.core.lambda_reg)
-        return regressor.fit(x_train, y_train)
+                cand = float(torch.exp(params[0]).item())
+            self.core.lam = max(min(cand, 1e3), 1e-8)
+            model.lam = self.core.lam
+        return model.fit(x_train, y_train)
+
+
+__all__ = ["Bilevel"]

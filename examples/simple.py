@@ -41,12 +41,12 @@ class Simple:
         y = torch.sin(torch.pi * x[:, 0] / area) * torch.cos(torch.pi * x[:, 1] / area)
 
         model = Laker(
-            embedding_dim=embedding_dim,
-            regularization=1e-6,
-            probes=200,
-            cccp_max_iter=200,
+            embed_dim=embedding_dim,
+            lam=1e-6,
+            num=200,
+            cccp_max=200,
             pcg_tol=1e-12,
-            pcg_max_iter=2000,
+            pcg_max=2000,
             dtype=torch.float64,
         )
         model.fit(x, y)
@@ -75,7 +75,7 @@ class Simple:
 
         var = model.variance(grid)
 
-        print(f"n={n}, embedding_dim={embedding_dim}")
+        print(f"n={n}, embed_dim={embedding_dim}")
         print(f"train R^2 = {train_r2:.6f}")
         print(f"pred shape = {tuple(preds.shape)}")
         print(f"var min/max = {var.min():.4e}/{var.max():.4e}")
@@ -96,12 +96,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--n", type=int, default=60)
     parser.add_argument("--area", type=float, default=5.0)
-    parser.add_argument("--embedding-dim", type=int, default=8)
+    parser.add_argument("--embed-dim", type=int, default=8)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
     Simple.run(
         n=args.n,
         area=args.area,
-        embedding_dim=args.embedding_dim,
+        embedding_dim=args.embed_dim,
         seed=args.seed,
     )

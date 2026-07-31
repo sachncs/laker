@@ -1,65 +1,83 @@
-"""Tests for the abstract Executor base class."""
+"""Tests for :mod:`laker.executor`."""
+
+import pytest
 
 from laker.executor import Executor
 
 
-class RecordingExecutor(Executor):
-    """Minimal Executor that records all calls for verification."""
+class Concrete(Executor):
+    def section(self, title):
+        self.sections.append(title)
+
+    def log_result(self, key, value):
+        self.results[key] = value
+
+    def log_metric(self, name, value, fmt=".4f"):
+        self.metrics[name] = value
+
+    def time_operation(self, name, operation):
+        return operation()
 
     def __init__(self):
         self.sections = []
         self.results = {}
         self.metrics = {}
-        self.times = {}
-
-    def section(self, title: str) -> None:
-        self.sections.append(title)
-
-    def log_result(self, key: str, value) -> None:
-        self.results[key] = value
-
-    def log_metric(self, name: str, value: float, fmt: str = ".4f") -> None:
-        self.metrics[name] = value
-
-    def time_operation(self, name: str, operation) -> any:
-        import time
-
-        start = time.time()
-        result = operation()
-        elapsed = time.time() - start
-        self.times[name] = elapsed
-        return result
 
 
-def test_executor_section():
-    """Executor.section should record section titles."""
-    ex = RecordingExecutor()
-    ex.section("Test Section")
-    assert "Test Section" in ex.sections
+class TestExecutorContract:
+    def test_cannot_instantiate_base(self):
+        with pytest.raises(TypeError):
+            Executor()
+
+    def test_subclass_with_all_methods(self):
+        e = Concrete()
+        e.section("Title")
+        assert "Title" in e.sections
+
+    def test_log_result(self):
+        e = Concrete()
+        e.log_result("answer", 42)
+        assert e.results["answer"] == 42
+
+    def test_log_metric(self):
+        e = Concrete()
+        e.log_metric("acc", 0.95)
+        assert e.metrics["acc"] == 0.95
+
+    def test_time_operation_returns_value(self):
+        e = Concrete()
+        out = e.time_operation("op", lambda: 42)
+        assert out == 42
+
+    def test_time_operation_propagates_exceptions(self):
+        e = Concrete()
+
+        def bad():
+            raise RuntimeError("nope")
+
+        with pytest.raises(RuntimeError, match="nope"):
+            e.time_operation("x", bad)
 
 
-def test_executor_log_result():
-    """Executor.log_result should record key-value pairs."""
-    ex = RecordingExecutor()
-    ex.log_result("answer", 42)
-    assert ex.results["answer"] == 42
+class TestExecutorSubclassing:
+    def test_partial_subclass_raises(self):
+        class Partial(Executor):
+            def section(self, title):
+                pass
 
+        with pytest.raises(TypeError):
+            Partial()
 
-def test_executor_log_metric():
-    """Executor.log_metric should record metrics."""
-    ex = RecordingExecutor()
-    ex.log_metric("accuracy", 0.95)
-    assert ex.metrics["accuracy"] == 0.95
+    def test_missing_log_result_raises(self):
+        class Missing(Executor):
+            def section(self, title):
+                pass
 
+            def log_metric(self, name, value, fmt=".4f"):
+                pass
 
-def test_executor_time_operation():
-    """Executor.time_operation should time an operation."""
-    ex = RecordingExecutor()
+            def time_operation(self, name, operation):
+                return operation()
 
-    def op():
-        return 42
-
-    result = ex.time_operation("test_op", op)
-    assert result == 42
-    assert "test_op" in ex.times
-    assert ex.times["test_op"] >= 0
+        with pytest.raises(TypeError):
+            Missing()
