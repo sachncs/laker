@@ -26,6 +26,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ``LAKERRegressor`` class constant: ``_HYPERPARAMS`` → ``HYPERPARAMS``.
   - ``NystromAttention`` methods: ``_select_landmarks_greedy`` → ``select_landmarks_greedy``, ``_select_landmarks_leverage`` → ``select_landmarks_leverage``.
   - ``AdaptivePreconditioner`` attributes: ``_inner`` → ``inner``, ``_inner_name`` → ``inner_name``.
+- **Dropped every underscore prefix and suffix from the public API.**
+  ``coef`` / ``embed`` / ``kernel`` / ``prec`` / ``encoder`` / ``inputs`` /
+  ``targets`` / ``iters`` replace the previous sklearn-style trailing
+  underscores; ``core`` / ``stream`` / ``searcher`` / ``train`` /
+  ``init_encoder`` / ``x_train`` / ``y_train`` / ``partial_count`` /
+  ``regpath`` replace the previous leading-underscore private
+  attributes; the helper methods ``kernel`` / ``transform`` / ``ml`` /
+  ``impl`` / ``landmarks_greedy`` / ``landmarks_leverage`` / ``coo`` /
+  ``nystrom_matvec`` / ``rff_matvec`` / ``spectral_matvec`` / ``shard``
+  / ``solve1`` / ``solve2`` / ``make`` / ``eval`` lose their leading
+  underscores. The constructor parameter ``kernel`` was renamed to
+  ``kernel_type`` to disambiguate the config string from the fitted
+  ``Kernel`` instance; ``search`` and ``path`` instance attributes were
+  renamed to ``searcher`` and ``regpath`` to avoid colliding with the
+  public methods of the same name.
 
 ### Refactored (single-word naming, public-API rewrite)
 - Deleted legacy modules and consolidated duplicates:
@@ -83,6 +98,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Flask / Scrapy / Celery / Sage / PyBuilder / IPython / pyenv /
   pipenv / poetry / pdm / PEP 582 / Sphinx / PyCharm). Trimmed to 50
   lines of relevant entries.
+- **``mypy laker/`` failed with a module-name collision** caused by
+  ``mypy_path = "laker"`` in ``pyproject.toml`` (which made ``laker.math``
+  discoverable as both ``laker.math`` and ``math``). Removed the
+  setting and bumped ``python_version`` to ``3.12`` to match the CI
+  matrix (numpy 2.5+ stubs require 3.12 syntax). Removed the
+  unused ``module = ["tests.*", "examples.*", "benchmarks.*"]``
+  override.
+- **``Core.kernel()`` method was assigned over by ``self.kernel = kernel``
+  in ``__init__``**, leaving the method undiscoverable. Removed the
+  dead alias; ``Core.build_kernel`` is the only public entry point.
+- **``Kernel`` protocol declared ``n`` but every kernel implementation
+  used ``self.size``.** Aligned the protocol with the implementation.
+- **``Core.build_prec`` returned the wrong union type** because mypy
+  couldn't narrow ``prec`` past the early-return branch. Renamed the
+  second-branch local to ``cccp`` so each branch has its own inferred
+  type.
+- **``cast(Nystrom, op).m`` and ``cast(Neighbors, op).k`` accessed
+  non-existent attributes.** Fixed to ``num_landmarks`` and
+  ``num_neighbors``.
+- **``model.iters``, ``model.encoder`` (no underscore) were used in
+  ``stream.py``, ``search.py``, and ``bilevel.py`` but only the
+  underscored versions existed.** Fixed; the fitted-state attribute
+  is now ``model.iters`` / ``model.encoder`` (no underscore).
+- **``GP.bounds`` had no type annotation** so mypy could not infer
+  it. Annotated as ``np.ndarray``.
+- **``torch.sparse_coo_tensor`` was renamed to ``torch.sparsecoo_tensor``
+  by the ``_coo`` → ``coo`` replace-all.** Restored.
 
 ### Tests
 - Deleted 31 legacy test files (smoke-only, duplicate, mocking the
@@ -105,11 +147,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - See "Added" for ``docs/`` content.
 - ``CHANGELOG.md`` has been re-organised: previous version history
   preserved below; this release documents every refactor.
+- ``README.md`` was rewritten to match the actual API. The previous
+  copy invented parameter names (``embedding_dim``, ``regularization``,
+  ``probes``, ``pcg_max_iter``, ``preconditioner``, ``epsilon``,
+  ``base_rho``, ``rebuild_freq``, ``embedding_module``), referenced
+  non-existent modules (``preconditioner.py``, ``fit.py``,
+  ``helpers.py``, ``__main__.py``, ``base.py``, ``embed.py``,
+  ``solve.py``, ``search.py``, ``stream.py``, ``implicit.py``,
+  ``plot.py``, ``data.py``, ``backend.py``), non-existent example
+  scripts (``examples.basic``, ``examples.large``), non-existent
+  benchmark entry points, and a fabricated "Performance" section
+  with made-up numbers. It also referenced removed tools
+  (``black`` / ``flake8`` / ``isort``) instead of the actual
+  ``ruff``, and quoted a Python 3.9 minimum that does not match
+  ``pyproject.toml``'s ``"requires-python = '>=3.10,<3.14'"``. The
+  rewritten README drops all of that and aligns with the current
+  codebase while keeping the correct Tao & Tan (2026) arXiv
+  reference at ``https://arxiv.org/abs/2604.25138``.
 
 ### Atomic commits in this release
 
 | Commit | Date (UTC+05:30) | Subject |
 |--------|------------------|---------|
+| `13ba33a` | 2026-07-31 19:30:00 +05:30 | docs(readme): rewrite to match actual API and drop stale/fabricated content |
+| `a8324ef` | 2026-07-31 19:00:00 +05:30 | fix(mypy): drop all underscore prefix/suffix; fix Core/kernel/attribute conflicts |
 | `48c2f93` | 2026-07-31 16:00:12 +05:30 | refactor(api): single-word naming across laker/, expand tests to 310 real-assertion tests |
 | `7d6c4ee` | 2026-07-31 17:00:00 +05:30 | chore: clean up .gitignore (154 → 50 lines) |
 | `<this>`  | 2026-07-31 18:00:00 +05:30 | docs: add docs/ (guides, api, algorithms, examples) and fix CI |
