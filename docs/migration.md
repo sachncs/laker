@@ -104,11 +104,11 @@ the migration:
 - `SolverBenchmark`, `BaselineBenchmark`, `BenchmarkResult`
 - `PerformanceBenchmarkSuite`, `ReproducibleBenchmarkSuite`,
   `ApproximationBenchmarkSuite`, `BaselineComparison`
-- `AttentionKernelOperator`, `NystromAttentionKernelOperator`,
-  `RandomFeatureAttentionKernelOperator`,
-  `SparseKNNAttentionKernelOperator`, `SKIAttentionKernelOperator`,
-  `TwoScaleAttentionKernelOperator`, `SpectralAttentionKernelOperator`,
-  `DistributedAttentionKernelOperator`, `MonotoneSpectrumShaper`
+- `Attention`, `NystromAttention`,
+  `RandomFeatureAttention`,
+  `SparseAttention`, `SKIAttention`,
+  `TwoScaleAttention`, `SpectralAttention`,
+  `DistributedAttention`, `SpectrumShaper`
 - `CCCPPreconditioner`, `AdaptivePreconditioner`,
   `JacobiPreconditioner`, `PreconditionedConjugateGradient`,
   `GradientDescent`, `ResidualCorrector`, `PositionEmbedding`
@@ -170,7 +170,7 @@ uses `format_version=2` (the previous serialisation was upgraded).
 
 The legacy surface had:
 
-- Long compound class names (`NystromAttentionKernelOperator` and
+- Long compound class names (`NystromAttention` and
   friends) that obscured the API.
 - Parameter names that didn't match the paper (`lambda_reg`, `gamma`)
   and made it harder to find the canonical name in `pyproject.toml`.

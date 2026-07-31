@@ -16,7 +16,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 
-from laker.backend import get_default_device, get_default_dtype
+from laker.backend import Backend
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +63,9 @@ class Position(Embed):
             num_fourier = embedding_dim * 2
         self.num_fourier = int(num_fourier)
         if device is None:
-            device = get_default_device()
+            device = Backend.device
         if dtype is None:
-            dtype = get_default_dtype()
+            dtype = Backend.dtype
 
         gen = torch.Generator(device=device).manual_seed(int(seed))
         self.register_buffer(
@@ -151,9 +151,9 @@ class Visual(Embed):
         self.embedding_dim = int(embedding_dim)
         self.patch_size = int(patch_size)
         if device is None:
-            device = get_default_device()
+            device = Backend.device
         if dtype is None:
-            dtype = get_default_dtype()
+            dtype = Backend.dtype
         gen = torch.Generator(device=device).manual_seed(int(seed))
         self.encoder = nn.Conv2d(
             input_dim,

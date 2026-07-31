@@ -13,7 +13,7 @@ from pathlib import Path
 import torch
 
 from laker import Laker
-from laker.kernel import Exact
+from laker.kernels import Attention as Exact
 from laker.models import LAKERRegressor
 
 # Local helper module under tests/ that defines a custom encoder.
@@ -146,7 +146,7 @@ def test_low_rank_kernel_save_load_preserves_strategy():
     """A Nyström model persists with its ``kernel_operator`` class intact
     after a save/load cycle.
     """
-    from laker.kernels import NystromAttentionKernelOperator
+    from laker.kernels import NystromAttention
 
     torch.manual_seed(0)
     n = 50
@@ -174,7 +174,7 @@ def test_low_rank_kernel_save_load_preserves_strategy():
         model.save(path)
         loaded = LAKERRegressor.load(path)
         assert loaded.kernel_approx == "nystrom"
-        assert isinstance(loaded.kernel_operator, NystromAttentionKernelOperator)
+        assert isinstance(loaded.kernel_operator, NystromAttention)
     finally:
         Path(path).unlink(missing_ok=True)
 

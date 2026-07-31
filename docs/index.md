@@ -73,7 +73,12 @@ are available under their module names:
 
 ```python
 from laker import Laker
-from laker.kernel import Exact, Nystrom, Fourier, Neighbors, Grid, Hybrid, Spectrum
+from laker.kernels import (
+    Attention as Exact,
+    NystromAttention as Nystrom,
+    RandomFeatureAttention as Fourier,
+    SparseAttention as Neighbors,
+), Grid, Hybrid, Spectrum
 from laker.preconditioner import CCCP, Adaptive, Jacobi
 from laker.solve import PCG, Descent
 from laker.embed import Position, Visual

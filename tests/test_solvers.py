@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import torch
 
-from laker.kernels import AttentionKernelOperator
+from laker.kernels import Attention
 from laker.preconditioner import CCCPPreconditioner
 from laker.solvers import (
     GradientDescent,
@@ -57,7 +57,7 @@ def test_pcg_with_learned_prec_residual_below_tol():
     torch.manual_seed(0)
     n = 30
     e = torch.randn(n, 4, dtype=torch.float64)
-    op = AttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
+    op = Attention(e, lambda_reg=1e-2, dtype=torch.float64)
     b = torch.randn(n, dtype=torch.float64)
 
     pre = CCCPPreconditioner(
@@ -87,7 +87,7 @@ def test_jacobi_preconditioner_drives_pcg_to_tol():
     torch.manual_seed(0)
     n = 30
     e = torch.randn(n, 4, dtype=torch.float64)
-    op = AttentionKernelOperator(e, lambda_reg=1.0, dtype=torch.float64)
+    op = Attention(e, lambda_reg=1.0, dtype=torch.float64)
     b = torch.randn(n, dtype=torch.float64)
 
     jac = JacobiPreconditioner(op.diagonal())

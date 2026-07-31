@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from laker.kernel import Exact
+from laker.kernels import Attention as Exact
 from laker.solvers import PreconditionedConjugateGradient as PCG, GradientDescent, Status
 
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import torch
 
-from laker.kernel import Exact
+from laker.kernels import Attention as Exact
 from laker.preconditioner import CCCPPreconditioner
 
 

@@ -5,7 +5,15 @@ available under module-qualified names:
 
 ```python
 from laker import Laker
-from laker.kernel import Exact, Nystrom, Fourier, Neighbors, Grid, Hybrid, Spectrum
+from laker.kernels import (
+    Attention as Exact,
+    NystromAttention as Nystrom,
+    RandomFeatureAttention as Fourier,
+    SparseAttention as Neighbors,
+    SKIAttention as Grid,
+    TwoScaleAttention as Hybrid,
+    SpectralAttention as Spectrum,
+)
 from laker.preconditioner import CCCP, Adaptive, Jacobi
 from laker.solve import PCG, Descent
 from laker.embed import Position, Visual
@@ -99,11 +107,11 @@ learned CCCP preconditioner inside PCG.
 All kernel operators share the interface `matvec(x)`, `diagonal()`,
 `to_dense()`, `eval(a, b, chunk_size=None)`. Choose via `Laker(kernel=...)`.
 
-### `laker.kernel.Exact`
+### `laker.kernels.Exact`
 
 Exact exponential attention kernel $G_{ij} = \exp(\langle e_i, e_j\rangle)$.
 
-### `laker.kernel.Nystrom`
+### `laker.kernels.Nystrom`
 
 Nyström low-rank approximation using `landmarks` landmark points
 (defaults to $\max(200, 2\sqrt{n})$). **Audit note:** the `matvec`
@@ -111,33 +119,33 @@ implementation differs from `to_dense @ x` because the cached
 $K_{mm}^{-1}$ is applied twice; the `diagonal` is exact, but
 `to_dense @ x` is the audit-correct reference.
 
-### `laker.kernel.Fourier`
+### `laker.kernels.Fourier`
 
 Random Fourier features approximating a stationary Gaussian kernel.
 **Audit note:** the operator approximates $\exp(-\|x-y\|^2 /
 2\sigma^2)$, not the exponential dot-product kernel.
 
-### `laker.kernel.Neighbors`
+### `laker.kernels.Neighbors`
 
 Sparse k-NN with `neighbors` nearest neighbours per row, stored as
 COO. Symmetrised and diagonal-rewritten for positive definiteness.
 
-### `laker.kernel.Grid`
+### `laker.kernels.Grid`
 
 Structured Kernel Interpolation on a product grid with size
 `grid_size`.
 
-### `laker.kernel.Hybrid`
+### `laker.kernels.Hybrid`
 
 Two-scale kernel that combines a Nyström global term with a sparse
 k-NN local graph using the `blend` mix weight.
 
-### `laker.kernel.Spectrum`
+### `laker.kernels.Spectrum`
 
 Spectral-shaped kernel via a monotone spline over the eigenvalues of
 $E E^\top$.
 
-### `laker.kernel.Distribute`
+### `laker.kernels.Distribute`
 
 Multi-device wrapper that shards embeddings across CUDA devices
 and gathers results to the master device. Falls back to a single-device

@@ -66,7 +66,15 @@ module names. No name is duplicated across the public surface.
 
 ```python
 from laker import Laker
-from laker.kernel import Nystrom, Fourier, Neighbors, Grid, Hybrid, Spectrum, Exact
+from laker.kernels import (
+    NystromAttention as Nystrom,
+    RandomFeatureAttention as Fourier,
+    SparseAttention as Neighbors,
+    SKIAttention as Grid,
+    TwoScaleAttention as Hybrid,
+    SpectralAttention as Spectrum,
+    Attention as Exact,
+)
 from laker.preconditioner import CCCP, Adaptive, Jacobi
 from laker.solve import PCG, Descent
 from laker.embed import Position, Visual
@@ -83,7 +91,7 @@ from laker.cli import CLI
 - **Single primary class.** One type (`Laker`) covers 90% of use
   cases.
 - **Discoverable secondaries.** A user who wants to subclass
-  `Nystrom` or replace `CCCP` finds them under `laker.kernel.Nystrom`
+  `Nystrom` or replace `CCCP` finds them under `laker.kernels.NystromAttention`
   and `laker.preconditioner.CCCP` without grepping.
 - **No global functions.** Even `Data.field(...)` is exposed as
   `Data.field(...)`, not `generate_radio_field(...)`.

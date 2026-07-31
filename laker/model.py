@@ -30,7 +30,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from laker.backend import to_tensor
+from laker.backend import Backend
 
 logger = logging.getLogger(__name__)
 
@@ -386,8 +386,8 @@ class Laker:
         x0: Optional[torch.Tensor] = None,
         seed: Optional[int] = None,
     ) -> "Laker":
-        x = to_tensor(x, device=self._legacy.device, dtype=self._legacy.dtype)
-        y = to_tensor(y, device=self._legacy.device, dtype=self._legacy.dtype)
+        x = Backend.to_tensor(x, device=Backend.device, dtype=Backend.dtype)
+        y = Backend.to_tensor(y, device=Backend.device, dtype=Backend.dtype)
         # Accept (n,) or (n, 1); reject 0-D scalars.
         if y.dim() == 0:
             raise ValueError(f"y must be 1-D (n,) or 2-D (n, 1), got scalar shape {tuple(y.shape)}")
@@ -465,7 +465,7 @@ class Laker:
         """
         if self.coef_ is None or self.embeddings_ is None:
             raise RuntimeError("Model has not been fitted. Call fit() first.")
-        x = to_tensor(x, device=self._legacy.device, dtype=self._legacy.dtype)
+        x = Backend.to_tensor(x, device=Backend.device, dtype=Backend.dtype)
         if x.dim() != 2:
             raise ValueError(f"x must be 2-D, got shape {tuple(x.shape)}")
         encoder = self.encoder_
@@ -508,7 +508,7 @@ class Laker:
         fit, ``0.0`` when the model predicts the mean only, and a
         negative value when the model is worse than the mean.
         """
-        y_true = to_tensor(y, device=self._legacy.device, dtype=self._legacy.dtype)
+        y_true = Backend.to_tensor(y, device=Backend.device, dtype=Backend.dtype)
         if y_true.dim() == 2 and y_true.shape[-1] == 1:
             y_true = y_true.squeeze(-1)
         if y_true.dim() != 1:
@@ -755,12 +755,10 @@ class Laker:
         # Validation-based grid search around the current value. The
         # grid uses six candidates centred on the existing
         # ``regularization`` (decade-1/3 steps).
-        from laker.backend import to_tensor
-
-        x_train_t = to_tensor(x_train, device=self._legacy.device, dtype=self._legacy.dtype)
-        y_train_t = to_tensor(y_train, device=self._legacy.device, dtype=self._legacy.dtype)
-        x_val_t = to_tensor(x_val, device=self._legacy.device, dtype=self._legacy.dtype)
-        y_val_t = to_tensor(y_val, device=self._legacy.device, dtype=self._legacy.dtype)
+        x_train_t = Backend.to_tensor(x_train, device=Backend.device, dtype=Backend.dtype)
+        y_train_t = Backend.to_tensor(y_train, device=Backend.device, dtype=Backend.dtype)
+        x_val_t = Backend.to_tensor(x_val, device=Backend.device, dtype=Backend.dtype)
+        y_val_t = Backend.to_tensor(y_val, device=Backend.device, dtype=Backend.dtype)
         if y_val_t.dim() == 2:
             y_val_t = y_val_t.squeeze(-1)
 

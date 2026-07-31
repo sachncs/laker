@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 
 import torch
 
-from laker.backend import get_default_device, get_default_dtype
+from laker.backend import Backend
 
 logger = logging.getLogger(__name__)
 
@@ -158,9 +158,9 @@ class Data:
         if y_min >= y_max:
             raise ValueError(f"y_min ({y_min}) must be strictly less than y_max ({y_max})")
         if device is None:
-            device = get_default_device()
+            device = Backend.device
         if dtype is None:
-            dtype = get_default_dtype()
+            dtype = Backend.dtype
         x = torch.linspace(x_min, x_max, grid_size, device=device, dtype=dtype)
         y = torch.linspace(y_min, y_max, grid_size, device=device, dtype=dtype)
         xx, yy = torch.meshgrid(x, y, indexing="ij")

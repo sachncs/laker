@@ -8,22 +8,22 @@ matrix-vector products (matvecs) without materialising the full
 
 Approximation strategies, ordered from exact to most compressed:
 
-* :class:`AttentionKernelOperator` — exact ``O(n^2)`` evaluation with
+* :class:`Attention` — exact ``O(n^2)`` evaluation with
   optional chunking to bound peak GPU memory.
-* :class:`NystromAttentionKernelOperator` — Nyström low-rank
+* :class:`NystromAttention` — Nyström low-rank
   ``O(n m)`` approximation with greedy or leverage-score landmark
   selection.
-* :class:`RandomFeatureAttentionKernelOperator` — random Fourier
+* :class:`RandomFeatureAttention` — random Fourier
   feature ``O(n r)`` approximation of the Gaussian kernel.
-* :class:`SparseKNNAttentionKernelOperator` — sparse k-NN graph
+* :class:`SparseAttention` — sparse k-NN graph
   ``O(n k)`` approximation that retains only the ``k`` largest kernel
   entries per row.
-* :class:`SKIAttentionKernelOperator` — Structured Kernel
+* :class:`SKIAttention` — Structured Kernel
   Interpolation (SKI) via a product grid and multilinear
   interpolation weights.
-* :class:`TwoScaleAttentionKernelOperator` — convex combination of
+* :class:`TwoScaleAttention` — convex combination of
   a Nyström global component and a sparse k-NN local component.
-* :class:`SpectralAttentionKernelOperator` — learned spectral shaping
+* :class:`SpectralAttention` — learned spectral shaping
   of the Gram-matrix eigenvalues via a monotone spline.
 
 Includes exact, low-rank (Nyström, RFF), sparse k-NN, SKI, spectral-shaped,
@@ -37,7 +37,7 @@ from typing import Optional, Protocol, Tuple
 import torch
 import torch.nn as nn
 
-from laker.backend import get_chunk_memory_budget, maybe_compile
+from laker.backend import Backend
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +144,7 @@ def dense_attention_matvec(
     return lambda_reg * x + gram @ x
 
 
-class AttentionKernelOperator:
+class Attention:
     """Matrix-free operator for the exponential attention kernel ``G = exp(E E^T)``.
 
     The exponential is applied **element-wise**. For large ``n`` the dense matrix
@@ -262,7 +262,7 @@ class AttentionKernelOperator:
         # in memory (default ~64 MB), use fast 1-D chunking; otherwise use 2-D tiling.
         element_size = self.dtype.itemsize if hasattr(self.dtype, "itemsize") else 4
         mem_per_chunk = chunk_size_local * n * element_size
-        if mem_per_chunk <= get_chunk_memory_budget():
+        if mem_per_chunk <= Backend.chunk_budget:
             for start in range(0, n, chunk_size_local):
                 end = min(start + chunk_size_local, n)
                 gram_chunk = self.embeddings[start:end] @ self.embeddings.T
@@ -363,7 +363,7 @@ class AttentionKernelOperator:
         # otherwise fall back to full 2-D tiling.
         element_size = self.dtype.itemsize if hasattr(self.dtype, "itemsize") else 4
         mem_per_chunk = chunk_size * p * element_size
-        if mem_per_chunk <= get_chunk_memory_budget():
+        if mem_per_chunk <= Backend.chunk_budget:
             out = torch.empty(m, p, device=self.device, dtype=self.dtype)
             for start in range(0, m, chunk_size):
                 end = min(start + chunk_size, m)
@@ -394,10 +394,10 @@ def _nystrom_matvec(k_nm_kmm_inv: torch.Tensor, x: torch.Tensor) -> torch.Tensor
     return k_nm_kmm_inv @ temp
 
 
-_nystrom_matvec = maybe_compile(_nystrom_matvec)
+_nystrom_matvec = Backend.maybe_compile(_nystrom_matvec)
 
 
-class NystromAttentionKernelOperator:
+class NystromAttention:
     r"""Nyström low-rank approximation of the exponential attention kernel.
 
     Approximates ``G = exp(E E^T)`` using ``m`` landmark points:
@@ -571,10 +571,10 @@ def _rff_matvec(phi: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     return phi @ temp
 
 
-_rff_matvec = maybe_compile(_rff_matvec)
+_rff_matvec = Backend.maybe_compile(_rff_matvec)
 
 
-class RandomFeatureAttentionKernelOperator:
+class RandomFeatureAttention:
     """Random Fourier Feature (RFF) approximation of the exponential kernel.
 
     Uses random Fourier features to approximate the Gaussian-like kernel
@@ -686,7 +686,7 @@ class RandomFeatureAttentionKernelOperator:
 # ---------------------------------------------------------------------------
 
 
-class SparseKNNAttentionKernelOperator:
+class SparseAttention:
     """Sparse k-NN approximation of the exponential attention kernel.
 
     For each point, retains only the ``k`` largest kernel values (nearest
@@ -1016,7 +1016,7 @@ def multilinear_weights(
     return indices, weights
 
 
-class SKIAttentionKernelOperator:
+class SKIAttention:
     """SKI approximation of the exponential attention kernel.
 
     Builds a regular product grid in the embedding space and uses multilinear
@@ -1301,7 +1301,7 @@ class SKIAttentionKernelOperator:
         return out
 
 
-class TwoScaleAttentionKernelOperator:
+class TwoScaleAttention:
     """Two-scale kernel operator combining global low-rank + local sparse k-NN.
 
     Computes ``K = alpha * K_global + (1 - alpha) * K_local`` where:
@@ -1369,7 +1369,7 @@ class TwoScaleAttentionKernelOperator:
         self.embeddings = embeddings.to(device=device, dtype=dtype)
         self.shape = (self.n, self.n)
 
-        self.global_op = NystromAttentionKernelOperator(
+        self.global_op = NystromAttention(
             embeddings=self.embeddings,
             lambda_reg=self.lambda_reg,
             num_landmarks=num_landmarks,
@@ -1377,7 +1377,7 @@ class TwoScaleAttentionKernelOperator:
             device=device,
             dtype=dtype,
         )
-        self.local_op = SparseKNNAttentionKernelOperator(
+        self.local_op = SparseAttention(
             embeddings=self.embeddings,
             lambda_reg=self.lambda_reg,
             k_neighbors=k_neighbors,
@@ -1419,7 +1419,7 @@ class TwoScaleAttentionKernelOperator:
 # ---------------------------------------------------------------------------
 
 
-class MonotoneSpectrumShaper(nn.Module):
+class SpectrumShaper(nn.Module):
     """Learned monotone function applied to eigenvalues.
 
     Parameterised as a positive linear combination of shifted softplus
@@ -1471,10 +1471,10 @@ def _spectral_matvec(
     return u_matrix @ scaled
 
 
-_spectral_matvec = maybe_compile(_spectral_matvec)
+_spectral_matvec = Backend.maybe_compile(_spectral_matvec)
 
 
-class SpectralAttentionKernelOperator:
+class SpectralAttention:
     r"""Spectral-shaped attention kernel via matrix function of the embedding Gram matrix.
 
     Computes the kernel as a matrix function of ``S = E E^T``:
@@ -1483,7 +1483,7 @@ class SpectralAttentionKernelOperator:
         K = U \, \operatorname{diag}\!\bigl(\exp(g(\sigma_i^2))\bigr) \, U^T
 
     where ``E = U \Sigma V^T`` is the (economy) SVD of the embedding matrix and
-    ``g`` is a learned :class:`MonotoneSpectrumShaper`.  Because we SVD the
+    ``g`` is a learned :class:`SpectrumShaper`.  Because we SVD the
     ``n \times d`` embedding matrix directly, the operator costs only
     ``O(n d^2)`` to build and ``O(n d)`` per matvec — the same asymptotic
     cost as the standard attention kernel but with direct spectral control.
@@ -1535,7 +1535,7 @@ class SpectralAttentionKernelOperator:
         sigma_sq = s**2  # eigenvalues of S = E E^T
 
         # Learned monotone shaper
-        self.shaper = MonotoneSpectrumShaper(num_knots=num_knots)
+        self.shaper = SpectrumShaper(num_knots=num_knots)
         min_val = float(sigma_sq.min().item())
         max_val = float(sigma_sq.max().item())
         # Add a little padding so knots cover the range comfortably

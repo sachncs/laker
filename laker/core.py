@@ -54,24 +54,18 @@ from typing import Callable, Optional, Union, cast
 import torch
 import torch.nn as nn
 
-from laker.backend import (
-    Backend,
-    get_chunk_disabled,
-    get_chunk_memory_budget,
-    get_default_device,
-    get_default_dtype,
-)
-from laker.distributed import DistributedAttentionKernelOperator
+from laker.backend import Backend
+from laker.distributed import DistributedAttention
 from laker.embeddings import PositionEmbedding
 from laker.kernels import (
-    AttentionKernelOperator,
+    Attention,
     KernelOperator,
-    NystromAttentionKernelOperator,
-    RandomFeatureAttentionKernelOperator,
-    SKIAttentionKernelOperator,
-    SparseKNNAttentionKernelOperator,
-    SpectralAttentionKernelOperator,
-    TwoScaleAttentionKernelOperator,
+    NystromAttention,
+    RandomFeatureAttention,
+    SKIAttention,
+    SparseAttention,
+    SpectralAttention,
+    TwoScaleAttention,
     exp_safe,
 )
 from laker.preconditioner import AdaptivePreconditioner, CCCPPreconditioner
@@ -226,7 +220,7 @@ class LAKERCore:
         self.cccp_tol = cccp_tol
         self.pcg_tol = pcg_tol
         self.pcg_max_iter = pcg_max_iter
-        self.chunk_size = None if get_chunk_disabled() else chunk_size
+        self.chunk_size = None if Backend.chunk_disabled else chunk_size
         self.embedding_module = embedding_module
         self.kernel_approx = kernel_approx
         self.num_landmarks = num_landmarks
@@ -242,11 +236,11 @@ class LAKERCore:
         self.verbose = verbose
 
         if device is None:
-            device = get_default_device()
+            device = Backend.device
         elif isinstance(device, str):
             device = torch.device(device)
         if dtype is None:
-            dtype = get_default_dtype()
+            dtype = Backend.dtype
         self.device = device
         self.dtype = dtype
         self.embedding_dtype = embedding_dtype if embedding_dtype is not None else dtype
@@ -349,14 +343,14 @@ class LAKERCore:
         n = embeddings.shape[0]
         lambda_value = float(lambda_reg) if lambda_reg is not None else self.lambda_reg
         chunk_size_local = chunk_size
-        if chunk_size_local is None and n > 5000 and not get_chunk_disabled():
+        if chunk_size_local is None and n > 5000 and not Backend.chunk_disabled:
             chunk_size_local = max(1024, min(n // 10, 8192))
             if self.verbose:
                 logger.info("Auto-selected chunk_size=%d for n=%d", chunk_size_local, n)
 
         operator: KernelOperator
         if self.distributed and self.kernel_approx is None:
-            operator = DistributedAttentionKernelOperator(
+            operator = DistributedAttention(
                 embeddings=embeddings,
                 lambda_reg=lambda_value,
                 master_device=self.device,
@@ -365,10 +359,10 @@ class LAKERCore:
             if self.verbose:
                 logger.info(
                     "Using distributed kernel on %d device(s)",
-                    len(cast(DistributedAttentionKernelOperator, operator).devices),
+                    len(cast(DistributedAttention, operator).devices),
                 )
         elif self.kernel_approx is None:
-            operator = AttentionKernelOperator(
+            operator = Attention(
                 embeddings=embeddings,
                 lambda_reg=lambda_value,
                 chunk_size=chunk_size_local,
@@ -376,7 +370,7 @@ class LAKERCore:
                 dtype=self.dtype,
             )
         elif self.kernel_approx == "nystrom":
-            operator = NystromAttentionKernelOperator(
+            operator = NystromAttention(
                 embeddings=embeddings,
                 lambda_reg=lambda_value,
                 num_landmarks=self.num_landmarks,
@@ -389,11 +383,11 @@ class LAKERCore:
             if self.verbose:
                 logger.info(
                     "Using Nyström approximation with m=%d landmarks (%s)",
-                    cast(NystromAttentionKernelOperator, operator).m,
+                    cast(NystromAttention, operator).m,
                     self.landmark_method,
                 )
         elif self.kernel_approx == "rff":
-            operator = RandomFeatureAttentionKernelOperator(
+            operator = RandomFeatureAttention(
                 embeddings=embeddings,
                 lambda_reg=lambda_value,
                 num_features=self.num_features,
@@ -403,10 +397,10 @@ class LAKERCore:
             if self.verbose:
                 logger.info(
                     "Using RFF approximation with r=%d features",
-                    cast(RandomFeatureAttentionKernelOperator, operator).num_features,
+                    cast(RandomFeatureAttention, operator).num_features,
                 )
         elif self.kernel_approx == "knn":
-            operator = SparseKNNAttentionKernelOperator(
+            operator = SparseAttention(
                 embeddings=embeddings,
                 lambda_reg=lambda_value,
                 k_neighbors=self.k_neighbors,
@@ -417,10 +411,10 @@ class LAKERCore:
             if self.verbose:
                 logger.info(
                     "Using sparse k-NN approximation with k=%d neighbours",
-                    cast(SparseKNNAttentionKernelOperator, operator).k_neighbors,
+                    cast(SparseAttention, operator).k_neighbors,
                 )
         elif self.kernel_approx == "ski":
-            operator = SKIAttentionKernelOperator(
+            operator = SKIAttention(
                 embeddings=embeddings,
                 lambda_reg=lambda_value,
                 grid_size=self.grid_size,
@@ -430,10 +424,10 @@ class LAKERCore:
             if self.verbose:
                 logger.info(
                     "Using SKI approximation with %d grid points",
-                    cast(SKIAttentionKernelOperator, operator).grid_points.shape[0],
+                    cast(SKIAttention, operator).grid_points.shape[0],
                 )
         elif self.kernel_approx == "twoscale":
-            operator = TwoScaleAttentionKernelOperator(
+            operator = TwoScaleAttention(
                 embeddings=embeddings,
                 lambda_reg=lambda_value,
                 alpha=getattr(self, "twoscale_alpha", 0.5),
@@ -446,10 +440,10 @@ class LAKERCore:
             if self.verbose:
                 logger.info(
                     "Using two-scale kernel (alpha=%.2f)",
-                    cast(TwoScaleAttentionKernelOperator, operator).alpha,
+                    cast(TwoScaleAttention, operator).alpha,
                 )
         elif self.kernel_approx == "spectral":
-            operator = SpectralAttentionKernelOperator(
+            operator = SpectralAttention(
                 embeddings=embeddings,
                 lambda_reg=lambda_value,
                 num_knots=getattr(self, "spectral_knots", 5),
@@ -459,7 +453,7 @@ class LAKERCore:
             if self.verbose:
                 logger.info(
                     "Using spectral-shaped kernel with %d knots",
-                    cast(SpectralAttentionKernelOperator, operator).shaper.num_knots,
+                    cast(SpectralAttention, operator).shaper.num_knots,
                 )
         else:
             raise ValueError(f"Unknown kernel_approx={self.kernel_approx}")
@@ -634,14 +628,14 @@ class LAKERCore:
             n = embeddings.shape[0]
 
             chunk_size = self.chunk_size
-            if chunk_size is None and max(m, n) > 5000 and not get_chunk_disabled():
+            if chunk_size is None and max(m, n) > 5000 and not Backend.chunk_disabled:
                 chunk_size = max(1024, min(max(m, n) // 10, 8192))
 
             element_size = 4 if self.dtype == torch.float32 else 8
             mem_per_chunk = (
                 (chunk_size or m) * n * element_size if chunk_size else m * n * element_size
             )
-            chunk_budget = get_chunk_memory_budget()
+            chunk_budget = Backend.chunk_budget
             if chunk_size is None or mem_per_chunk <= chunk_budget:
                 k_query = kernel_operator.kernel_eval(
                     query_embeddings, embeddings, chunk_size=chunk_size
@@ -724,7 +718,7 @@ class LAKERCore:
             n = embeddings.shape[0]
 
             if self.kernel_approx == "rff" and hasattr(kernel_operator, "phi"):
-                ko = cast(RandomFeatureAttentionKernelOperator, kernel_operator)
+                ko = cast(RandomFeatureAttention, kernel_operator)
                 proj = query_embeddings @ ko.freq
                 phi_q = torch.cat(
                     [torch.cos(proj + ko.phase), torch.sin(proj + ko.phase)],
@@ -740,10 +734,10 @@ class LAKERCore:
                 var = lambda_reg * torch.sum(phi_q @ m_solve * phi_q, dim=1)
                 return var.clamp(min=0.0)
 
-            chunk_budget = get_chunk_memory_budget()
+            chunk_budget = Backend.chunk_budget
             element_size = 4 if self.dtype == torch.float32 else 8
             chunk_size = self.chunk_size
-            if chunk_size is None and not get_chunk_disabled():
+            if chunk_size is None and not Backend.chunk_disabled:
                 mem_needed = m * n * element_size
                 if mem_needed > chunk_budget:
                     chunk_size = max(1024, min(n // 10, 8192))
@@ -828,14 +822,14 @@ class LAKERCore:
             n = embeddings.shape[0]
 
             chunk_size = self.chunk_size
-            if chunk_size is None and max(m, n) > 5000 and not get_chunk_disabled():
+            if chunk_size is None and max(m, n) > 5000 and not Backend.chunk_disabled:
                 chunk_size = max(1024, min(max(m, n) // 10, 8192))
 
             element_size = 4 if self.dtype == torch.float32 else 8
             mem_per_chunk = (
                 (chunk_size or m) * n * element_size if chunk_size else m * n * element_size
             )
-            if chunk_size is None or mem_per_chunk <= get_chunk_memory_budget():
+            if chunk_size is None or mem_per_chunk <= Backend.chunk_budget:
                 k_query = kernel_operator.kernel_eval(
                     query_embeddings, embeddings, chunk_size=chunk_size
                 )
@@ -911,7 +905,7 @@ class LAKERCore:
                 query_embeddings = query_embeddings.to(dtype=self.dtype)
 
             if self.kernel_approx == "rff" and hasattr(kernel_operator, "phi"):
-                ko = cast(RandomFeatureAttentionKernelOperator, kernel_operator)
+                ko = cast(RandomFeatureAttention, kernel_operator)
                 proj = query_embeddings @ ko.freq
                 phi_q = torch.cat(
                     [torch.cos(proj + ko.phase), torch.sin(proj + ko.phase)], dim=1

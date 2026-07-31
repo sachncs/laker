@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import torch
 
-from laker.backend import get_default_device, get_default_dtype
+from laker.backend import Backend
 from laker.utils import adaptive_shrinkage_rho, eigh_stable
 
 if TYPE_CHECKING:
@@ -125,9 +125,9 @@ class CCCPPreconditioner:
         self.power_iter_steps = int(power_iter_steps)
 
         if device is None:
-            device = get_default_device()
+            device = Backend.device
         if dtype is None:
-            dtype = get_default_dtype()
+            dtype = Backend.dtype
         self.device = device
         self.dtype = dtype
 
@@ -458,9 +458,9 @@ class AdaptivePreconditioner:
         self.probe_strategy = probe_strategy
         self.power_iter_steps = int(power_iter_steps)
         if device is None:
-            device = get_default_device()
+            device = Backend.device
         if dtype is None:
-            dtype = get_default_dtype()
+            dtype = Backend.dtype
         self.device = device
         self.dtype = dtype
         self.inner: Optional[Union["JacobiPreconditioner", CCCPPreconditioner]] = None

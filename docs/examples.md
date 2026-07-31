@@ -49,7 +49,7 @@ matches `exp(E Eᵀ)` and the Laker solution matches `linalg.solve`.
 ```python
 import torch
 from laker import Laker
-from laker.kernel import Exact
+from laker.kernels import Attention as Exact
 
 # Three hand-crafted embeddings (paper Eq. 53).
 e = torch.tensor(

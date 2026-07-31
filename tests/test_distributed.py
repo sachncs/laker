@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from laker.distributed import DistributedAttentionKernelOperator
+from laker.distributed import DistributedAttention
 
 
 # ---------------------------------------------------------------------------
@@ -23,7 +23,7 @@ def test_single_device_flag_when_no_cuda(monkeypatch):
     """
     monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
     e = torch.randn(20, 5, dtype=torch.float64)
-    op = DistributedAttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
+    op = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
     assert op.single_device is True
     assert op.master_device == torch.device("cpu")
 
@@ -36,14 +36,14 @@ def test_matvec_matches_single_device_exact_kernel():
     """``matvec(x)`` from the single-device fallback matches the
     reference exact kernel to the precision of dense matmul.
     """
-    from laker.kernel import Exact
+    from laker.kernels import Attention as Exact
 
     torch.manual_seed(0)
     n = 40
     e = torch.randn(n, 6, dtype=torch.float64)
     x = torch.randn(n, dtype=torch.float64)
 
-    single = DistributedAttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
+    single = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
     ref = Exact(e, lambda_reg=1e-2, dtype=torch.float64)
     torch.testing.assert_close(single.matvec(x), ref.matvec(x), atol=1e-10, rtol=1e-10)
 
@@ -51,13 +51,13 @@ def test_matvec_matches_single_device_exact_kernel():
 def test_diagonal_matches_single_device_exact_kernel():
     """``diagonal()`` equals the diagonal of the single-device operator
     (the audit-flagged invariant)."""
-    from laker.kernel import Exact
+    from laker.kernels import Attention as Exact
 
     torch.manual_seed(0)
     n = 30
     e = torch.randn(n, 6, dtype=torch.float64)
 
-    single = DistributedAttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
+    single = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
     ref = Exact(e, lambda_reg=1e-2, dtype=torch.float64)
     torch.testing.assert_close(single.diagonal(), ref.diagonal(), atol=1e-10, rtol=1e-10)
 
@@ -65,27 +65,27 @@ def test_diagonal_matches_single_device_exact_kernel():
 def test_to_dense_matches_single_device_exact_kernel():
     """``to_dense()`` of the single-device fallback matches the
     reference exact operator."""
-    from laker.kernel import Exact
+    from laker.kernels import Attention as Exact
 
     torch.manual_seed(0)
     n = 30
     e = torch.randn(n, 6, dtype=torch.float64)
 
-    single = DistributedAttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
+    single = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
     ref = Exact(e, lambda_reg=1e-2, dtype=torch.float64)
     torch.testing.assert_close(single.to_dense(), ref.to_dense(), atol=1e-10, rtol=1e-10)
 
 
 def test_kernel_eval_matches_single_device_exact_kernel():
     """``kernel_eval(x)`` matches the reference kernel matrix."""
-    from laker.kernel import Exact
+    from laker.kernels import Attention as Exact
 
     torch.manual_seed(0)
     n = 30
     e = torch.randn(n, 6, dtype=torch.float64)
     x = torch.randn(7, 6, dtype=torch.float64)
 
-    single = DistributedAttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
+    single = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
     ref = Exact(e, lambda_reg=1e-2, dtype=torch.float64)
     torch.testing.assert_close(single.kernel_eval(x), ref.kernel_eval(x), atol=1e-10, rtol=1e-10)
 
@@ -104,9 +104,7 @@ def test_multi_device_matvec_outputs_on_master():
     e = torch.randn(n, 8, dtype=torch.float64, device="cuda")
     x = torch.randn(n, dtype=torch.float64, device="cuda")
 
-    dist_op = DistributedAttentionKernelOperator(
-        e, lambda_reg=1e-2, master_device=torch.device("cuda")
-    )
+    dist_op = DistributedAttention(e, lambda_reg=1e-2, master_device=torch.device("cuda"))
     y = dist_op.matvec(x)
     assert y.shape == (n,)
     assert y.device.type == "cuda"
@@ -125,5 +123,5 @@ def test_matvec_outputs_are_finite():
     n = 30
     e = torch.randn(n, 4, dtype=torch.float64) * 5.0
     x = torch.randn(n, dtype=torch.float64)
-    op = DistributedAttentionKernelOperator(e, lambda_reg=1e-2, dtype=torch.float64)
+    op = DistributedAttention(e, lambda_reg=1e-2, dtype=torch.float64)
     assert torch.isfinite(op.matvec(x)).all()

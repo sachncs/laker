@@ -6,8 +6,8 @@ that did not exercise numerical behavior have been replaced with
 ``torch.testing.assert_close`` assertions against closed-form
 references or finite-difference checks.
 
-This file uses the canonical ``laker.kernel`` namespace where
-applicable; legacy ``AttentionKernelOperator`` aliases are kept only
+This file uses the canonical ``laker.kernels`` namespace where
+applicable; legacy ``Attention`` aliases are kept only
 where they are the only way to construct the operator in question.
 """
 
@@ -16,7 +16,7 @@ from __future__ import annotations
 import torch
 
 from laker import Laker
-from laker.kernel import Exact, Nystrom
+from laker.kernels import Attention as Exact, NystromAttention as Nystrom
 from laker.solvers import PreconditionedConjugateGradient as PCG
 
 
@@ -307,15 +307,13 @@ def test_sparse_knn_at_k_n_matches_dense_kernel():
     """Sparse kNN with ``k_neighbors == n`` is equivalent to the dense
     attention kernel within numerical precision.
     """
-    from laker.kernels import SparseKNNAttentionKernelOperator
+    from laker.kernels import SparseAttention
 
     torch.manual_seed(0)
     n = 15
     e = torch.randn(n, 4, dtype=torch.float64)
     dense = Exact(e, lambda_reg=1e-2, dtype=torch.float64)
-    sparse = SparseKNNAttentionKernelOperator(
-        e, lambda_reg=1e-2, k_neighbors=n, dtype=torch.float64
-    )
+    sparse = SparseAttention(e, lambda_reg=1e-2, k_neighbors=n, dtype=torch.float64)
     x = torch.randn(n, dtype=torch.float64)
     torch.testing.assert_close(sparse.matvec(x), dense.matvec(x), atol=1e-9, rtol=1e-9)
 

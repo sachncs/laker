@@ -30,7 +30,6 @@ their module-qualified names:
 - ``laker.plot.Plot``
 - ``laker.preconditioner.Preconditioner`` (and ``.cccp``, ``.adaptive``, ``.jacobi``)
 - ``laker.solve.Solve`` (and ``.pcg``, ``.descent``, ``.jacobi``)
-- ``laker.kernel.Kernel`` (and ``.exact``, ``.nystrom``, ``.fourier``, ``.neighbors``, ``.grid``, ``.spectrum``, ``.hybrid``, ``.distribute``)
 - ``laker.search.Search``
 - ``laker.fit.Fit``
 - ``laker.stream.Stream``

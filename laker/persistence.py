@@ -306,17 +306,17 @@ class ModelPersistence:
                 model.residual_corrector.load_state_dict(state["residual_corrector_state"])
 
         from laker.kernels import (
-            AttentionKernelOperator,
-            NystromAttentionKernelOperator,
-            RandomFeatureAttentionKernelOperator,
-            SKIAttentionKernelOperator,
-            SparseKNNAttentionKernelOperator,
-            SpectralAttentionKernelOperator,
-            TwoScaleAttentionKernelOperator,
+            Attention,
+            NystromAttention,
+            RandomFeatureAttention,
+            SKIAttention,
+            SparseAttention,
+            SpectralAttention,
+            TwoScaleAttention,
         )
 
         if model.kernel_approx is None or model.kernel_approx == "exact":
-            model.kernel_operator = AttentionKernelOperator(
+            model.kernel_operator = Attention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 chunk_size=model.chunk_size,
@@ -324,7 +324,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "nystrom":
-            model.kernel_operator = NystromAttentionKernelOperator(
+            model.kernel_operator = NystromAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 num_landmarks=model.num_landmarks,
@@ -333,7 +333,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "rff":
-            model.kernel_operator = RandomFeatureAttentionKernelOperator(
+            model.kernel_operator = RandomFeatureAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 num_features=model.num_features,
@@ -341,7 +341,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "knn":
-            model.kernel_operator = SparseKNNAttentionKernelOperator(
+            model.kernel_operator = SparseAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 k_neighbors=model.k_neighbors,
@@ -350,7 +350,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "ski":
-            model.kernel_operator = SKIAttentionKernelOperator(
+            model.kernel_operator = SKIAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 grid_size=model.grid_size,
@@ -358,7 +358,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "spectral":
-            model.kernel_operator = SpectralAttentionKernelOperator(
+            model.kernel_operator = SpectralAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 num_knots=model.spectral_knots,
@@ -366,7 +366,7 @@ class ModelPersistence:
                 dtype=dtype,
             )
         elif model.kernel_approx == "twoscale":
-            model.kernel_operator = TwoScaleAttentionKernelOperator(
+            model.kernel_operator = TwoScaleAttention(
                 embeddings=model.embeddings,
                 lambda_reg=model.lambda_reg,
                 alpha=model.twoscale_alpha,

@@ -15,7 +15,12 @@ from pathlib import Path
 import torch
 
 from laker import Laker
-from laker.kernel import Exact, Nystrom, Fourier, Neighbors
+from laker.kernels import (
+    Attention as Exact,
+    NystromAttention as Nystrom,
+    RandomFeatureAttention as Fourier,
+    SparseAttention as Neighbors,
+)
 
 
 # ---------------------------------------------------------------------------

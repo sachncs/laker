@@ -217,7 +217,7 @@ def test_laker_predict_is_kernel_matvec_at_training():
     ``lambda * I`` contribution that ``to_dense`` includes, so
     training-point predictions are ``y_train - lambda * coef_``.
     """
-    from laker.kernel import Exact
+    from laker.kernels import Attention as Exact
 
     torch.manual_seed(0)
     n = 30

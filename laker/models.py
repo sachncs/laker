@@ -44,7 +44,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from laker.backend import to_tensor
+from laker.backend import Backend
 from laker.core import LAKERCore
 from laker.kernels import KernelOperator
 from laker.persistence import ModelPersistence
@@ -439,8 +439,8 @@ class LAKERRegressor:
             >>> reg.fit(x_train, y_train)
             >>> reg.predict(x_test)
         """
-        x = to_tensor(x, device=self.device, dtype=self.dtype)
-        y = to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
+        x = Backend.to_tensor(x, device=self.device, dtype=self.dtype)
+        y = Backend.to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
 
         if x.dim() != 2:
             raise ValueError(f"x must be 2-D, got shape {x.shape}")
@@ -493,7 +493,7 @@ class LAKERRegressor:
         if self.alpha is None or self.embeddings is None:
             raise RuntimeError("Model has not been fitted. Call fit() first.")
 
-        x = to_tensor(x, device=self.device, dtype=self.dtype)
+        x = Backend.to_tensor(x, device=self.device, dtype=self.dtype)
         if x.dim() != 2:
             raise ValueError(f"x must be 2-D, got shape {x.shape}")
         if self.embedding_model is not None and hasattr(self.embedding_model, "input_dim"):
@@ -540,7 +540,7 @@ class LAKERRegressor:
         if self.alpha is None or self.embeddings is None:
             raise RuntimeError("Model has not been fitted. Call fit() first.")
 
-        x = to_tensor(x, device=self.device, dtype=self.dtype)
+        x = Backend.to_tensor(x, device=self.device, dtype=self.dtype)
         if x.dim() != 2:
             raise ValueError(f"x must be 2-D, got shape {x.shape}")
 
@@ -568,8 +568,8 @@ class LAKERRegressor:
         warm_start: bool = True,
     ) -> "LAKERRegressor":
         """Fit with validation-based grid search over key hyperparameters."""
-        x = to_tensor(x, device=self.device, dtype=self.dtype)
-        y = to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
+        x = Backend.to_tensor(x, device=self.device, dtype=self.dtype)
+        y = Backend.to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
         return self.search.fit_with_search(
             self,
             x,
@@ -593,8 +593,8 @@ class LAKERRegressor:
         num_probes_bounds: tuple[int, int] = (20, 300),
     ) -> "LAKERRegressor":
         """Fit with Bayesian Optimisation over key hyperparameters."""
-        x = to_tensor(x, device=self.device, dtype=self.dtype)
-        y = to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
+        x = Backend.to_tensor(x, device=self.device, dtype=self.dtype)
+        y = Backend.to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
         return self.search.fit_with_bo(
             self,
             x,
@@ -618,8 +618,8 @@ class LAKERRegressor:
         rebuild_threshold: int = 100,
     ) -> "LAKERRegressor":
         """Update the model with one or more new observations."""
-        x_new = to_tensor(x_new, device=self.device, dtype=self.dtype)
-        y_new = to_tensor(y_new, device=self.device, dtype=self.dtype).squeeze()
+        x_new = Backend.to_tensor(x_new, device=self.device, dtype=self.dtype)
+        y_new = Backend.to_tensor(y_new, device=self.device, dtype=self.dtype).squeeze()
         return self.streaming.partial_fit(self, x_new, y_new, forgetting_factor, rebuild_threshold)
 
     def fit_path(
@@ -630,8 +630,8 @@ class LAKERRegressor:
         reuse_precond: bool = True,
     ) -> dict:
         """Fit a regularization path over a sequence of lambda_reg values."""
-        x = to_tensor(x, device=self.device, dtype=self.dtype)
-        y = to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
+        x = Backend.to_tensor(x, device=self.device, dtype=self.dtype)
+        y = Backend.to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
         return self.streaming.fit_path(self, x, y, lambda_reg_grid, reuse_precond)
 
     def fit_continuation(
@@ -644,8 +644,8 @@ class LAKERRegressor:
         reuse_precond: bool = True,
     ) -> "LAKERRegressor":
         """Fit with a continuation schedule over decreasing regularisation."""
-        x = to_tensor(x, device=self.device, dtype=self.dtype)
-        y = to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
+        x = Backend.to_tensor(x, device=self.device, dtype=self.dtype)
+        y = Backend.to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
         return self.streaming.fit_continuation(
             self, x, y, lambda_max, lambda_min, n_stages, reuse_precond
         )
@@ -663,8 +663,8 @@ class LAKERRegressor:
         patience: int = 5,
     ) -> "LAKERRegressor":
         """Optimise the embedding MLP weights end-to-end on the regression objective."""
-        x = to_tensor(x, device=self.device, dtype=self.dtype)
-        y = to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
+        x = Backend.to_tensor(x, device=self.device, dtype=self.dtype)
+        y = Backend.to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
         return self.trainer.fit_learned_embeddings(self, x, y, lr, epochs, rebuild_freq, patience)
 
     def fit_residual_corrector(
@@ -678,8 +678,8 @@ class LAKERRegressor:
         lr: float = 1e-3,
     ) -> "LAKERRegressor":
         """Train a small residual corrector on ``y - y_hat_laker``."""
-        x = to_tensor(x, device=self.device, dtype=self.dtype)
-        y = to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
+        x = Backend.to_tensor(x, device=self.device, dtype=self.dtype)
+        y = Backend.to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
         return self.trainer.fit_residual_corrector(
             self, x, y, val_fraction, epochs, patience, weight_decay, lr
         )
@@ -695,10 +695,10 @@ class LAKERRegressor:
         patience: int = 5,
     ) -> "LAKERRegressor":
         """Optimise hyperparameters via bilevel learning with implicit differentiation."""
-        x_train = to_tensor(x_train, device=self.device, dtype=self.dtype)
-        y_train = to_tensor(y_train, device=self.device, dtype=self.dtype).squeeze()
-        x_val = to_tensor(x_val, device=self.device, dtype=self.dtype)
-        y_val = to_tensor(y_val, device=self.device, dtype=self.dtype).squeeze()
+        x_train = Backend.to_tensor(x_train, device=self.device, dtype=self.dtype)
+        y_train = Backend.to_tensor(y_train, device=self.device, dtype=self.dtype).squeeze()
+        x_val = Backend.to_tensor(x_val, device=self.device, dtype=self.dtype)
+        y_val = Backend.to_tensor(y_val, device=self.device, dtype=self.dtype).squeeze()
         return self.trainer.fit_bilevel(self, x_train, y_train, x_val, y_val, lr, epochs, patience)
 
     def fit_uncertainty_aware(
@@ -721,8 +721,8 @@ class LAKERRegressor:
         This prevents overconfident predictions and improves uncertainty
         quantification for active sensing and sensor placement.
         """
-        x = to_tensor(x, device=self.device, dtype=self.dtype)
-        y = to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
+        x = Backend.to_tensor(x, device=self.device, dtype=self.dtype)
+        y = Backend.to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
         return self.trainer.fit_uncertainty_aware(
             self, x, y, lr, epochs, beta, variance_subset, patience
         )
@@ -749,7 +749,7 @@ class LAKERRegressor:
             :math:`-\\sqrt{\\frac{1}{m}\\|\\hat{y} - y\\|_2^2}`.
         """
         y_pred = self.predict(x)
-        y_true = to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
+        y_true = Backend.to_tensor(y, device=self.device, dtype=self.dtype).squeeze()
         rmse = torch.sqrt(torch.mean((y_pred - y_true) ** 2)).item()
         return -rmse
 

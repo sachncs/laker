@@ -20,12 +20,12 @@ import pytest
 import torch
 
 from laker.kernels import (
-    AttentionKernelOperator,
-    NystromAttentionKernelOperator,
-    RandomFeatureAttentionKernelOperator,
-    SKIAttentionKernelOperator,
-    SparseKNNAttentionKernelOperator,
-    TwoScaleAttentionKernelOperator,
+    Attention,
+    NystromAttention,
+    RandomFeatureAttention,
+    SKIAttention,
+    SparseAttention,
+    TwoScaleAttention,
 )
 
 KERNEL_NAMES = [
@@ -47,26 +47,24 @@ def _make(n=20, d=5, seed=0):
 def _build(name, embeddings, **kwargs):
     lam = kwargs.pop("regularization", 1e-2)
     if name == "exact":
-        return AttentionKernelOperator(embeddings, lambda_reg=lam, **kwargs)
+        return Attention(embeddings, lambda_reg=lam, **kwargs)
     if name == "nystrom":
-        return NystromAttentionKernelOperator(
+        return NystromAttention(
             embeddings, lambda_reg=lam, num_landmarks=min(8, len(embeddings)), **kwargs
         )
     if name == "fourier":
-        return RandomFeatureAttentionKernelOperator(
-            embeddings, lambda_reg=lam, num_features=20, **kwargs
-        )
+        return RandomFeatureAttention(embeddings, lambda_reg=lam, num_features=20, **kwargs)
     if name == "neighbors":
-        return SparseKNNAttentionKernelOperator(embeddings, lambda_reg=lam, k_neighbors=3, **kwargs)
+        return SparseAttention(embeddings, lambda_reg=lam, k_neighbors=3, **kwargs)
     if name == "grid":
         if embeddings.shape[1] > 6:
             pytest.skip("Grid kernel needs low embedding_dim")
         # Pick a grid_size large enough for the embedding_dim. The grid
         # is `2^d` points per dimension; we ask for slightly more.
         grid_size = max(32, 4 * (2 ** embeddings.shape[1]))
-        return SKIAttentionKernelOperator(embeddings, lambda_reg=lam, grid_size=grid_size, **kwargs)
+        return SKIAttention(embeddings, lambda_reg=lam, grid_size=grid_size, **kwargs)
     if name == "hybrid":
-        return TwoScaleAttentionKernelOperator(
+        return TwoScaleAttention(
             embeddings,
             lambda_reg=lam,
             num_landmarks=min(8, len(embeddings)),
@@ -123,7 +121,7 @@ def test_exact_kernel_eval_matches_dense():
     """For the exact kernel, ``kernel_eval(E, E) == to_dense() - lam I``."""
     n = 10
     embeddings = _make(n=n, d=4)
-    op = AttentionKernelOperator(embeddings, lambda_reg=1e-2)
+    op = Attention(embeddings, lambda_reg=1e-2)
     expected = op.to_dense() - 1e-2 * torch.eye(n)
     actual = op.kernel_eval(embeddings, embeddings)
     rel = (actual - expected).norm() / expected.norm()

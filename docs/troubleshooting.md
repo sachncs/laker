@@ -118,7 +118,7 @@ disable the dense kernel in favour of `kernel="nystrom"`.
 
 ### Single-device fallback
 
-`laker.kernel.Distribute` falls back to single-device execution
+`laker.distributed.DistributedAttention` falls back to single-device execution
 when fewer than two CUDA devices are available. To verify the
 multi-device path is taking effect, set
 `LAKER_VERBOSE=1` and look for the `Auto-selected chunk_size`
@@ -133,7 +133,7 @@ Quick scripts that catch the common failure modes:
 ```python
 # 1. Check the kernel matrix is well-conditioned.
 import torch
-from laker.kernel import Exact
+from laker.kernels import Attention as Exact
 
 e = torch.randn(50, 6, dtype=torch.float64)
 op = Exact(e, lambda_reg=1e-2, dtype=torch.float64)

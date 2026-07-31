@@ -317,7 +317,7 @@ def test_partial_fit_grows_alpha_by_exactly_batch_size():
 # ---------------------------------------------------------------------------
 def test_kernel_op_diagonal_consistent_with_to_dense():
     """`diagonal()` must equal `to_dense().diagonal()` for every kernel."""
-    from laker.kernel import Exact
+    from laker.kernels import Attention as Exact
 
     torch.manual_seed(0)
     e = torch.randn(20, 6, dtype=torch.float64)

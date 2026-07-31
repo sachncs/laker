@@ -34,7 +34,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 
-from laker.backend import get_default_device, get_default_dtype
+from laker.backend import Backend
 
 logger = logging.getLogger(__name__)
 
@@ -66,9 +66,9 @@ class PositionEmbedding(nn.Module):
         seed: Random seed for reproducible Fourier frequencies and MLP
             init.
         device: :class:`torch.device`. Defaults to
-            :func:`laker.backend.get_default_device`.
+            :func:`laker.backend.Backend.device`.
         dtype: :class:`torch.dtype`. Defaults to
-            :func:`laker.backend.get_default_dtype`.
+            :func:`laker.backend.Backend.dtype`.
 
     Raises:
         ValueError: If ``input_dim``, ``embedding_dim``, or ``num_fourier``
@@ -141,9 +141,9 @@ class PositionEmbedding(nn.Module):
         self.num_fourier = num_fourier
 
         if device is None:
-            device = get_default_device()
+            device = Backend.device
         if dtype is None:
-            dtype = get_default_dtype()
+            dtype = Backend.dtype
 
         # ------------------------------------------------------------------
         # Fourier feature bank

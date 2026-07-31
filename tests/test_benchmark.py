@@ -18,7 +18,7 @@ from laker.benchmark import (
     benchmark_laker_vs_baselines,
     benchmark_solver,
 )
-from laker.kernel import Exact
+from laker.kernels import Attention as Exact
 from laker.preconditioner import CCCPPreconditioner
 
 
