@@ -26,9 +26,7 @@ class TestValidate:
 class TestField:
     def test_noiseless_closed_form(self):
         """Single-transmitter: RSS = P - 10 eta log10(d/d_0)."""
-        locs = torch.tensor(
-            [[1.0, 0.0], [10.0, 0.0], [100.0, 0.0]], dtype=torch.float64
-        )
+        locs = torch.tensor([[1.0, 0.0], [10.0, 0.0], [100.0, 0.0]], dtype=torch.float64)
         tx = torch.tensor([[0.0, 0.0]], dtype=torch.float64)
         pwr = torch.tensor([0.0], dtype=torch.float64)
         clean, noisy = Data.field(locs, tx, pwr, loss=2.0, ref=1.0, shadow=0.0)

@@ -73,9 +73,7 @@ class Learn:
         assert model.embed_ is not None, "fit: embeddings is None"
         assert model.coef_.shape == (n,), "fit: coef shape mismatch"
         assert model.embed_.shape == (n, embedding_dim), "fit: embeddings shape"
-        assert (
-            model.embed_.requires_grad is False
-        ), "fit: frozen embeddings expected at fit time"
+        assert model.embed_.requires_grad is False, "fit: frozen embeddings expected at fit time"
 
         # ---- predict -------------------------------------------------------
         query = torch.rand(20, 2, dtype=torch.float64) * area
@@ -92,9 +90,9 @@ class Learn:
             loaded = Laker.load(str(path))
 
         loaded_predictions = loaded.predict(query)
-        assert torch.allclose(
-            predictions, loaded_predictions, atol=1e-5
-        ), "round-trip: predictions diverge after reload"
+        assert torch.allclose(predictions, loaded_predictions, atol=1e-5), (
+            "round-trip: predictions diverge after reload"
+        )
 
         print(f"n={n} sensors, dim={embedding_dim}")
         print(f"train R^2={train_r2:.4f}")

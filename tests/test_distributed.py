@@ -1,6 +1,5 @@
 """Tests for :mod:`laker.distributed`."""
 
-import pytest
 import torch
 
 from laker.distributed import Distributed

@@ -103,6 +103,23 @@ disallow_untyped_defs = false
 check_untyped_defs = false
 ignore_errors = true
 
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["docs", "build", "dist", "*.egg-info"]
+
+[tool.ruff.lint]
+# E741: ambiguous variable name 'l' is intentional in math.py for the Cholesky factor.
+# F841 / F811: local variable redefinition / unused variable in test fixtures.
+select = ["E", "F", "W", "I"]
+ignore = ["E741"]
+
+[tool.ruff.lint.per-file-ignores]
+"laker/math.py" = ["E741"]
+"tests/*" = ["F401", "F811", "F841", "E402"]
+"benchmarks/*" = ["F401", "F811", "F841", "E402", "F541"]
+"examples/*" = ["F401", "E402"]
+
 [tool.pytest.ini_options]
 minversion = "7.4"
 testpaths = ["tests"]

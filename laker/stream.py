@@ -74,9 +74,7 @@ class Stream:
             y_old = torch.zeros(old_n, device=self.core.device, dtype=self.core.dtype)
         y_ext = torch.cat([y_old, y_new])
 
-        x0 = torch.cat(
-            [old_alpha, torch.zeros(m, device=self.core.device, dtype=self.core.dtype)]
-        )
+        x0 = torch.cat([old_alpha, torch.zeros(m, device=self.core.device, dtype=self.core.dtype)])
 
         with torch.no_grad():
             prec = self.core.build_prec(

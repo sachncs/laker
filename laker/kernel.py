@@ -54,7 +54,9 @@ class Kernel(Protocol):
 # ---------------------------------------------------------------------------
 
 
-def exp_safe(gram: torch.Tensor, out: Optional[torch.Tensor] = None, skip: bool = False) -> torch.Tensor:
+def exp_safe(
+    gram: torch.Tensor, out: Optional[torch.Tensor] = None, skip: bool = False
+) -> torch.Tensor:
     """Element-wise exp with dtype-aware overflow guard.
 
     Thin alias for :meth:`Math.exp` that also supports the legacy
@@ -123,7 +125,7 @@ class Exact:
         self.embeddings = embeddings.to(device=device, dtype=dtype)
         self.shape = (self.size, self.size)
 
-        max_sq = torch.sum(self.embeddings ** 2, dim=1).max().item()
+        max_sq = torch.sum(self.embeddings**2, dim=1).max().item()
         if self.dtype == torch.float16:
             cap = 11.0
         elif self.dtype == torch.float32:
@@ -190,7 +192,7 @@ class Exact:
 
     def diag(self) -> torch.Tensor:
         """Return diagonal of ``lambda I + G``."""
-        sq = torch.sum(self.embeddings ** 2, dim=1)
+        sq = torch.sum(self.embeddings**2, dim=1)
         return self.lam + exp_safe(sq)
 
     def dense(self) -> torch.Tensor:
@@ -244,8 +246,10 @@ class Exact:
 # ---------------------------------------------------------------------------
 
 
-def _nystrom_matvec(cross_kernel: torch.Tensor, landmark_projection: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-    """Core matmul for the Nyström approximation: K_approx @ x = cross_kernel @ landmark_projection @ cross_kernel^T @ x."""
+def _nystrom_matvec(
+    cross_kernel: torch.Tensor, landmark_projection: torch.Tensor, x: torch.Tensor
+) -> torch.Tensor:
+    """Core matmul: ``K_approx @ x = cross_kernel @ landmark_projection @ cross_kernel.T @ x``."""
     return cross_kernel @ (landmark_projection.T @ x)
 
 
@@ -289,12 +293,10 @@ class Nystrom:
         self.dtype = dtype
         self.embeddings = embeddings.to(device=device, dtype=dtype)
 
-        num_landmarks_v = num if num is not None else max(50, int(self.size ** 0.5))
+        num_landmarks_v = num if num is not None else max(50, int(self.size**0.5))
         self.num_landmarks = min(num_landmarks_v, self.size)
         if self.num_landmarks != num_landmarks_v:
-            logger.warning(
-                "num_landmarks clamped to size=%d (was %d)", self.size, num_landmarks_v
-            )
+            logger.warning("num_landmarks clamped to size=%d (was %d)", self.size, num_landmarks_v)
 
         self.skip = True
         self.landmark_index = self.landmarks()
@@ -302,7 +304,9 @@ class Nystrom:
         self.cross_kernel = self.kernel(self.embeddings, self.landmark_embed)
         self.landmark_kernel = self.kernel(self.landmark_embed, self.landmark_embed)
         reg_eps = max(1e-6, self.lam * 0.1)
-        landmark_kernel_reg = self.landmark_kernel + reg_eps * torch.eye(self.num_landmarks, device=device, dtype=dtype)
+        landmark_kernel_reg = self.landmark_kernel + reg_eps * torch.eye(
+            self.num_landmarks, device=device, dtype=dtype
+        )
         self.landmark_cholesky = torch.linalg.cholesky(landmark_kernel_reg)
         self.landmark_projection = torch.linalg.solve_triangular(
             self.landmark_cholesky.T,
@@ -407,19 +411,15 @@ class Fourier:
         self.dtype = dtype
         self.embeddings = embeddings.to(device=device, dtype=dtype)
 
-        r = num if num is not None else max(100, int(self.size ** 0.5 * 2))
+        r = num if num is not None else max(100, int(self.size**0.5 * 2))
         self.num = r
 
         gen = torch.Generator(device=device).manual_seed(42)
-        self.freq = (
-            torch.randn(self.dim, r, generator=gen, device=device, dtype=dtype) / sigma
-        )
+        self.freq = torch.randn(self.dim, r, generator=gen, device=device, dtype=dtype) / sigma
         self.phase = torch.rand(r, generator=gen, device=device, dtype=dtype) * 2.0 * torch.pi
 
         proj = self.embeddings @ self.freq
-        phi = torch.cat(
-            [torch.cos(proj + self.phase), torch.sin(proj + self.phase)], dim=1
-        )
+        phi = torch.cat([torch.cos(proj + self.phase), torch.sin(proj + self.phase)], dim=1)
         self.phi = phi / (r**0.5)
         self.shape = (self.size, self.size)
         self.skip = True
@@ -445,13 +445,9 @@ class Fourier:
         if y is None:
             y = self.embeddings
         proj_x = x @ self.freq
-        phi_x = torch.cat(
-            [torch.cos(proj_x + self.phase), torch.sin(proj_x + self.phase)], dim=1
-        )
+        phi_x = torch.cat([torch.cos(proj_x + self.phase), torch.sin(proj_x + self.phase)], dim=1)
         proj_y = y @ self.freq
-        phi_y = torch.cat(
-            [torch.cos(proj_y + self.phase), torch.sin(proj_y + self.phase)], dim=1
-        )
+        phi_y = torch.cat([torch.cos(proj_y + self.phase), torch.sin(proj_y + self.phase)], dim=1)
         return (phi_x @ phi_y.T) / self.num
 
 
@@ -507,7 +503,9 @@ class Neighbors:
             dists = torch.cdist(self.embeddings[i_start:i_end], self.embeddings)
             topk = torch.topk(dists, min(k, size), largest=False, dim=1)
             row_idx = (
-                torch.arange(i_start, i_end, device=self.device).unsqueeze(1).expand(-1, min(k, size))
+                torch.arange(i_start, i_end, device=self.device)
+                .unsqueeze(1)
+                .expand(-1, min(k, size))
             )
             rows.append(row_idx.flatten())
             cols.append(topk.indices.flatten())
@@ -621,9 +619,7 @@ class Neighbors:
             i_end = min(i_start + chunk_size, m)
             gram_chunk = x[i_start:i_end] @ y.T  # noqa
             topk = torch.topk(gram_chunk, k, largest=True, dim=1)
-            row_idx = (
-                torch.arange(i_start, i_end, device=self.device).unsqueeze(1).expand(-1, k)
-            )
+            row_idx = torch.arange(i_start, i_end, device=self.device).unsqueeze(1).expand(-1, k)
             rows.append(row_idx.flatten())
             cols.append(topk.indices.flatten())
             vals.append(exp_safe(topk.values).flatten())
@@ -647,9 +643,7 @@ class Neighbors:
 # ---------------------------------------------------------------------------
 
 
-def weights(
-    x: torch.Tensor, grid: list[torch.Tensor]
-) -> tuple[torch.Tensor, torch.Tensor]:
+def weights(x: torch.Tensor, grid: list[torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
     """Multilinear interpolation weights for product-grid SKI.
 
     Args:
@@ -737,10 +731,10 @@ class Grid:
             raise ValueError("grid_size must be at least 2")
 
         per_dim = max(2, int(grid_size ** (1.0 / d)))
-        while per_dim ** d > grid_size and per_dim > 2:
+        while per_dim**d > grid_size and per_dim > 2:
             per_dim -= 1
         self.per_dim = per_dim
-        actual = per_dim ** d
+        actual = per_dim**d
         if actual > grid_size:
             raise ValueError(
                 f"Cannot build product grid: {per_dim}^{d}={actual} > {grid_size}. "
@@ -951,16 +945,10 @@ class Hybrid:
         return self.alpha * self.global_op.matvec(x) + (1.0 - self.alpha) * self.local_op.matvec(x)
 
     def diag(self) -> torch.Tensor:
-        return (
-            self.alpha * self.global_op.diag()
-            + (1.0 - self.alpha) * self.local_op.diag()
-        )
+        return self.alpha * self.global_op.diag() + (1.0 - self.alpha) * self.local_op.diag()
 
     def dense(self) -> torch.Tensor:
-        return (
-            self.alpha * self.global_op.dense()
-            + (1.0 - self.alpha) * self.local_op.dense()
-        )
+        return self.alpha * self.global_op.dense() + (1.0 - self.alpha) * self.local_op.dense()
 
     def eval(
         self,

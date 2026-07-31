@@ -151,9 +151,7 @@ class Bilevel:
                 patience_count += 1
                 if patience_count >= self.patience:
                     if self.verbose:
-                        logger.info(
-                            "Bilevel early stopping at epoch %d", epoch + 1
-                        )
+                        logger.info("Bilevel early stopping at epoch %d", epoch + 1)
                     break
 
         if self.verbose:

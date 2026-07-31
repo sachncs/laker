@@ -40,9 +40,7 @@ class Check:
             )
         if y.dim() == 2:
             if y.shape[-1] != 1:
-                raise ValueError(
-                    f"{name} must have shape (n,) or (n, 1), got {tuple(y.shape)}"
-                )
+                raise ValueError(f"{name} must have shape (n,) or (n, 1), got {tuple(y.shape)}")
             y = y.squeeze(-1)
         if y.dim() != 1:
             raise ValueError(f"{name} must be 1-D, got shape {tuple(y.shape)}")
@@ -60,9 +58,7 @@ class Check:
                 f"{name} output must be 2-D (batch, dim), got shape {tuple(out.shape)}"
             )
         if out.shape[1] != dim:
-            raise ValueError(
-                f"{name} output has {out.shape[1]} features but model expects {dim}"
-            )
+            raise ValueError(f"{name} output has {out.shape[1]} features but model expects {dim}")
         if not torch.isfinite(out).all():
             raise ValueError(f"{name} output contains non-finite values")
         return out
@@ -79,7 +75,9 @@ class Check:
         return n - n_val, n_val
 
     @staticmethod
-    def tensor(value, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None) -> torch.Tensor:
+    def tensor(
+        value, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None
+    ) -> torch.Tensor:
         """Coerce ``value`` to a tensor, optionally casting dtype/device."""
         if isinstance(value, torch.Tensor):
             if dtype is None and device is None:

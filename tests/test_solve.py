@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from laker.solve import Descent, Jacobi, PCG, Report
+from laker.solve import PCG, Descent, Jacobi, Report
 
 
 def _sym_pd(n, seed=0):

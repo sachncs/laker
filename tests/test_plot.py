@@ -1,6 +1,5 @@
 """Tests for :mod:`laker.plot`."""
 
-import pytest
 import torch
 
 from laker.plot import Plot
@@ -38,8 +37,6 @@ class TestConvergence:
 
     def test_convergence_accepts_multiple_series(self):
         try:
-            Plot.convergence(
-                [[0.1, 0.01], [0.2, 0.02]], labels=["a", "b"]
-            )
+            Plot.convergence([[0.1, 0.01], [0.2, 0.02]], labels=["a", "b"])
         except ImportError:
             pass  # matplotlib may not be available

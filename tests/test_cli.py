@@ -63,7 +63,21 @@ class TestFitRun:
         np.save(y_path, np.random.RandomState(0).randn(20).astype(np.float64))
 
         with pytest.raises(SystemExit) as exc:
-            CLI.run(["fit", "--locations", x_path, "--measurements", y_path, "--output", m_path, "--dtype", "float64", "--embed-dim", "4"])
+            CLI.run(
+                [
+                    "fit",
+                    "--locations",
+                    x_path,
+                    "--measurements",
+                    y_path,
+                    "--output",
+                    m_path,
+                    "--dtype",
+                    "float64",
+                    "--embed-dim",
+                    "4",
+                ]
+            )
         assert exc.value.code == 0
         assert os.path.exists(m_path)
         m = Laker.load(m_path)
@@ -82,7 +96,19 @@ class TestFitRun:
         np.save(x_path, x)
         np.save(y_path, y)
         with pytest.raises(SystemExit) as exc:
-            CLI.run(["fit", "--locations", x_path, "--measurements", y_path, "--output", m_path, "--dtype", "float64"])
+            CLI.run(
+                [
+                    "fit",
+                    "--locations",
+                    x_path,
+                    "--measurements",
+                    y_path,
+                    "--output",
+                    m_path,
+                    "--dtype",
+                    "float64",
+                ]
+            )
         assert exc.value.code == 0
         with pytest.raises(SystemExit) as exc:
             CLI.run(["predict", "--model", m_path, "--locations", x_path, "--output", out_path])

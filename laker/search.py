@@ -12,8 +12,7 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 import torch
 
-from laker.backend import Backend
-from laker.math import GP, Math
+from laker.math import GP
 
 if TYPE_CHECKING:
     from laker.core import Core
@@ -112,7 +111,10 @@ class Search:
                         if self.core.verbose:
                             logger.warning(
                                 "Trial failed: lam=%.3e gamma=%.3e num=%d (%s)",
-                                lam_v, gamma_v, num_v, exc,
+                                lam_v,
+                                gamma_v,
+                                num_v,
+                                exc,
                             )
 
                     if rmse < best_rmse:
@@ -122,7 +124,10 @@ class Search:
                         if self.core.verbose:
                             logger.info(
                                 "New best: lam=%.3e gamma=%.3e num=%d rmse=%.4f",
-                                lam_v, gamma_v, num_v, rmse,
+                                lam_v,
+                                gamma_v,
+                                num_v,
+                                rmse,
                             )
                     if warm and best_alpha is not None:
                         x0 = best_alpha.clone()
@@ -191,8 +196,16 @@ class Search:
             gamma_v = float(point[1])
             num_v = int(round(float(point[2])))
             rmse = self._eval(
-                model, train_embed, x[val_idx], y, train_idx, val_idx,
-                lam_v, gamma_v, num_v, seed,
+                model,
+                train_embed,
+                x[val_idx],
+                y,
+                train_idx,
+                val_idx,
+                lam_v,
+                gamma_v,
+                num_v,
+                seed,
             )
             x_obs.append(point)
             y_obs.append(rmse)
@@ -216,8 +229,16 @@ class Search:
             gamma_v = float(next_point[1])
             num_v = int(round(float(next_point[2])))
             rmse = self._eval(
-                model, train_embed, x[val_idx], y, train_idx, val_idx,
-                lam_v, gamma_v, num_v, seed,
+                model,
+                train_embed,
+                x[val_idx],
+                y,
+                train_idx,
+                val_idx,
+                lam_v,
+                gamma_v,
+                num_v,
+                seed,
             )
             x_obs.append(next_point)
             y_obs.append(rmse)

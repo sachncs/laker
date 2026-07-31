@@ -20,7 +20,6 @@ from laker.model import Laker
 from laker.prec import CCCP
 from laker.solve import PCG
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -167,9 +166,7 @@ class ReproducibleBenchmarkSuite:
         )
         results["exact"] = {"mean": result["mean_ms"], "std": result["std_ms"]}
 
-        op_nys = Nystrom(
-            embeddings, lam=self.lambda_reg, num=200, dtype=self.dtype
-        )
+        op_nys = Nystrom(embeddings, lam=self.lambda_reg, num=200, dtype=self.dtype)
         result = self.executor.run(
             "nystrom_matvec",
             lambda: op_nys.matvec(vector),
@@ -178,9 +175,7 @@ class ReproducibleBenchmarkSuite:
         )
         results["nystrom"] = {"mean": result["mean_ms"], "std": result["std_ms"]}
 
-        op_fourier = Fourier(
-            embeddings, lam=self.lambda_reg, num=400, dtype=self.dtype
-        )
+        op_fourier = Fourier(embeddings, lam=self.lambda_reg, num=400, dtype=self.dtype)
         result = self.executor.run(
             "rff_matvec",
             lambda: op_fourier.matvec(vector),
@@ -189,9 +184,7 @@ class ReproducibleBenchmarkSuite:
         )
         results["rff"] = {"mean": result["mean_ms"], "std": result["std_ms"]}
 
-        op_neighbors = Neighbors(
-            embeddings, lam=self.lambda_reg, k=50, dtype=self.dtype
-        )
+        op_neighbors = Neighbors(embeddings, lam=self.lambda_reg, k=50, dtype=self.dtype)
         result = self.executor.run(
             "knn_matvec",
             lambda: op_neighbors.matvec(vector),
@@ -215,10 +208,10 @@ class ReproducibleBenchmarkSuite:
         lines = [
             "# LAKER Benchmark Results",
             "",
-            f"**Date:** 2026-07-31  ",
-            f"**Platform:** Darwin (macOS)  ",
+            "**Date:** 2026-07-31  ",
+            "**Platform:** Darwin (macOS)  ",
             f"**PyTorch:** {torch.__version__}  ",
-            f"**Dtype:** float32 (default)  ",
+            "**Dtype:** float32 (default)  ",
             "**Seed:** 42  ",
             "",
             "---",

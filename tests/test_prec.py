@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from laker.prec import Adaptive, CCCP
+from laker.prec import CCCP, Adaptive
 
 
 def _sym_pd(n, seed=0):

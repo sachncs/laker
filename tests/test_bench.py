@@ -1,6 +1,5 @@
 """Tests for :mod:`laker.bench`."""
 
-import pytest
 import torch
 
 from laker.bench import BaseBench, Bench, SolveBench, bench, bench_all

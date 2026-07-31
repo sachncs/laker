@@ -8,13 +8,12 @@ from laker.kernel import (
     Fourier,
     Grid,
     Hybrid,
-    Kernel,
     Neighbors,
     Nystrom,
     Shaper,
     Spectrum,
-    exp_safe,
     exact_matvec,
+    exp_safe,
     weights,
 )
 
@@ -199,9 +198,7 @@ class TestWeights:
     def test_weights_sum_to_one(self):
         g1 = torch.linspace(0, 1, 4, dtype=torch.float64)
         g2 = torch.linspace(0, 1, 3, dtype=torch.float64)
-        x = torch.tensor(
-            [[0.1, 0.5], [0.9, 0.1], [0.5, 0.5]], dtype=torch.float64
-        )
+        x = torch.tensor([[0.1, 0.5], [0.9, 0.1], [0.5, 0.5]], dtype=torch.float64)
         _, w = weights(x, [g1, g2])
         sums = w.sum(dim=1)
         torch.testing.assert_close(sums, torch.ones(3, dtype=torch.float64))

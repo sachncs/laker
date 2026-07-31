@@ -23,7 +23,9 @@ class TestCorrector:
         assert c.input_dim == 2
         assert c.output_dim == 1
         assert c.hidden_dim == 64
-        assert isinstance(next(m for m in c.net.modules() if isinstance(m, torch.nn.Dropout)), torch.nn.Dropout)
+        assert isinstance(
+            next(m for m in c.net.modules() if isinstance(m, torch.nn.Dropout)), torch.nn.Dropout
+        )
         assert c.net[2].p == 0.2
 
     def test_defaults(self):
@@ -51,7 +53,9 @@ class TestCorrector:
         x = torch.randn(3, 2, requires_grad=True)
         out = c(x).sum()
         out.backward()
-        grads_present = sum(1 for p in c.parameters() if p.grad is not None and p.grad.abs().sum() > 0)
+        grads_present = sum(
+            1 for p in c.parameters() if p.grad is not None and p.grad.abs().sum() > 0
+        )
         assert grads_present > 0
 
     def test_finite(self):

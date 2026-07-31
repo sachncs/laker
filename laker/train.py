@@ -143,7 +143,11 @@ class Trainer:
         y = Check.y(y)
 
         x_tr, y_tr, x_va, y_va = Data.split(
-            x.shape[0], x, y, val=val, seed=seed,
+            x.shape[0],
+            x,
+            y,
+            val=val,
+            seed=seed,
         )
 
         with torch.no_grad():
@@ -284,9 +288,7 @@ class Trainer:
             perm = torch.randperm(n, generator=gen, device=x.device)
             sub = perm[:n_subset]
             x_sub = x[sub]
-            var = self.core.predict_var_train(
-                x_sub, enc, embed, kernel, prec, alpha, self.core.lam
-            )
+            var = self.core.predict_var_train(x_sub, enc, embed, kernel, prec, alpha, self.core.lam)
             residual = y[sub] - mu[sub]
             nll = 0.5 * torch.mean(torch.log(2.0 * math.pi * var) + (residual**2) / var)
             calibration = (torch.mean(residual**2) - torch.mean(var)) ** 2

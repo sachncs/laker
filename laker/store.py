@@ -54,14 +54,16 @@ class Store:
             "prec_kind": getattr(model, "prec_kind", "cccp"),
             "device": (str(model.device) if model.device is not None else "cpu"),
             "dtype": str(model.dtype),
-            "embed_dtype": (
-                str(model.embed_dtype) if model.embed_dtype else None
-            ),
+            "embed_dtype": (str(model.embed_dtype) if model.embed_dtype else None),
             "verbose": model.verbose,
             "embed": model.embed_.cpu() if model.embed_ is not None else None,
             "coef": model.coef_.cpu() if model.coef_ is not None else None,
-            "x_train": (model._x_train.cpu() if getattr(model, "_x_train", None) is not None else None),
-            "y_train": (model._y_train.cpu() if getattr(model, "_y_train", None) is not None else None),
+            "x_train": (
+                model._x_train.cpu() if getattr(model, "_x_train", None) is not None else None
+            ),
+            "y_train": (
+                model._y_train.cpu() if getattr(model, "_y_train", None) is not None else None
+            ),
         }
         if model.prec_ is not None:
             prec = model.prec_
@@ -147,6 +149,7 @@ class Store:
                     class_name,
                 )
                 from laker.embed import Position as cls
+
                 class_name = "Position"
 
             input_dim = state.get("input_dim", 2)
@@ -260,11 +263,7 @@ class Store:
                 dtype=dtype,
             )
 
-        if (
-            "prec_state" in state
-            and "prec_class" in state
-            and model.kernel_ is not None
-        ):
+        if "prec_state" in state and "prec_class" in state and model.kernel_ is not None:
             try:
                 pm = importlib.import_module(state["prec_module"])
                 pc = getattr(pm, state["prec_class"])
@@ -294,7 +293,8 @@ class Store:
                 model.prec_ = prec
             except Exception as exc:
                 logger.warning(
-                    "Could not restore preconditioner (%s); variance() after load will fail until refit.",
+                    "Could not restore preconditioner (%s); "
+                    "variance() after load will fail until refit.",
                     exc,
                 )
         return model

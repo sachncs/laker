@@ -196,11 +196,7 @@ class GP:
         return np.clip(z, 0.0, 1.0)
 
     def _kernel(self, x1: np.ndarray, x2: np.ndarray) -> np.ndarray:
-        sq = (
-            np.sum(x1**2, axis=1).reshape(-1, 1)
-            + np.sum(x2**2, axis=1)
-            - 2 * np.dot(x1, x2.T)
-        )
+        sq = np.sum(x1**2, axis=1).reshape(-1, 1) + np.sum(x2**2, axis=1) - 2 * np.dot(x1, x2.T)
         return self.sigma**2 * np.exp(-0.5 * sq / (self.length**2 + 1e-12))
 
     def _ml(self, candidate: float) -> float:

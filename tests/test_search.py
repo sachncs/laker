@@ -1,6 +1,5 @@
 """Tests for :mod:`laker.search`."""
 
-import pytest
 import torch
 
 from laker import Laker

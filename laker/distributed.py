@@ -149,9 +149,7 @@ class Distributed:
         if self.single:
             return self.local_op.eval(x, y, chunk=chunk)
         full = (
-            torch.cat([op.embeddings.to(self.master) for op in self.ops], dim=0)
-            if y is None
-            else y
+            torch.cat([op.embeddings.to(self.master) for op in self.ops], dim=0) if y is None else y
         )
         gram = x @ full.T
         torch.exp(gram, out=gram)

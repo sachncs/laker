@@ -15,7 +15,7 @@ import torch
 
 from laker.kernel import Exact
 from laker.prec import CCCP
-from laker.solve import Descent, Jacobi, PCG
+from laker.solve import PCG, Descent, Jacobi
 
 logger = logging.getLogger(__name__)
 
@@ -67,11 +67,7 @@ class SolveBench:
         elapsed = time.perf_counter() - start
 
         rhs_norm = torch.linalg.norm(self.rhs).item()
-        res = (
-            torch.linalg.norm(self.op(sol) - self.rhs).item() / rhs_norm
-            if rhs_norm > 0
-            else 0.0
-        )
+        res = torch.linalg.norm(self.op(sol) - self.rhs).item() / rhs_norm if rhs_norm > 0 else 0.0
 
         gap = None
         if self.reference is not None:

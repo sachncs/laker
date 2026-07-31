@@ -24,9 +24,7 @@ class TestHypergradient:
 
         rhs = torch.randn(n, dtype=torch.float64)
         # Solve A + small perturbation to get alpha.
-        pcg_alpha = torch.linalg.solve(
-            A + x_param @ x_param.T * 0.01, rhs
-        )
+        pcg_alpha = torch.linalg.solve(A + x_param @ x_param.T * 0.01, rhs)
         dL = torch.randn(n, dtype=torch.float64)
         grads = hypergradient(
             op=op,

@@ -115,7 +115,9 @@ class CCCP:
         gen = torch.Generator(device=self.device)
         if seed is not None:
             gen.manual_seed(seed)
-        probes = torch.randn(n, self.num_probes, device=self.device, dtype=self.dtype, generator=gen)
+        probes = torch.randn(
+            n, self.num_probes, device=self.device, dtype=self.dtype, generator=gen
+        )
 
         if self.probe == "power":
             n_power = max(1, int(self.num_probes * 0.25))
@@ -139,9 +141,15 @@ class CCCP:
         b = torch.zeros(self.num_probes, self.num_probes, device=self.device, dtype=self.dtype)
 
         eye = torch.eye(self.num_probes, device=self.device, dtype=self.dtype)
-        matrix_buf = torch.empty(self.num_probes, self.num_probes, device=self.device, dtype=self.dtype)
-        f_gamma_buf = torch.empty(self.num_probes, self.num_probes, device=self.device, dtype=self.dtype)
-        shrunk_buf = torch.empty(self.num_probes, self.num_probes, device=self.device, dtype=self.dtype)
+        matrix_buf = torch.empty(
+            self.num_probes, self.num_probes, device=self.device, dtype=self.dtype
+        )
+        f_gamma_buf = torch.empty(
+            self.num_probes, self.num_probes, device=self.device, dtype=self.dtype
+        )
+        shrunk_buf = torch.empty(
+            self.num_probes, self.num_probes, device=self.device, dtype=self.dtype
+        )
 
         last_iter = 0
         for it in range(self.max_iter):
@@ -275,9 +283,7 @@ class Adaptive:
         gen = torch.Generator(device=self.device)
         if seed is not None:
             gen.manual_seed(seed)
-        probes = torch.randn(
-            n, num_diag, device=self.device, dtype=self.dtype, generator=gen
-        )
+        probes = torch.randn(n, num_diag, device=self.device, dtype=self.dtype, generator=gen)
         probed = op(probes)
 
         v = probed[:, 0].clone()
@@ -305,9 +311,7 @@ class Adaptive:
             if self.verbose:
                 logger.info("Adaptive chose CCCP (κ≈%.2e)", cond)
         else:
-            aggressive_num = (
-                self.num if self.num is not None else max(200, int(2 * n**0.5))
-            ) * 2
+            aggressive_num = (self.num if self.num is not None else max(200, int(2 * n**0.5))) * 2
             self.inner = self._make(num=aggressive_num)
             self.inner.build(op, n, seed=seed)
             self.choice = "aggressive"

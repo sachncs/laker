@@ -26,7 +26,6 @@ import torch
 import torch.nn as nn
 
 from laker.backend import Backend
-from laker.bilevel import Bilevel
 from laker.check import Check
 from laker.core import Core
 from laker.search import Search
@@ -314,8 +313,7 @@ class Laker:
         unknown = set(params) - set(self.PARAMS)
         if unknown:
             raise ValueError(
-                f"Invalid parameter(s) for Laker: {sorted(unknown)}. "
-                f"Valid: {list(self.PARAMS)}."
+                f"Invalid parameter(s) for Laker: {sorted(unknown)}. Valid: {list(self.PARAMS)}."
             )
         coerced = dict(params)
         if isinstance(coerced.get("device"), str):
@@ -470,7 +468,9 @@ class Laker:
         seed: Optional[int] = None,
     ) -> "Laker":
         return self._search.grid(
-            self, x, y,
+            self,
+            x,
+            y,
             val=val,
             lam_grid=lam_grid,
             gamma_grid=gamma_grid,
@@ -492,7 +492,9 @@ class Laker:
         seed: Optional[int] = None,
     ) -> "Laker":
         return self._search.bayes(
-            self, x, y,
+            self,
+            x,
+            y,
             val=val,
             n_calls=n_calls,
             n_init=n_init,
@@ -532,9 +534,7 @@ class Laker:
         stages: int = 5,
         reuse: bool = True,
     ) -> "Laker":
-        return self._stream.continuation(
-            self, x, y, lo=lo, hi=hi, stages=stages, reuse=reuse
-        )
+        return self._stream.continuation(self, x, y, lo=lo, hi=hi, stages=stages, reuse=reuse)
 
     def learn(
         self,
@@ -547,7 +547,9 @@ class Laker:
     ) -> "Laker":
         x = Check.x(Backend.tensor(x, device=self._core.device, dtype=self._core.dtype))
         y = Check.y(Backend.tensor(y, device=self._core.device, dtype=self._core.dtype))
-        return self._train.learn(self, x, y, lr=lr, epochs=epochs, rebuild=rebuild, patience=patience)
+        return self._train.learn(
+            self, x, y, lr=lr, epochs=epochs, rebuild=rebuild, patience=patience
+        )
 
     def correct(
         self,
@@ -563,7 +565,9 @@ class Laker:
         x = Check.x(Backend.tensor(x, device=self._core.device, dtype=self._core.dtype))
         y = Check.y(Backend.tensor(y, device=self._core.device, dtype=self._core.dtype))
         return self._train.correct(
-            self, x, y,
+            self,
+            x,
+            y,
             val=val,
             epochs=epochs,
             patience=patience,
@@ -586,7 +590,9 @@ class Laker:
         y_train = Check.y(Backend.tensor(y_train, device=self._core.device, dtype=self._core.dtype))
         x_val = Check.x(Backend.tensor(x_val, device=self._core.device, dtype=self._core.dtype))
         y_val = Check.y(Backend.tensor(y_val, device=self._core.device, dtype=self._core.dtype))
-        return self._train.bilevel(self, x_train, y_train, x_val, y_val, lr=lr, epochs=epochs, patience=patience)
+        return self._train.bilevel(
+            self, x_train, y_train, x_val, y_val, lr=lr, epochs=epochs, patience=patience
+        )
 
     def calibrate(
         self,
@@ -602,8 +608,15 @@ class Laker:
         x = Check.x(Backend.tensor(x, device=self._core.device, dtype=self._core.dtype))
         y = Check.y(Backend.tensor(y, device=self._core.device, dtype=self._core.dtype))
         return self._train.calibrate(
-            self, x, y,
-            lr=lr, epochs=epochs, beta=beta, subset=subset, patience=patience, seed=seed,
+            self,
+            x,
+            y,
+            lr=lr,
+            epochs=epochs,
+            beta=beta,
+            subset=subset,
+            patience=patience,
+            seed=seed,
         )
 
     def tune(

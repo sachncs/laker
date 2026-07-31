@@ -26,8 +26,8 @@ import torch
 
 from benchmarks.executor import BenchmarkExecutor
 from laker.kernel import Exact as KernelExact
-from laker.prec import CCCP
 from laker.model import Laker
+from laker.prec import CCCP
 
 logger = logging.getLogger(__name__)
 

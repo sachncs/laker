@@ -118,10 +118,7 @@ class Position(Embed):
         return self.mlp(features)
 
     def info(self) -> str:
-        return (
-            f"input_dim={self.input_dim}, dim={self.dim}, "
-            f"num={self.num}, sigma={self.sigma}"
-        )
+        return f"input_dim={self.input_dim}, dim={self.dim}, num={self.num}, sigma={self.sigma}"
 
 
 class Visual(Embed):

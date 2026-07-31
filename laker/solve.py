@@ -152,8 +152,12 @@ class PCG:
             if rel <= self.tol:
                 self.iterations = it + 1
                 if self.verbose:
-                    logger.info("PCG converged in %d iterations, rel_res=%.3e", self.iterations, rel)
-                return x, Report(converged=True, iterations=self.iterations, residual=rel, reason="converged")
+                    logger.info(
+                        "PCG converged in %d iterations, rel_res=%.3e", self.iterations, rel
+                    )
+                return x, Report(
+                    converged=True, iterations=self.iterations, residual=rel, reason="converged"
+                )
             z = prec(r)
             rz_new = torch.dot(r, z).item()
             beta = rz_new / rz_old
@@ -166,7 +170,9 @@ class PCG:
         self.iterations = max_iter
         if self.verbose:
             logger.warning("PCG did not converge in %d iterations, rel_res=%.3e", max_iter, rel)
-        return x, Report(converged=False, iterations=self.iterations, residual=rel, reason="max_iter")
+        return x, Report(
+            converged=False, iterations=self.iterations, residual=rel, reason="max_iter"
+        )
 
     def _solve2(
         self,
@@ -205,14 +211,23 @@ class PCG:
             if rel <= self.tol:
                 self.iterations = it + 1
                 if self.verbose:
-                    logger.info("PCG converged in %d iterations, rel_res=%.3e", self.iterations, rel)
+                    logger.info(
+                        "PCG converged in %d iterations, rel_res=%.3e", self.iterations, rel
+                    )
                 return x, Report(
                     converged=True,
                     iterations=self.iterations,
                     residual=rel,
                     reason="converged",
-                    per=[Report(converged=True, iterations=self.iterations, residual=float(rel), reason="converged")
-                         for _ in range(rhs.shape[1])],
+                    per=[
+                        Report(
+                            converged=True,
+                            iterations=self.iterations,
+                            residual=float(rel),
+                            reason="converged",
+                        )
+                        for _ in range(rhs.shape[1])
+                    ],
                 )
             z = prec(r)
             rz_new = torch.sum(r * z, dim=0)
@@ -231,8 +246,15 @@ class PCG:
             iterations=self.iterations,
             residual=rel,
             reason="max_iter",
-            per=[Report(converged=False, iterations=self.iterations, residual=float(rel), reason="max_iter")
-                 for _ in range(rhs.shape[1])],
+            per=[
+                Report(
+                    converged=False,
+                    iterations=self.iterations,
+                    residual=float(rel),
+                    reason="max_iter",
+                )
+                for _ in range(rhs.shape[1])
+            ],
         )
 
 

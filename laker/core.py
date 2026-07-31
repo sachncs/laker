@@ -28,7 +28,7 @@ from laker.kernel import (
     Spectrum,
     exp_safe,
 )
-from laker.prec import Adaptive, CCCP
+from laker.prec import CCCP, Adaptive
 from laker.solve import PCG
 
 logger = logging.getLogger(__name__)
@@ -157,11 +157,11 @@ class Core:
 
         op: Kernel
         if self.distributed and (self.kernel is None or self.kernel == "exact"):
-            op = Distributed(
-                embeddings=embed, lam=lam_value, master=self.device, dtype=self.dtype
-            )
+            op = Distributed(embeddings=embed, lam=lam_value, master=self.device, dtype=self.dtype)
             if self.verbose:
-                logger.info("Distributed kernel on %d device(s)", len(cast(Distributed, op).devices))
+                logger.info(
+                    "Distributed kernel on %d device(s)", len(cast(Distributed, op).devices)
+                )
         elif self.kernel is None or self.kernel == "exact":
             op = Exact(
                 embeddings=embed, lam=lam_value, chunk=chunk, device=self.device, dtype=self.dtype
@@ -185,7 +185,11 @@ class Core:
                 )
         elif self.kernel == "fourier":
             op = Fourier(
-                embeddings=embed, lam=lam_value, num=self.features, device=self.device, dtype=self.dtype
+                embeddings=embed,
+                lam=lam_value,
+                num=self.features,
+                device=self.device,
+                dtype=self.dtype,
             )
             if self.verbose:
                 logger.info("Fourier with r=%d features", cast(Fourier, op).num)
@@ -225,7 +229,11 @@ class Core:
                 logger.info("Hybrid with alpha=%.2f", cast(Hybrid, op).alpha)
         elif self.kernel == "spectrum":
             op = Spectrum(
-                embeddings=embed, lam=lam_value, knots=self.knots, device=self.device, dtype=self.dtype
+                embeddings=embed,
+                lam=lam_value,
+                knots=self.knots,
+                device=self.device,
+                dtype=self.dtype,
             )
             if self.verbose:
                 logger.info("Spectrum with %d knots", cast(Spectrum, op).shaper.knots)
@@ -348,9 +356,7 @@ class Core:
                 out = torch.empty(m, device=self.device, dtype=self.dtype)
                 for i in range(0, m, chunk_size):
                     i_end = min(i + chunk_size, m)
-                    accum = torch.zeros(
-                        i_end - i, device=self.device, dtype=self.dtype
-                    )
+                    accum = torch.zeros(i_end - i, device=self.device, dtype=self.dtype)
                     e_i = query_embed[i:i_end]
                     for j in range(0, n, chunk_size):
                         j_end = min(j + chunk_size, n)
@@ -414,9 +420,7 @@ class Core:
                 k_tq = kernel_op.eval(embed, query_embed)
                 if k_tq.is_sparse:
                     k_tq = k_tq.to_dense()
-                v, _ = pcg.solve(
-                    op=kernel_op.matvec, prec=prec_op.apply, rhs=k_tq
-                )
+                v, _ = pcg.solve(op=kernel_op.matvec, prec=prec_op.apply, rhs=k_tq)
                 k_diag_mat = kernel_op.eval(query_embed, query_embed)
                 if k_diag_mat.is_sparse:
                     k_diag_mat = k_diag_mat.to_dense()
@@ -429,9 +433,7 @@ class Core:
                     k_tc = kernel_op.eval(embed, q_c)
                     if k_tc.is_sparse:
                         k_tc = k_tc.to_dense()
-                    v_c, _ = pcg.solve(
-                        op=kernel_op.matvec, prec=prec_op.apply, rhs=k_tc
-                    )
+                    v_c, _ = pcg.solve(op=kernel_op.matvec, prec=prec_op.apply, rhs=k_tc)
                     k_diag_mat = kernel_op.eval(q_c, q_c)
                     if k_diag_mat.is_sparse:
                         k_diag_mat = k_diag_mat.to_dense()
@@ -476,9 +478,7 @@ class Core:
                 out = torch.empty(m, device=self.device, dtype=self.dtype)
                 for i in range(0, m, chunk_size):
                     i_end = min(i + chunk_size, m)
-                    accum = torch.zeros(
-                        i_end - i, device=self.device, dtype=self.dtype
-                    )
+                    accum = torch.zeros(i_end - i, device=self.device, dtype=self.dtype)
                     e_i = query_embed[i:i_end]
                     for j in range(0, n, chunk_size):
                         j_end = min(j + chunk_size, n)

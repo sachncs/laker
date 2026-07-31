@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Module-level docstrings for ``benchmarks/`` and ``examples/`` packages.
 - Detailed docstring conventions in ``CONTRIBUTING.md`` with examples for modules, classes, functions, and tests.
 - Added Python 3.13 classifier to ``pyproject.toml``.
+- ``docs/`` directory: full developer / researcher documentation in four sub-trees:
+  - ``docs/guides/`` (6 files) — practical tutorials: getting started, kernel choice, hyperparameter search, streaming, training, persistence.
+  - ``docs/api/`` (22 files) — one API reference page per module.
+  - ``docs/algorithms/`` (6 files) — mathematical background for the attention kernel, CCCP preconditioner, PCG solver, low-rank approximations, implicit differentiation, bilevel learning.
+  - ``docs/examples/`` (7 files) — walkthrough of every example script.
+- ``docs/README.md`` as the documentation entry point with table of contents.
 
 ### Changed
 - Promoted all semi-private (single-underscore-prefixed) names to public:
@@ -21,16 +27,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ``NystromAttention`` methods: ``_select_landmarks_greedy`` → ``select_landmarks_greedy``, ``_select_landmarks_leverage`` → ``select_landmarks_leverage``.
   - ``AdaptivePreconditioner`` attributes: ``_inner`` → ``inner``, ``_inner_name`` → ``inner_name``.
 
+### Refactored (single-word naming, public-API rewrite)
+- Deleted legacy modules and consolidated duplicates:
+  - ``models.py`` / ``model.py`` → single ``model.py`` (``Laker`` is now the real implementation, no ``LAKERRegressor`` delegation).
+  - ``kernels.py`` → ``kernel.py``; ``solvers.py`` → ``solve.py``; ``preconditioner.py`` → ``prec.py``; ``streaming.py`` → ``stream.py``; ``training.py`` → ``train.py``; ``persistence.py`` → ``store.py``; ``benchmark.py`` → ``bench.py``; ``implicit_diff.py`` → ``implicit.py``; ``base.py`` → ``check.py``; ``embeddings.py`` / ``visualize.py`` deleted.
+  - ``helpers.py`` + ``utils.py`` → single ``math.py`` (``Math`` / ``GP``).
+- Class renames (multi-word → single-word): ``LAKERRegressor`` deleted, ``LAKERCore`` → ``Core``, ``Attention`` → ``Exact``, ``NystromAttention`` → ``Nystrom``, ``RandomFeatureAttention`` → ``Fourier``, ``SparseAttention`` → ``Neighbors``, ``SKIAttention`` → ``Grid``, ``TwoScaleAttention`` → ``Hybrid``, ``SpectralAttention`` → ``Spectrum``, ``SpectrumShaper`` → ``Shaper``, ``PreconditionedConjugateGradient`` → ``PCG``, ``GradientDescent`` → ``Descent``, ``JacobiPreconditioner`` → ``Jacobi``, ``CCCPPreconditioner`` → ``CCCP``, ``AdaptivePreconditioner`` → ``Adaptive``, ``HyperparameterSearch`` → ``Search``, ``EmbeddingTrainer`` → ``Trainer``, ``ResidualCorrector`` → ``Corrector``, ``DistributedAttention`` → ``Distributed``, ``Helpers`` → ``Math``, ``GPSurrogate`` → ``GP``, ``BaseHelpers`` → ``Bench``, ``SolverBenchmark`` → ``SolveBench``, ``BaselineBenchmark`` → ``BaseBench``, ``ModelPersistence`` → ``Store``, ``Visualizer`` → ``Plot``, ``Base`` → ``Check``.
+- Method renames on ``Laker``: ``fit_with_search`` → ``search``, ``fit_with_bo`` → ``bayes``, ``partial_fit`` → ``update``, ``fit_path`` → ``path``, ``fit_continuation`` → ``continuation``, ``fit_learned_embeddings`` → ``learn``, ``fit_residual_corrector`` → ``correct``, ``fit_uncertainty_aware`` → ``calibrate``, ``fit_bilevel`` → ``bilevel`` (also ``tune``), ``predict_variance`` → ``variance``. Hyperparameter: ``lambda_reg`` → ``lam``, ``num_probes`` → ``num`` (param only — internals use ``num_probes``).
+- ``k_nm`` → ``cross_kernel``, ``k_mm`` → ``landmark_kernel``, ``k_mm_chol`` → ``landmark_cholesky``, ``k_nm_kmm_inv`` → ``landmark_projection`` in Nyström. ``self.q`` → ``self.basis``, ``self.r`` → ``self.tri_factor``, ``self.n`` → ``self.size``, ``self.nr`` → ``self.num_probes``, ``qr_r`` → ``tri_factor``, ``reg_scale`` → ``reg``, ``op_probes`` → ``probed``, ``probe_norms`` → ``norms``, ``norm_probes`` → ``unit``, ``iso_shr`` → ``iso_shrunk``, ``wrwt`` → ``quadratic``, ``rwk`` → ``weighted_factor``, ``wk`` → ``weights``, ``m_buf`` → ``matrix_buf``, ``fg_buf`` → ``f_gamma_buf``, ``sh_buf`` → ``shrunk_buf``, ``eye`` → ``identity``, ``scaled`` → ``scaled_proj``, ``inv_m_r`` → ``inv_proj``, ``denoms`` → ``denominators``, ``inv_sqrt`` → ``inv_sqrt_iso`` in CCCP. ``k_nm`` etc. also renamed in other kernels; ``self.m`` → ``self.num_landmarks`` (Nyström); ``self.k`` → ``self.num_neighbors`` (Neighbors); Grid ``size`` constructor param renamed to ``grid_size`` to free ``self.size`` for the matrix dimension.
+- ``Search.Search.Search`` (the static method wrapper alias) removed in favour of the public ``Search.grid`` and ``Search.bayes`` instance methods.
+- ``Laker.tune`` is now an alias for ``Laker.bilevel`` (the previous inline grid search has been removed).
+
+### Fixed
+- **Nyström matvec was using the wrong matrix product.** The
+  approximate ``K_approx @ x`` was being computed as
+  ``K_nm K_mm^{-1} K_nm^{-1}`` instead of the correct
+  ``K_nm K_mm^{-1} K_nm^T``. Fixed; ``matvec`` and ``dense @ v`` now
+  match to round-off error.
+- **Grid ``diag`` used only the diagonal of ``K_grid``** instead of
+  the full quadratic form ``Σ_{j,k} W_ij W_ik K_grid_jk``. Fixed.
+- **CDF approximation gave values > 1 for negative x** (the
+  Abramowitz-Stegun 7.1.26 formula was applied with the wrong sign
+  for ``x < 0``). Fixed via ``torch.where``.
+- **Broken benchmark imports.** ``benchmarks/baseline.py``,
+  ``benchmarks/run.py``, ``benchmarks/reproducible.py`` imported
+  non-existent ``Kernel`` and ``Solve`` classes. All three now run
+  against the real ``kernel.Exact`` / ``solve.PCG``.
+- **Broken example scripts.** ``flow.py`` / ``learn.py`` / etc. used
+  legacy parameter names (``path_loss_exponent``, ``grid_size``,
+  ``embedding_dim``, ``regularization``, ``probes``). Renamed.
+- **``Backend.compile`` and ``Backend.autocast`` shadowed the
+  class attributes of the same name** on first access. Renamed the
+  attributes to ``compile_mode`` and ``autocast_on``.
+- **``Backend.chunk_set`` stored raw megabytes** instead of bytes.
+  Fixed to multiply by ``1024 * 1024``.
+- **Stream / train / bilevel accessed removed class attributes**
+  (``self.coef`` vs ``self.coef_``, ``self.encoder`` vs
+  ``self.encoder_``, etc.). Fixed across all call sites.
+- **Set / get-params round-trip dropped the ``encoder`` argument**
+  because it was read as ``self.encoder`` (renamed to
+  ``self._init_encoder`` for parameter storage).
+- **``Store.load`` wrote ``size=`` to the ``Grid`` kernel** but the
+  parameter is now ``grid_size``. Fixed.
+- **CI: ``lint`` and ``test`` jobs had broken matrix and conditionals**
+  (``if: matrix.os == '…' && matrix.python-version == '…'`` referenced
+  keys that did not exist in the matrix). Consolidated into a single
+  ``test`` job that runs on ``[ubuntu-latest, macos-latest]`` ×
+  ``[3.12, 3.13]`` using ``ruff`` (replacing black + isort + flake8 +
+  mypy from the duplicate ``lint`` job). Wheel build mirrors the
+  test matrix. Dropped the dead ``docs`` job (no sphinx config).
+  Restricted branches to ``[master]`` (the only branch in the repo).
+- **``pyproject.toml`` had a duplicate ``Issues`` URL key** and
+  referenced a non-existent ``_visualize_impl.py``. Both removed.
+- **``.gitignore`` had 154 lines of irrelevant entries** (Django /
+  Flask / Scrapy / Celery / Sage / PyBuilder / IPython / pyenv /
+  pipenv / poetry / pdm / PEP 582 / Sphinx / PyCharm). Trimmed to 50
+  lines of relevant entries.
+
+### Tests
+- Deleted 31 legacy test files (smoke-only, duplicate, mocking the
+  unit under test, asserting on NaN tautologies).
+- Wrote 21 new test files with 310 real-assertion tests:
+  ``test_math``, ``test_check``, ``test_data``, ``test_embed``,
+  ``test_backend``, ``test_kernel``, ``test_solve``, ``test_prec``,
+  ``test_distributed``, ``test_corrector``, ``test_implicit``,
+  ``test_store``, ``test_model``, ``test_search``, ``test_bilevel``,
+  ``test_train``, ``test_stream``, ``test_plot``, ``test_bench``,
+  ``test_executor``, ``test_cli``. Each test exercises real
+  behaviour: closed-form math, finite / non-NaN output, shape
+  checks, deterministic-seed reproducibility, save/load round-trips,
+  and edge cases (empty input, NaN, single sample, threshold
+  exceedance).
+- ``Data.split`` is now deterministic given a seed and is exercised
+  by ``test_data.py::TestSplit``.
+
+### Documentation
+- See "Added" for ``docs/`` content.
+- ``CHANGELOG.md`` has been re-organised: previous version history
+  preserved below; this release documents every refactor.
+
 ### Atomic commits in this release
 
 | Commit | Date (UTC+05:30) | Subject |
 |--------|------------------|---------|
-| `de62027` | 2026-07-12 13:26:35 +05:30 | docs: comprehensive module/class/method docstrings across laker/ |
-| `e7df536` | 2026-07-12 13:26:39 +05:30 | docs: add module docstrings to benchmarks/ and examples/ |
-| `424d077` | 2026-07-12 13:26:54 +05:30 | docs: standardise test docstrings and update renamed references |
-| `8d99bcb` | 2026-07-12 13:26:58 +05:30 | docs: expand docstring conventions in CONTRIBUTING.md and add Python 3.13 classifier |
-| `90f4bb4` | 2026-07-12 13:30:00 +05:30 | docs: rewrite README.md with reference-style structure |
-| `9d5d198` | 2026-07-12 13:35:00 +05:30 | docs: replace print() with comments in docstring examples |
+| `48c2f93` | 2026-07-31 16:00:12 +05:30 | refactor(api): single-word naming across laker/, expand tests to 310 real-assertion tests |
+| `7d6c4ee` | 2026-07-31 17:00:00 +05:30 | chore: clean up .gitignore (154 → 50 lines) |
+| `<this>`  | 2026-07-31 18:00:00 +05:30 | docs: add docs/ (guides, api, algorithms, examples) and fix CI |
+| `<prev>` | 2026-07-12 13:26:35 +05:30 | docs: comprehensive module/class/method docstrings across laker/ |
+| `<prev>` | 2026-07-12 13:26:39 +05:30 | docs: add module docstrings to benchmarks/ and examples/ |
+| `<prev>` | 2026-07-12 13:26:54 +05:30 | docs: standardise test docstrings and update renamed references |
+| `<prev>` | 2026-07-12 13:26:58 +05:30 | docs: expand docstring conventions in CONTRIBUTING.md and add Python 3.13 classifier |
+| `<prev>` | 2026-07-12 13:30:00 +05:30 | docs: rewrite README.md with reference-style structure |
+| `<prev>` | 2026-07-12 13:35:00 +05:30 | docs: replace print() with comments in docstring examples |
 
 ## [0.4.0] - 2026-05-04
 
@@ -121,7 +209,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite with 14+ tests.
 - Documentation and usage examples.
 
-[Unreleased]: https://github.com/sachncs/laker/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/sachncs/learning-based-attention-kernel-regression/compare/v0.4.0...HEAD
 [0.4.0]: https://github.com/sachncs/laker/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/sachncs/laker/compare/v0.0.1...v0.3.0
 [0.0.1]: https://github.com/sachncs/laker/releases/tag/v0.0.1
