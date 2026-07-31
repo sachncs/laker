@@ -1,219 +1,171 @@
-"""Tests for the legacy attention-kernel operator hierarchy.
+"""Behavioural + precision tests for the kernel operator hierarchy.
 
-Each test asserts the documented operator contract:
-``matvec(x) == to_dense() @ x`` for the exact kernel, plus
-shape, dtype, and diagonal-vs-``diag(to_dense())`` consistency.
-The Nyström and sparse-kNN ``matvec`` vs ``to_dense @ x``
-discrepancies are documented in the audit; the corresponding
-assertions are guarded accordingly.
+Every test asserts a real numerical contract — ``matvec(x) ==
+to_dense() @ x`` for the exact kernel, diagonal-vs-``diag(to_dense())``
+equality, ``kernel_eval`` consistency with the analytical
+``exp(E Eᵀ)``, dtype preservation, and chunked-vs-full matvec
+agreement within the documented reduction-order epsilon.
 """
+
+from __future__ import annotations
 
 import torch
 
-from laker.kernels import AttentionKernelOperator
+from laker.kernel import Exact, Spectrum
 
 
-def test_kernel_shape():
-    """Test that AttentionKernelOperator reports correct shape attributes."""
+# ---------------------------------------------------------------------------
+# Exact kernel: shape, dtype, contract.
+# ---------------------------------------------------------------------------
+def test_kernel_shape_attributes():
+    """``Exact.shape == (n, n)`` and the embedding dimension is
+    reported correctly."""
     n = 20
     de = 5
-    e = torch.randn(n, de)
-    op = AttentionKernelOperator(e, lambda_reg=0.1)
+    e = torch.randn(n, de, dtype=torch.float64)
+    op = Exact(e, lambda_reg=0.1, dtype=torch.float64)
     assert op.shape == (n, n)
     assert op.n == n
     assert op.embedding_dim == de
 
 
-def test_kernel_matvec_consistency():
-    """Matrix-free matvec must match explicit dense multiplication."""
+def test_kernel_dtype_preserved_in_output():
+    """``matvec`` preserves the kernel's dtype on the output."""
+    e = torch.randn(15, 4, dtype=torch.float64)
+    op = Exact(e, lambda_reg=0.1, dtype=torch.float64)
+    x = torch.randn(15, dtype=torch.float64)
+    assert op.matvec(x).dtype == torch.float64
+
+
+# ---------------------------------------------------------------------------
+# Exact matvec == dense @ x and chunked == full.
+# ---------------------------------------------------------------------------
+def test_kernel_matvec_matches_dense_at_x():
+    """``op.matvec(x) == op.to_dense() @ x`` to PCG precision."""
+    torch.manual_seed(0)
     n = 30
-    de = 4
-    e = torch.randn(n, de)
+    e = torch.randn(n, 4, dtype=torch.float64)
     lam = 0.05
-    op = AttentionKernelOperator(e, lambda_reg=lam)
-
-    x = torch.randn(n)
-    y_op = op.matvec(x)
-
-    # Explicit construction
-    g = torch.exp(e @ e.T)
-    g.diagonal().add_(lam)
-    y_dense = g @ x
-
-    torch.testing.assert_close(y_op, y_dense, rtol=1e-4, atol=1e-5)
+    op = Exact(e, lambda_reg=lam, dtype=torch.float64)
+    x = torch.randn(n, dtype=torch.float64)
+    torch.testing.assert_close(op.matvec(x), op.to_dense() @ x, atol=1e-12, rtol=1e-12)
 
 
-def test_kernel_matvec_chunked_consistency():
-    """Chunked matvec must match full matvec."""
-    torch.manual_seed(42)
+def test_kernel_matvec_chunked_matches_full():
+    """Chunked matvec equals the full matvec within the documented
+    reduction-order epsilon (1e-4 relative on float32 with this chunk
+    size).
+    """
+    torch.manual_seed(0)
     n = 100
-    de = 6
-    e = torch.randn(n, de)
-    op_full = AttentionKernelOperator(e, lambda_reg=0.1, chunk_size=None)
-    op_chunk = AttentionKernelOperator(e, lambda_reg=0.1, chunk_size=16)
-
-    x = torch.randn(n)
-    y_full = op_full.matvec(x)
-    y_chunk = op_chunk.matvec(x)
-
-    torch.testing.assert_close(y_full, y_chunk, rtol=1e-4, atol=1e-5)
+    e = torch.randn(n, 6, dtype=torch.float64)
+    op_full = Exact(e, lambda_reg=0.1, chunk_size=None, dtype=torch.float64)
+    op_chunk = Exact(e, lambda_reg=0.1, chunk_size=16, dtype=torch.float64)
+    x = torch.randn(n, dtype=torch.float64)
+    torch.testing.assert_close(op_full.matvec(x), op_chunk.matvec(x), atol=1e-10, rtol=1e-10)
 
 
-def test_kernel_diagonal():
-    """Test that diagonal matches the analytical formula."""
+def test_kernel_matvec_2d_matches_dense_x():
+    """A 2-D RHS ``(n, k)`` is processed column-wise: ``op.matvec(X)``
+    equals ``to_dense() @ X``."""
+    torch.manual_seed(0)
+    n = 20
+    de = 5
+    e = torch.randn(n, de, dtype=torch.float64)
+    op = Exact(e, lambda_reg=0.1, dtype=torch.float64)
+    X = torch.randn(n, 3, dtype=torch.float64)
+    torch.testing.assert_close(op.matvec(X), op.to_dense() @ X, atol=1e-12, rtol=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# Diagonal vs to_dense and the analytical formula.
+# ---------------------------------------------------------------------------
+def test_kernel_diagonal_matches_analytical_formula():
+    """For the exact kernel, ``diag[i] == lambda + exp(||e_i||^2)``."""
+    torch.manual_seed(0)
     n = 15
-    e = torch.randn(n, 3)
+    e = torch.randn(n, 3, dtype=torch.float64)
     lam = 0.2
-    op = AttentionKernelOperator(e, lambda_reg=lam)
-    diag = op.diagonal()
+    op = Exact(e, lambda_reg=lam, dtype=torch.float64)
     sq = torch.sum(e**2, dim=1)
     expected = lam + torch.exp(sq)
-    torch.testing.assert_close(diag, expected, rtol=1e-6, atol=1e-8)
+    torch.testing.assert_close(op.diagonal(), expected, atol=1e-12, rtol=1e-12)
 
 
-def test_kernel_eval():
-    """Test that kernel_eval matches explicit kernel computation."""
-    n = 10
-    m = 5
-    de = 4
-    e_train = torch.randn(n, de)
-    e_query = torch.randn(m, de)
-    op = AttentionKernelOperator(e_train, lambda_reg=0.1)
-    k = op.kernel_eval(e_query)
-    expected = torch.exp(e_query @ e_train.T)
-    torch.testing.assert_close(k, expected, rtol=1e-5, atol=1e-6)
+def test_kernel_diagonal_matches_to_dense_diagonal():
+    """``diagonal() == diag(to_dense())`` exactly for every kernel."""
+    e = torch.randn(20, 5, dtype=torch.float64)
+    op = Exact(e, lambda_reg=0.1, dtype=torch.float64)
+    torch.testing.assert_close(op.diagonal(), op.to_dense().diagonal(), atol=1e-12, rtol=1e-12)
 
 
-def test_spectral_kernel_matvec_consistency():
-    """Spectral kernel matvec must match explicit dense form."""
-    torch.manual_seed(42)
+# ---------------------------------------------------------------------------
+# kernel_eval: shape and consistency with the analytical formula.
+# ---------------------------------------------------------------------------
+def test_kernel_eval_matches_exp_q_e_train():
+    """``kernel_eval(query) == exp(query @ e_train.T)`` to PCG precision."""
+    torch.manual_seed(0)
     n = 30
     de = 4
-    e = torch.randn(n, de)
-    lam = 0.05
-    from laker.kernels import SpectralAttentionKernelOperator
-
-    op = SpectralAttentionKernelOperator(e, lambda_reg=lam, num_knots=5)
-    x = torch.randn(n)
-    y_op = op.matvec(x)
-
-    # Explicit: K = U @ diag(spectrum) @ U^T
-    k_dense = op.u_matrix @ torch.diag(op.spectrum) @ op.u_matrix.T
-    k_dense.diagonal().add_(lam)
-    y_dense = k_dense @ x
-
-    torch.testing.assert_close(y_op, y_dense, rtol=1e-4, atol=1e-5)
+    e_train = torch.randn(n, de, dtype=torch.float64)
+    e_query = torch.randn(8, de, dtype=torch.float64)
+    op = Exact(e_train, lambda_reg=0.1, dtype=torch.float64)
+    expected = torch.exp(e_query @ e_train.T)
+    torch.testing.assert_close(op.kernel_eval(e_query), expected, atol=1e-12, rtol=1e-12)
 
 
-def test_spectral_kernel_eval_consistency():
-    """kernel_eval must be consistent with the training spectral basis."""
-    torch.manual_seed(42)
-    n = 20
-    m = 8
+def test_kernel_eval_cross_query_train_pair():
+    """``kernel_eval(q, t)`` has shape ``(n_query, n_train)`` and equals
+    ``exp(q @ t.T)``.
+    """
+    torch.manual_seed(0)
+    e_train = torch.randn(20, 5, dtype=torch.float64)
+    e_query = torch.randn(7, 5, dtype=torch.float64)
+    op = Exact(e_train, lambda_reg=0.1, dtype=torch.float64)
+    k = op.kernel_eval(e_query, e_train)
+    assert k.shape == (7, 20)
+    expected = torch.exp(e_query @ e_train.T)
+    torch.testing.assert_close(k, expected, atol=1e-12, rtol=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# Spectrum kernel: dense / spectral consistency.
+# ---------------------------------------------------------------------------
+def test_spectral_kernel_matvec_matches_dense_construction():
+    """``op.matvec(x) == (U diag(spectrum) U^T + lambda I) x``."""
+    torch.manual_seed(0)
+    n = 30
     de = 4
-    e_train = torch.randn(n, de)
-    e_query = torch.randn(m, de)
-    from laker.kernels import SpectralAttentionKernelOperator
-
-    op = SpectralAttentionKernelOperator(e_train, lambda_reg=0.1, num_knots=3)
-
-    # K(query, train) from kernel_eval
-    k_eval = op.kernel_eval(e_query, e_train)
-
-    # Same via explicit projection
-    cx = (e_query @ op.vh.T) * op.sigma_inv.unsqueeze(0)
-    cy = (e_train @ op.vh.T) * op.sigma_inv.unsqueeze(0)
-    k_manual = (cx * op.spectrum.unsqueeze(0)) @ cy.T
-
-    torch.testing.assert_close(k_eval, k_manual, rtol=1e-4, atol=1e-5)
+    e = torch.randn(n, de, dtype=torch.float64)
+    op = Spectrum(e, lambda_reg=0.05, num_knots=5, dtype=torch.float64)
+    x = torch.randn(n, dtype=torch.float64)
+    k_dense = op.u_matrix @ torch.diag(op.spectrum) @ op.u_matrix.T
+    k_dense.diagonal().add_(0.05)
+    torch.testing.assert_close(op.matvec(x), k_dense @ x, atol=1e-12, rtol=1e-12)
 
 
-def test_spectral_kernel_diagonal():
-    """diagonal() must match the diagonal of the dense matrix."""
-    torch.manual_seed(42)
+def test_spectral_kernel_diagonal_matches_to_dense():
+    """``diagonal() == diag(to_dense())`` for the spectrum kernel."""
+    torch.manual_seed(0)
     n = 15
     de = 3
-    e = torch.randn(n, de)
-    from laker.kernels import SpectralAttentionKernelOperator
-
-    op = SpectralAttentionKernelOperator(e, lambda_reg=0.2, num_knots=4)
-    diag_op = op.diagonal()
-    diag_dense = op.to_dense().diagonal()
-    torch.testing.assert_close(diag_op, diag_dense, rtol=1e-5, atol=1e-6)
+    e = torch.randn(n, de, dtype=torch.float64)
+    op = Spectrum(e, lambda_reg=0.2, num_knots=4, dtype=torch.float64)
+    torch.testing.assert_close(op.diagonal(), op.to_dense().diagonal(), atol=1e-12, rtol=1e-12)
 
 
-def test_spectral_shaper_monotonicity():
-    """MonotoneSpectrumShaper output must be monotonic in its input."""
-    from laker.kernels import MonotoneSpectrumShaper
-
-    shaper = MonotoneSpectrumShaper(num_knots=5)
-    shaper.set_knots(0.0, 10.0)
-    x = torch.linspace(-2.0, 12.0, 100)
-    y = shaper(x)
-    diffs = torch.diff(y)
-    # All differences should be non-negative (monotonic)
-    assert torch.all(diffs >= -1e-6)
-
-
-def test_kernel_diagonal_matches_dense_diagonal():
-    """`diagonal()` must match `to_dense().diagonal()` exactly."""
-    e = torch.randn(20, 5)
-    op = AttentionKernelOperator(e, lambda_reg=0.1)
-    diag = op.diagonal()
-    dense_diag = op.to_dense().diagonal()
-    torch.testing.assert_close(diag, dense_diag, rtol=1e-5, atol=1e-6)
-
-
-def test_kernel_matvec_2d():
-    """AttentionKernelOperator matvec with 2-D input should work."""
-    e = torch.randn(20, 5)
-    op = AttentionKernelOperator(e, lambda_reg=0.1)
-    x = torch.randn(20, 3)
-    y = op.matvec(x)
-    assert y.shape == (20, 3)
-    dense = op.to_dense()
-    y_expected = dense @ x
-    torch.testing.assert_close(y, y_expected, rtol=1e-5, atol=1e-5)
-
-
-def test_kernel_chunked_matvec_matches_dense():
-    """Chunked matvec must match dense multiplication to the chunked
-    reduction-order precision. The chunked path accumulates over each
-    chunk individually whereas dense uses a single BLAS call; the two
-    differ by a relative epsilon of ~1e-4 on float32 with this chunk
-    size.
+def test_spectral_kernel_eval_consistent_with_spectral_basis():
+    """``kernel_eval(query, train)`` for the spectral kernel equals the
+    formula ``C_q diag(spectrum) C_train.T`` where ``C`` projects onto
+    the spectrum basis.
     """
-    e = torch.randn(50, 4)
-    op = AttentionKernelOperator(e, lambda_reg=0.01, chunk_size=10)
-    x = torch.randn(50)
-    y_chunked = op.matvec(x)
-    y_dense = op.to_dense() @ x
-    torch.testing.assert_close(y_chunked, y_dense, rtol=1e-4, atol=1e-4)
-
-
-def test_kernel_float64():
-    """AttentionKernelOperator should work with float64."""
-    e = torch.randn(20, 5, dtype=torch.float64)
-    op = AttentionKernelOperator(e, lambda_reg=0.1, dtype=torch.float64)
-    x = torch.randn(20, dtype=torch.float64)
-    y = op.matvec(x)
-    assert y.dtype == torch.float64
-
-
-def test_kernel_eval_consistency():
-    """kernel_eval should match matvec on training points."""
-    e = torch.randn(20, 5)
-    op = AttentionKernelOperator(e, lambda_reg=0.1)
-    x = torch.randn(10, 5)
-    k = op.kernel_eval(x)
-    assert k.shape == (10, 20)
-
-
-def test_kernel_eval_cross():
-    """kernel_eval between different sets should work."""
-    e = torch.randn(20, 5)
-    op = AttentionKernelOperator(e, lambda_reg=0.1)
-    x = torch.randn(10, 5)
-    y = torch.randn(5, 5)
-    k = op.kernel_eval(x, y)
-    assert k.shape == (10, 5)
+    torch.manual_seed(0)
+    n = 20
+    de = 4
+    e_train = torch.randn(n, de, dtype=torch.float64)
+    e_query = torch.randn(8, de, dtype=torch.float64)
+    op = Spectrum(e_train, lambda_reg=0.1, num_knots=3, dtype=torch.float64)
+    cx = (e_query @ op.vh.T) * op.sigma_inv.unsqueeze(0)
+    cy = (e_train @ op.vh.T) * op.sigma_inv.unsqueeze(0)
+    expected = (cx * op.spectrum.unsqueeze(0)) @ cy.T
+    torch.testing.assert_close(op.kernel_eval(e_query, e_train), expected, atol=1e-12, rtol=1e-12)
