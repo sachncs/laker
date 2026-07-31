@@ -12,12 +12,10 @@ from __future__ import annotations
 
 import torch
 
-from laker.kernels import (
-    Attention as Exact,
-    RandomFeatureAttention as Fourier,
-    SparseAttention as Neighbors,
-    NystromAttention as Nystrom,
-)
+from laker.kernels import Attention as Exact
+from laker.kernels import NystromAttention as Nystrom
+from laker.kernels import RandomFeatureAttention as Fourier
+from laker.kernels import SparseAttention as Neighbors
 
 
 # ---------------------------------------------------------------------------

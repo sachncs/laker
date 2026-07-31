@@ -8,17 +8,11 @@ error path when matplotlib is missing.
 
 from __future__ import annotations
 
-
 import numpy
 import pytest
 import torch
 
-from laker.visualize import (
-    Visualizer,
-    plot_convergence,
-    plot_radio_map,
-    radio_map_to_image,
-)
+from laker.visualize import Visualizer, plot_convergence, plot_radio_map, radio_map_to_image
 
 
 # ---------------------------------------------------------------------------

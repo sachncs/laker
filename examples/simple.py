@@ -64,8 +64,8 @@ class Simple:
 
         # Variance is non-negative everywhere and the saved model
         # round-trips exactly through save/load.
-        from tempfile import TemporaryDirectory
         from pathlib import Path
+        from tempfile import TemporaryDirectory
 
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "model.pt"

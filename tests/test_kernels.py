@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import torch
 
-from laker.kernels import Attention as Exact, SpectralAttention as Spectrum
+from laker.kernels import Attention as Exact
+from laker.kernels import SpectralAttention as Spectrum
 
 
 # ---------------------------------------------------------------------------

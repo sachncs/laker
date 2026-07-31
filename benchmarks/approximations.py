@@ -28,11 +28,7 @@ from typing import Optional
 import torch
 
 from benchmarks.executor import BenchmarkExecutor
-from laker.kernels import (
-    Attention,
-    NystromAttention,
-    RandomFeatureAttention,
-)
+from laker.kernels import Attention, NystromAttention, RandomFeatureAttention
 from laker.models import LAKERRegressor
 
 logger = logging.getLogger(__name__)

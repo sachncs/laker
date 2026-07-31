@@ -16,7 +16,8 @@ from __future__ import annotations
 import torch
 
 from laker import Laker
-from laker.kernels import Attention as Exact, NystromAttention as Nystrom
+from laker.kernels import Attention as Exact
+from laker.kernels import NystromAttention as Nystrom
 from laker.solvers import PreconditionedConjugateGradient as PCG
 
 

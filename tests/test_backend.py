@@ -15,9 +15,8 @@ import numpy as np
 import pytest
 import torch
 
-from laker.backend import Backend
-
 from laker import backend
+from laker.backend import Backend
 
 
 # ---------------------------------------------------------------------------

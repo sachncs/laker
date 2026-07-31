@@ -44,8 +44,8 @@ from laker.embeddings import PositionEmbedding
 from laker.kernels import Kernel
 from laker.models import LAKERRegressor
 from laker.preconditioner import CCCPPreconditioner
-from laker.solvers import Solve
 from laker.solvers import PreconditionedConjugateGradient as PCG  # noqa: F401
+from laker.solvers import Solve
 
 # Short aliases for kernel strategy selection; the full name is verbose.
 Exact = Kernel.exact

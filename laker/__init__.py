@@ -42,7 +42,8 @@ for the most ill-conditioned problems. Environment variables documented in
 ``.env.example`` and ``README.md`` configure the runtime defaults.
 """
 
-from importlib.metadata import PackageNotFoundError, version as _version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _version
 
 try:
     __version__ = _version("laker")

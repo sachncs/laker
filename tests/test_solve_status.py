@@ -13,7 +13,9 @@ import pytest
 import torch
 
 from laker.kernels import Attention as Exact
-from laker.solvers import PreconditionedConjugateGradient as PCG, GradientDescent, Status
+from laker.solvers import GradientDescent
+from laker.solvers import PreconditionedConjugateGradient as PCG
+from laker.solvers import Status
 
 
 def _psd(n: int, seed: int = 0):

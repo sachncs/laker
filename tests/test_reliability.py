@@ -7,6 +7,8 @@ with custom embedding modules, save/load with low-rank kernels.
 
 from __future__ import annotations
 
+# Local helper module under tests/ that defines a custom encoder.
+import sys
 import tempfile
 from pathlib import Path
 
@@ -15,9 +17,6 @@ import torch
 from laker import Laker
 from laker.kernels import Attention as Exact
 from laker.models import LAKERRegressor
-
-# Local helper module under tests/ that defines a custom encoder.
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent))
 from custom_embed import CustomEmbedding  # noqa: E402

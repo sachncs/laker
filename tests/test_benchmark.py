@@ -13,11 +13,7 @@ import math
 
 import torch
 
-from laker.benchmark import (
-    BenchmarkResult,
-    benchmark_laker_vs_baselines,
-    benchmark_solver,
-)
+from laker.benchmark import BenchmarkResult, benchmark_laker_vs_baselines, benchmark_solver
 from laker.kernels import Attention as Exact
 from laker.preconditioner import CCCPPreconditioner
 

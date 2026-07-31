@@ -9,7 +9,6 @@ shrinkage monotonicity, regression accuracy.
 
 from __future__ import annotations
 
-
 import torch
 
 from laker.helpers import Helpers
