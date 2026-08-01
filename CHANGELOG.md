@@ -181,6 +181,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | `a8324ef` | 2026-07-31 19:00:00 +05:30 | fix(mypy): drop all underscore prefix/suffix; fix Core/kernel/attribute conflicts |
 | `48c2f93` | 2026-07-31 16:00:12 +05:30 | refactor(api): single-word naming across laker/, expand tests to 310 real-assertion tests |
 | `7d6c4ee` | 2026-07-31 17:00:00 +05:30 | chore: clean up .gitignore (154 → 50 lines) |
+| `c63c50c` | 2026-08-01 23:00:00 +05:30 | docs(changelog): record cross-map baseline and SOTA positioning |
+| `42ea458` | 2026-08-01 22:45:00 +05:30 | docs: document cross-map baseline and position LAKER vs learned CNNs |
+| `85183e5` | 2026-08-01 22:30:00 +05:30 | feat(examples): add --cross-map stationary cross-map baseline |
 | `a95ec49` | 2026-08-01 21:00:00 +05:30 | docs: register paper and scalable examples in README and docs |
 | `d67701d` | 2026-08-01 20:30:00 +05:30 | feat(examples): add scalable.py + scalable_data.py for UCF-50K full-sweep |
 | `06300eb` | 2026-08-01 20:00:00 +05:30 | feat(examples): add paper.py reproducing LAKER paper Section V |
