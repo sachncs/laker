@@ -19,6 +19,18 @@ as ``python -m examples.<name>``.
   with timed fit and predict.
 - :mod:`.tune` — ``Tune``: validation-driven regularisation search
   covering a log-spaced candidate grid.
+- :mod:`.paper` — ``Paper``: reproduces the LAKER paper's numerical
+  experiment (arXiv:2604.25138, Section V) on the paper's synthetic
+  scene — conditioning, PCG iterations vs baselines, and reconstruction
+  RMSE/NMSE against a Gaussian-process baseline.
 """
 
-__all__ = ["simple", "learn", "map", "flow", "scale", "tune"]
+__all__ = [
+    "simple",
+    "learn",
+    "map",
+    "flow",
+    "scale",
+    "tune",
+    "paper",
+]
