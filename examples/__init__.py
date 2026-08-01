@@ -19,6 +19,13 @@ as ``python -m examples.<name>``.
   with timed fit and predict.
 - :mod:`.tune` — ``Tune``: validation-driven regularisation search
   covering a log-spaced candidate grid.
+- :mod:`.scalable_data` — ``ScalableData``: download, verify, extract,
+  index, clean, transform and load the real-world UCF-50K spectrum
+  cartography corpus (50,000 ray-traced radio maps, ~10 GB).
+- :mod:`.scalable` — ``Scalable``: end-to-end, reproducible full-sweep
+  experiment on UCF-50K — every kernel configuration is benchmarked,
+  the best is validated on the complete 256×256 grid, and the whole
+  corpus run is resumable.
 - :mod:`.paper` — ``Paper``: reproduces the LAKER paper's numerical
   experiment (arXiv:2604.25138, Section V) on the paper's synthetic
   scene — conditioning, PCG iterations vs baselines, and reconstruction
@@ -32,5 +39,7 @@ __all__ = [
     "flow",
     "scale",
     "tune",
+    "scalable_data",
+    "scalable",
     "paper",
 ]
