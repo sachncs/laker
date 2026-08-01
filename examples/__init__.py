@@ -30,6 +30,12 @@ as ``python -m examples.<name>``.
   experiment (arXiv:2604.25138, Section V) on the paper's synthetic
   scene — conditioning, PCG iterations vs baselines, and reconstruction
   RMSE/NMSE against a Gaussian-process baseline.
+- :mod:`.cross_map_cache` — ``cross_map_cache``: one-shot build of the
+  per-pixel train mean map cached under ``data/ucf50k/cross_map_mean.npy``,
+  used by the cross-map (stationary cross-map prior) baseline.
+- :mod:`.cross_map_score` — ``cross_map_score``: score the cached
+  cross-map against every map in the corpus and write
+  ``data/ucf50k/cross_map_score.csv`` (per-split RMSE summary).
 """
 
 __all__ = [
@@ -42,4 +48,6 @@ __all__ = [
     "scalable_data",
     "scalable",
     "paper",
+    "cross_map_cache",
+    "cross_map_score",
 ]

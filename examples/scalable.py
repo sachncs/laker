@@ -19,7 +19,10 @@ Method (staged protocol):
    50,000) and scored on the *complete* 256×256 grid masked to
    non-building pixels. Results stream to an append-only CSV so the
    full-corpus run is resumable and can be distributed with
-   ``--workers``.
+   ``--workers``. With ``--cross-map``, each map is additionally scored
+   against the *stationary cross-map prior*: the per-pixel mean map
+   aggregated over the train split (cached under
+   ``data/ucf50k/cross_map_mean.npy`` after first build).
 
 Reproducibility: every run writes, under ``outputs/scalable/<run>/``,
 an event log (JSONL), the sweep / validation CSVs, a metrics summary,
@@ -57,7 +60,7 @@ from typing import Optional, Sequence
 import numpy as np
 import torch
 
-from examples.scalable_data import EXPECTED_COUNT, ScalableData
+from examples.scalable_data import EXPECTED_COUNT, SIDE, ScalableData
 from laker import Laker
 from laker.backend import Backend
 
@@ -97,8 +100,20 @@ SWEEP_COLUMNS = [
 ]
 VALIDATE_COLUMNS = [
     "scene", "split", "sensors", "eval_pixels", "coverage", "rmse", "mae", "r2",
-    "baseline_rmse", "fit_s", "predict_s", "iters", "scene_seed",
+    "baseline_rmse", "cross_map_rmse", "fit_s", "predict_s", "iters", "scene_seed",
 ]
+
+
+def _cross_map_accumulate(chunk: list) -> tuple[np.ndarray, np.ndarray]:
+    """Per-chunk accumulator for the train-split mean map (module-level for pickling)."""
+    acc: np.ndarray = np.zeros((SIDE, SIDE), dtype=np.float64)
+    cnt: np.ndarray = np.zeros((SIDE, SIDE), dtype=np.float64)
+    for entry in chunk:
+        scene = ScalableData.clean(entry)
+        mask = scene.valid
+        acc[mask] += scene.radio[mask]
+        cnt[mask] += 1
+    return acc, cnt
 
 
 class Scalable:
@@ -353,6 +368,7 @@ class Scalable:
         seed: int = 0,
         device: str = "cpu",
         dtype: str = "float64",
+        cross_map: Optional[np.ndarray] = None,
     ) -> dict:
         """Fit ``cfg`` on a scene and score the complete masked 256×256 grid."""
         scene = ScalableData.clean(entry)
@@ -389,6 +405,9 @@ class Scalable:
         err = pred - truth
         ss_tot = float(np.sum((truth - truth.mean()) ** 2))
         ss_res = float(np.sum(err**2))
+        cross_map_rmse = (
+            Scalable.cross_map_rmse(cross_map, scene) if cross_map is not None else None
+        )
         return {
             "scene": f"{scene.split}/{scene.name}",
             "split": scene.split,
@@ -399,11 +418,76 @@ class Scalable:
             "mae": float(np.mean(np.abs(err))),
             "r2": 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0,
             "baseline_rmse": baseline["rmse"],
+            "cross_map_rmse": cross_map_rmse,
             "fit_s": fit_s,
             "predict_s": predict_s,
             "iters": int(model.iters),
             "scene_seed": int(scene_seed),
         }
+
+    @staticmethod
+    def cross_map_mean(
+        entries: list, workers: int, data_dir: str, events
+    ) -> np.ndarray:
+        """Build (or load) the per-pixel mean map aggregated over the train split.
+
+        The mean map is the stationary cross-map prior: every held-out scene
+        is scored against this single fixed prediction. Cached under
+        ``<data_dir>/cross_map_mean.npy``; subsequent runs reuse it. Valid
+        (non-building) pixels carry the empirical mean, building pixels are
+        left as NaN.
+        """
+        cache = os.path.join(data_dir, "cross_map_mean.npy")
+        if os.path.exists(cache):
+            mean = np.load(cache)
+            assert mean.shape == (SIDE, SIDE), f"corrupt cross-map cache: {mean.shape}"
+            Scalable.event(events, "cross_map_cached", {"path": cache, "shape": list(mean.shape)})
+            return mean
+        train = [entry for entry in entries if entry["split"] == "train"]
+        Scalable.event(
+            events, "cross_map_build_start", {"train_maps": len(train), "workers": workers}
+        )
+
+        if workers and workers > 1:
+            chunks = [train[i::workers] for i in range(workers)]
+            with ProcessPoolExecutor(max_workers=workers) as ex:
+                results = list(ex.map(_cross_map_accumulate, chunks))
+        else:
+            results = [_cross_map_accumulate(train)]
+        acc_agg: np.ndarray = np.zeros((SIDE, SIDE), dtype=np.float64)
+        cnt_agg: np.ndarray = np.zeros((SIDE, SIDE), dtype=np.float64)
+        for partial_acc, partial_cnt in results:
+            acc_agg += partial_acc
+            cnt_agg += partial_cnt
+        mean = acc_agg / np.maximum(cnt_agg, 1.0)
+        mean[cnt_agg == 0] = np.nan
+        np.save(cache, mean)
+        Scalable.event(
+            events,
+            "cross_map_built",
+            {
+                "path": cache,
+                "train_maps": len(train),
+                "covered_pixels": int(np.count_nonzero(cnt_agg)),
+                "mean_of_means": float(np.nanmean(mean)),
+            },
+        )
+        return mean
+
+    @staticmethod
+    def cross_map_rmse(mean_map: np.ndarray, scene) -> Optional[float]:
+        """RMSE of the cached mean map against ``scene.radio`` over valid pixels.
+
+        Returns ``None`` if the mean map has no coverage for this scene.
+        """
+        valid_idx = np.flatnonzero(scene.valid)
+        pred = np.asarray(mean_map).ravel()[valid_idx]
+        truth = scene.radio.ravel()[valid_idx]
+        good = np.isfinite(pred)
+        if not good.any():
+            return None
+        err = pred[good] - truth[good]
+        return float(np.sqrt(np.mean(err**2)))
 
     @staticmethod
     def event(handle, event: str, payload: dict) -> None:
@@ -465,7 +549,19 @@ class Scalable:
             metavar="N",
             help="maps to validate (default = max-maps; 0 = ALL maps in validate-splits)",
         )
-        parser.add_argument("--validate-splits", default="test,val,train")
+        parser.add_argument(
+            "--validate-splits", default="test,val,train"
+        )
+        parser.add_argument(
+            "--cross-map",
+            action="store_true",
+            help=(
+                "score every map against the per-pixel mean map aggregated over the "
+                "train split (cached under <data-dir>/cross_map_mean.npy); a stationary "
+                "cross-map prior that bounds naive cross-map learning without per-scene "
+                "conditioning. Computes the cache once (~5 min on first run, then reused)."
+            ),
+        )
         parser.add_argument("--workers", type=int, default=1)
         parser.add_argument(
             "--resume",
@@ -636,6 +732,7 @@ class Scalable:
                 "seed": args.seed,
                 "device": args.device,
                 "dtype": args.dtype,
+                "cross_map": bool(args.cross_map),
             },
             "sweep": {
                 "n_configs": len(configs),
@@ -647,6 +744,36 @@ class Scalable:
             },
             "validate": {"count": len(validate_rows), "rows": validate_rows},
         }
+        if args.cross_map:
+            cross_map_rows = [
+                row for row in validate_rows
+                if row.get("cross_map_rmse") not in (None, "")
+            ]
+            if cross_map_rows:
+                per_split: dict = {}
+                for split in sorted({row["split"] for row in cross_map_rows}):
+                    rmses = [
+                        float(row["cross_map_rmse"])
+                        for row in cross_map_rows
+                        if row["split"] == split
+                    ]
+                    per_split[split] = {
+                        "n": len(rmses),
+                        "mean_rmse": float(np.mean(rmses)),
+                        "median_rmse": float(np.median(rmses)),
+                    }
+                metrics["cross_map"] = {
+                    "baseline": (
+                        "per-pixel mean map over the train split (stationary "
+                        "cross-map prior); cached at <data-dir>/cross_map_mean.npy"
+                    ),
+                    "cache": os.path.join(args.data_dir, "cross_map_mean.npy"),
+                    "n_scenes": len(cross_map_rows),
+                    "overall_mean_rmse": float(np.mean(
+                        [float(row["cross_map_rmse"]) for row in cross_map_rows]
+                    )),
+                    "per_split": per_split,
+                }
         metrics_path = os.path.join(run_dir, "metrics.json")
         with open(metrics_path, "w", encoding="utf-8") as handle:
             json.dump(metrics, handle, indent=2)
@@ -706,6 +833,10 @@ class Scalable:
                 existing = {row["scene"] for row in csv.DictReader(handle)}
         remaining = [entry for entry in pool if f"{entry['split']}/{entry['name']}" not in existing]
 
+        cross_map: Optional[np.ndarray] = None
+        if args.cross_map:
+            cross_map = Scalable.cross_map_mean(entries, args.workers, args.data_dir, events)
+
         Scalable.event(
             events,
             "validate_start",
@@ -715,6 +846,7 @@ class Scalable:
                 "requested": len(pool),
                 "remaining": len(remaining),
                 "workers": args.workers,
+                "cross_map": cross_map is not None,
             },
         )
 
@@ -742,6 +874,7 @@ class Scalable:
                         args.seed,
                         args.device,
                         args.dtype,
+                        cross_map,
                     ): entry
                     for entry in remaining
                 }
@@ -751,8 +884,13 @@ class Scalable:
             for entry in remaining:
                 record(
                     Scalable.validate_scene(
-                        entry, winner_cfg, sensors=args.sensors, seed=args.seed,
-                        device=args.device, dtype=args.dtype,
+                        entry,
+                        winner_cfg,
+                        sensors=args.sensors,
+                        seed=args.seed,
+                        device=args.device,
+                        dtype=args.dtype,
+                        cross_map=cross_map,
                     )
                 )
 
@@ -807,6 +945,16 @@ class Scalable:
                   f"(baseline {np.mean(base):.2f} dB)")
             print(f"coverage (valid pixels): {np.mean(covers):.2%}  |  "
                   f"{np.min(rmses):.2f} .. {np.max(rmses):.2f} dB range")
+            cross_map_rmses = [
+                float(r["cross_map_rmse"]) for r in validate_rows
+                if r.get("cross_map_rmse") not in (None, "")
+            ]
+            if cross_map_rmses:
+                print(
+                    f"cross-map (per-pixel train mean) RMSE: "
+                    f"{np.mean(cross_map_rmses):.2f} +/- {np.std(cross_map_rmses):.2f} dB  "
+                    f"on {len(cross_map_rmses)} maps"
+                )
 
 
 if __name__ == "__main__":
