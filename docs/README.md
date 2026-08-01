@@ -101,6 +101,10 @@ Runnable examples.
 - [`scale.py`](../../examples/scale.py) — large-scale fit and predict.
 - [`simple.py`](../../examples/simple.py) — minimal sin / cos fit.
 - [`tune.py`](../../examples/tune.py) — hyperparameter search.
+- [`scalable.py`](examples/scalable.md) — full reproducible sweep on the
+  real-world UCF-50K corpus (downloads ~10 GB).
+- [`paper.py`](examples/paper.md) — reproduces the LAKER paper's
+  Section V numerical experiment on the paper's synthetic scene.
 
 ### External
 - [GitHub repository](https://github.com/sachncs/learning-based-attention-kernel-regression)
@@ -136,7 +140,7 @@ laker/                  # 22 modules, single-word naming
 └── train.py            # embedding / corrector / uncertainty training
 
 tests/                  # 310 tests, real behavioral assertions
-examples/               # 6 runnable scripts
+examples/               # 9 runnable scripts
 benchmarks/            # 5 benchmark scripts
 docs/                  # this documentation
 ```

@@ -233,7 +233,15 @@ python examples/scale.py      # scaling with sample size
 python examples/flow.py       # streaming updates
 python examples/tune.py       # hyperparameter tuning
 python examples/map.py        # radio-map visualisation (requires [viz])
+python -m examples.scalable   # real-world UCF-50K full-sweep experiment
+python -m examples.paper      # reproduce the paper's Section V numerical experiment
 ```
+
+The real-world example (`scalable`) downloads ~10 GB of ray-traced
+spectrum cartography maps and runs a full kernel sweep with
+reproducibility artifacts (event log, manifests, resumable
+full-corpus validation); `paper` reproduces the LAKER paper's
+Section V numerical experiment on the paper's synthetic scene.
 
 The benchmark suite reproduces the paper's headline numbers:
 
