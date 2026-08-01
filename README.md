@@ -59,6 +59,12 @@ size-independent Preconditioned Conjugate Gradient (PCG) convergence.
 - **sklearn-compatible API** — `fit` / `predict` / `score` with
   `get_params` / `set_params` and `__sklearn_clone__` for use with
   scikit-learn meta-estimators.
+- **Reproducible real-world + paper experiments** — `examples.scalable`
+  drives a full kernel sweep on the 50,000-map UCF-50K corpus and
+  validates the winner on the complete masked 256×256 grid over all
+  50,000 maps (resumable, parallel); `examples.paper` reproduces the
+  LAKER paper's Section V numerical experiment on the paper's
+  synthetic scene in ~2 minutes.
 
 ---
 
@@ -242,6 +248,17 @@ spectrum cartography maps and runs a full kernel sweep with
 reproducibility artifacts (event log, manifests, resumable
 full-corpus validation); `paper` reproduces the LAKER paper's
 Section V numerical experiment on the paper's synthetic scene.
+
+Headline result on the full UCF-50K corpus (50,000 maps, complete
+masked 256×256 grid, run `20260801T114917Z`): the winner
+`nystrom_m100, λ=1e-2` reaches masked RMSE **10.38 ± 0.91 dB**
+(median 10.30), about **50 % below the per-scene mean baseline**
+(20.73 dB) and matching the exact dense solve within ~5 %. A
+stationary cross-map prior (per-pixel mean over the 40,000 training
+maps) measures **20.73 ± 1.50 dB** on the same 50,000 maps — i.e.
+the per-scene conditioning, not cross-map learning, is what does
+the work. For a fuller positioning against learned CNN baselines
+see [docs/examples/scalable.md](docs/examples/scalable.md).
 
 The benchmark suite reproduces the paper's headline numbers:
 

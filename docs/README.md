@@ -105,6 +105,10 @@ Runnable examples.
   real-world UCF-50K corpus (downloads ~10 GB).
 - [`paper.py`](examples/paper.md) — reproduces the LAKER paper's
   Section V numerical experiment on the paper's synthetic scene.
+- [`cross_map_cache.py`](../../examples/cross_map_cache.py) /
+  [`cross_map_score.py`](../../examples/cross_map_score.py) — build the
+  per-pixel train-mean cache and score the stationary cross-map prior
+  against the full UCF-50K corpus (the SOTA-positioning baseline).
 
 ### External
 - [GitHub repository](https://github.com/sachncs/learning-based-attention-kernel-regression)
@@ -140,7 +144,7 @@ laker/                  # 22 modules, single-word naming
 └── train.py            # embedding / corrector / uncertainty training
 
 tests/                  # 310 tests, real behavioral assertions
-examples/               # 9 runnable scripts
+examples/               # 11 runnable scripts
 benchmarks/            # 5 benchmark scripts
 docs/                  # this documentation
 ```

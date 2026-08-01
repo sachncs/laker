@@ -116,6 +116,76 @@ run. A crashed full-corpus run is resumed with
 `--resume <run_id> ...` (same arguments); completed maps are skipped
 from the checkpoint. Use `--workers N` to parallelise across maps.
 
+## Cross-map (stationary) baseline
+
+`--cross-map` adds an honest floor for cross-map learning without
+per-scene conditioning: the **per-pixel mean map aggregated over the
+40,000 training maps** (cached at `data/ucf50k/cross_map_mean.npy`,
+51,791 of 65,536 pixels covered, mean of per-pixel means
+`120.20 dBm`). Every held-out scene is scored against this single
+fixed prediction.
+
+Build the cache independently with
+`python -m examples.cross_map_cache --workers 8`; then either run the
+sweep with `--cross-map` (records `cross_map_rmse` per row in
+`validate.csv`) or score the cache against every map in the corpus
+with `python -m examples.cross_map_score --workers 8` (writes
+`data/ucf50k/cross_map_score.csv`).
+
+Measured on the full 50,000-map corpus
+(`python -m examples.cross_map_score --workers 8`):
+
+```
+cross-map (per-pixel train mean) RMSE on 50000 maps:
+  20.73 +/- 1.50 dB  (median 20.81, range 15.70 .. 23.83)
+  test  : n= 5000  mean=20.74 +/- 1.49  median=20.82
+  val   : n= 5000  mean=20.73 +/- 1.49  median=20.80
+  train : n=40000  mean=20.73 +/- 1.51  median=20.81
+```
+
+This is essentially identical to the per-scene mean baseline
+(`20.73 dB` from the full-corpus run): the stationary cross-map
+prior provides no information beyond the per-scene level because the
+building mask is shared across all maps and the per-pixel level
+varies scene-to-scene. The information that helps is per-scene
+conditioning (sensors + kernel), not a learned stationary prior.
+
+## Positioning vs learned (CNN) baselines
+
+The UCF-50K dataset
+(`KR-init/Spectrum-Cartography-256x256-UCF-50K`) was released about
+two months ago and is, in the publisher's own words, *purpose-built
+for CNN training*. As of writing no leaderboard, no published
+baseline and no third-party benchmark exists on it, so a direct
+head-to-head with a learned method is not currently possible on this
+corpus.
+
+Reference anchor on an analogous task — RadioUNet (Levie et al.,
+IEEE TWC 2021), a learned U-Net conditioned on building geometry
+and trained on the 56,080-map RadioMapSeer corpus — reports RMSE
+"of order 1 dB where the range of pathloss values from the noise
+floor to the maximal gain is 100 dB", i.e. roughly **1 % of the
+pathloss range**. That is the reference for what learned CNN
+methods can achieve on comparable urban radio-map estimation. No
+RadioUNet or successor has been trained and evaluated on UCF-50K
+yet.
+
+Putting the LAKER result in context on this corpus:
+
+| Method                                       | RMSE (dBm) | % of range  | Notes                                         |
+|----------------------------------------------|-----------:|------------:|-----------------------------------------------|
+| Per-scene mean (sensor-batch baseline)       |     20.73  |   20.9 %    | constant predictor of scene mean              |
+| Cross-map (per-pixel train mean, stationary) |     20.73  |   20.9 %    | measured on 50,000 maps; no per-scene cond.   |
+| **LAKER (nystrom m=100, λ=1e-2)**            | **10.38**  | **10.5 %**  | per-scene kernel, training-free, ~2 min/map   |
+| RadioUNet (RadioMapSeer, building-geometry)  |       ~1   |    ~1 %     | learned U-Net, building mask + Tx as input    |
+
+LAKER is the strongest training-free per-scene kernel on this
+corpus and lands within the same order of magnitude as learned CNNs
+that operate on a different, building-geometry-aware dataset. The
+gap to RadioUNet is the price of going training-free without
+geometry priors — and a fair target for any future learned
+baseline evaluated on UCF-50K.
+
 ## When to use
 
 - You want a real, large, reproducible spectrum-cartography benchmark

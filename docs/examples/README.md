@@ -12,7 +12,7 @@ them directly with `python -m examples.<name>`.
 | [`flow.py`](../../examples/flow.py) | Streaming updates: fit on 200 sensors, then add 4 batches of 20 sensors each via `update`, asserting non-regression of R² at every step. |
 | [`tune.py`](../../examples/tune.py) | Hyperparameter search: validation-based `search` over a 5-decade `lam` grid, picking the best by validation R². |
 | [`scalable_data.py`](../../examples/scalable_data.py) | Reliable ETL for the real-world UCF-50K corpus: download → verify → extract → index → clean → transform → load, with a traceability report. |
-| [`scalable.py`](../../examples/scalable.py) | Full reproducible kernel sweep on UCF-50K: all kernel configurations benchmarked per scene, Pareto front, winner validated on the complete 256×256 grid over the whole corpus (resumable). |
+| [`scalable.py`](../../examples/scalable.py) | Full reproducible kernel sweep on UCF-50K: all kernel configurations benchmarked per scene, Pareto front, winner validated on the complete 256×256 grid over the whole corpus (resumable). With `--cross-map` each map is also scored against the per-pixel mean map over the train split (`cross_map_score.py` runs that scoring across the full corpus). |
 | [`paper.py`](../../examples/paper.py) | Reproduces the LAKER paper's numerical experiment (arXiv:2604.25138, Section V) on the paper's synthetic scene: operator conditioning, PCG iterations vs Jacobi/GD baselines, and reconstruction RMSE/NMSE vs a Gaussian-process baseline. |
 
 ## How to run
@@ -52,6 +52,7 @@ default sweep takes a couple of minutes.
 | `tune.py` | `R² > -1`, best `lam` spans at least 3 decades of the grid |
 | `scalable_data.py` | each parquet is one 256×256 map with a single transmitter pixel; index counts match the corpus manifest (50,000 maps) |
 | `scalable.py` | winner RMSE is < 65% of the mean-target baseline; winner is within 5% of `exact`; corpus fingerprint is stable |
+| `cross_map_cache.py` / `cross_map_score.py` | the cached mean map has ~79 % covered pixels (matches the corpus building fraction) and a finite per-pixel mean within ±0.2 dBm of the corpus-level scene mean; `cross_map_rmse` is finite on every scored map |
 | `paper.py` | reported `κ` is finite and the learned preconditioner keeps `κ(P·A)` at least an order of magnitude below `κ(A)` at every `n`; LAKER-PCG reaches the objective gap in fewer iterations than Jacobi-PCG; LAKER reconstruction RMSE is within 1% of the exact reference solve |
 
 ## Adding your own example
