@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ``docs/algorithms/`` (6 files) — mathematical background for the attention kernel, CCCP preconditioner, PCG solver, low-rank approximations, implicit differentiation, bilevel learning.
   - ``docs/examples/`` (7 files) — walkthrough of every example script.
 - ``docs/README.md`` as the documentation entry point with table of contents.
+- ``examples/scalable_data.py`` (``ScalableData``): download, verify, extract, index, clean, transform and load the real-world UCF-50K spectrum-cartography corpus (``KR-init/Spectrum-Cartography-256x256-UCF-50K``, ~10 GB, 50,000 ray-traced radio maps). Torch-free ETL with sentinels, fingerprinting and a traceability report.
+- ``examples/scalable.py`` (``Scalable``): full reproducible end-to-end sweep over every LAKER kernel configuration on UCF-50K — per-config table, accuracy-vs-time Pareto front, winner selection, then validation of the winner on the complete masked 256×256 grid over the full corpus. Resume-safe via incremental per-map CSV append and process-pool parallelism. CLI exposes ``--data-dir``, ``--unpack-dir``, ``--out-dir``, ``--skip-download``, ``--skip-extract``, ``--max-maps``, ``--sweep-split``, ``--sensors``, ``--eval-points``, ``--lams``, ``--configs``, ``--seed``, ``--device``, ``--dtype`` (``float64``|``float32``), ``--condition``, ``--validate-maps``, ``--validate-splits``, ``--workers``, ``--resume`` and ``--verbose``. Every run writes an event log (``events.jsonl``), sweep / validate CSVs, a metrics summary, and a manifest with the git provenance and dataset fingerprint.
+- ``examples/paper.py`` (``Paper``): reproduces the numerical experiment of the LAKER paper (arXiv:2604.25138, Section V) on the paper's synthetic scene — operator conditioning, PCG iterations to a ``1e-3`` objective gap for the learned CCCP preconditioner vs Jacobi-PCG vs gradient descent, and reconstruction RMSE / NMSE against an exact dense reference solve and a Gaussian-process ``RationalQuadratic`` baseline. Runs in ~2 minutes on a CPU; fails loudly if the preconditioner loses its κ-reduction, if LAKER-PCG is not strictly faster than Jacobi-PCG, or if the reconstruction diverges from the exact reference solve.
+- ``docs/examples/scalable.md`` and ``docs/examples/paper.md``: walkthroughs of the new example scripts with result tables and assertions.
+- Registered ``paper`` and ``scalable`` / ``scalable_data`` in ``examples/__init__.py`` and across the documentation (``README.md``, ``docs/README.md``, ``docs/examples/README.md``).
 
 ### Changed
 - Promoted all semi-private (single-underscore-prefixed) names to public:
@@ -173,6 +178,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | `a8324ef` | 2026-07-31 19:00:00 +05:30 | fix(mypy): drop all underscore prefix/suffix; fix Core/kernel/attribute conflicts |
 | `48c2f93` | 2026-07-31 16:00:12 +05:30 | refactor(api): single-word naming across laker/, expand tests to 310 real-assertion tests |
 | `7d6c4ee` | 2026-07-31 17:00:00 +05:30 | chore: clean up .gitignore (154 → 50 lines) |
+| `a95ec49` | 2026-08-01 21:00:00 +05:30 | docs: register paper and scalable examples in README and docs |
+| `d67701d` | 2026-08-01 20:30:00 +05:30 | feat(examples): add scalable.py + scalable_data.py for UCF-50K full-sweep |
+| `06300eb` | 2026-08-01 20:00:00 +05:30 | feat(examples): add paper.py reproducing LAKER paper Section V |
 | `<this>`  | 2026-07-31 18:00:00 +05:30 | docs: add docs/ (guides, api, algorithms, examples) and fix CI |
 | `<prev>` | 2026-07-12 13:26:35 +05:30 | docs: comprehensive module/class/method docstrings across laker/ |
 | `<prev>` | 2026-07-12 13:26:39 +05:30 | docs: add module docstrings to benchmarks/ and examples/ |
