@@ -1,0 +1,6 @@
+blank_issues_enabled: false
+contact_links:
+  - name: LAKER Documentation
+    url: https://laker.readthedocs.io
+  - name: LAKER Discussions
+    url: https://github.com/sachncs/laker/discussions

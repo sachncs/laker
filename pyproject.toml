@@ -1,0 +1,180 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "laker"
+version = "0.5.0"
+description = "Learning-based Attention Kernel Regression for large-scale spectrum cartography"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10,<3.14"
+authors = [
+    { name = "LAKER Contributors", email = "sachncs@gmail.com" },
+]
+keywords = [
+    "kernel-regression",
+    "attention-kernel",
+    "preconditioning",
+    "conjugate-gradient",
+    "spectrum-cartography",
+    "radio-map-reconstruction",
+    "convex-concave-procedure",
+    "cccp",
+    "scientific-machine-learning",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+]
+dependencies = [
+    "numpy>=1.23,<3.0",
+    "torch>=2.0,<3.0",
+]
+
+[project.optional-dependencies]
+viz = ["matplotlib>=3.5,<4.0"]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "hypothesis>=6.148",
+    "ruff>=0.5",
+    "mypy>=1.5",
+]
+all = ["laker[viz,dev]"]
+
+[project.urls]
+Homepage = "https://github.com/sachncs/laker"
+Issues = "https://github.com/sachncs/laker/issues"
+Repository = "https://github.com/sachncs/laker"
+Changelog = "https://github.com/sachncs/laker/blob/master/CHANGELOG.md"
+
+[project.scripts]
+laker = "laker.cli:CLI.run"
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["laker*"]
+exclude = ["tests*", "examples*", "benchmarks*", "docs*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311", "py312", "py313"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["laker", "tests", "examples", "benchmarks"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false
+warn_unused_configs = true
+warn_unused_ignores = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+ignore_missing_imports = true
+strict_optional = false
+show_error_codes = true
+plugins = []
+
+[[tool.mypy.overrides]]
+module = ["torch.*", "matplotlib.*", "numpy.*"]
+follow_imports = "skip"
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["docs", "build", "dist", "*.egg-info"]
+
+[tool.ruff.lint]
+# E741: ambiguous variable name 'l' is intentional in math.py for the Cholesky factor.
+# F841 / F811: local variable redefinition / unused variable in test fixtures.
+select = ["E", "F", "W", "I"]
+ignore = ["E741"]
+
+[tool.ruff.lint.per-file-ignores]
+"laker/math.py" = ["E741"]
+"tests/*" = ["F401", "F811", "F841", "E402"]
+"benchmarks/*" = ["F401", "F811", "F841", "E402", "F541"]
+"examples/*" = ["F401", "E402"]
+
+[tool.pytest.ini_options]
+minversion = "7.4"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "slow: marks tests as slow (deselect with -m 'not slow')",
+    "cuda: marks tests that require CUDA (deselect on CPU-only hosts)",
+    "integration: integration tests that exercise the public API end-to-end",
+    "precision: numerical precision tests against closed-form references",
+]
+xfail_strict = true
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:torch._dynamo",
+    "ignore::DeprecationWarning:torch.compiler",
+    "ignore::DeprecationWarning:torch.cuda",
+    "ignore::PendingDeprecationWarning",
+    "ignore::pytest.PytestDeprecationWarning",
+]
+log_cli = false
+log_cli_level = "INFO"
+
+[tool.coverage.run]
+branch = true
+source = ["laker"]
+omit = [
+    "*/tests/*",
+    "*/examples/*",
+    "*/docs/*",
+    "*/benchmarks/*",
+    "laker/__main__.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+skip_empty = true
+precision = 2
+sort = "-Cover"
+exclude_lines = [
+    "pragma: no cover",
+    "pragma: noqa",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
+]
+exclude_also = [
+    "@deprecated",
+    "@overload",
+    "@abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+show_contexts = true
