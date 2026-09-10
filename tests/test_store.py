@@ -145,3 +145,33 @@ class TestDeviceDtype:
         m2 = Laker.load(path)
         assert m2.dtype == torch.float64
         assert m2.coef.dtype == torch.float64
+
+    def test_load_preserves_float16(self, fitted_model, tmp_path):
+        m, x, _ = fitted_model
+        path = str(tmp_path / "model.pt")
+        m.save(path)
+        state = torch.load(path, weights_only=True)
+        state["dtype"] = "torch.float16"
+        torch.save(state, path)
+        m2 = Laker.load(path)
+        assert m2.dtype == torch.float16
+
+    def test_load_preserves_bfloat16_embed(self, fitted_model, tmp_path):
+        m, x, _ = fitted_model
+        path = str(tmp_path / "model.pt")
+        m.save(path)
+        state = torch.load(path, weights_only=True)
+        state["embed_dtype"] = "torch.bfloat16"
+        torch.save(state, path)
+        m2 = Laker.load(path)
+        assert m2.embed_dtype == torch.bfloat16
+
+    def test_load_unknown_dtype_raises(self, fitted_model, tmp_path):
+        m, x, _ = fitted_model
+        path = str(tmp_path / "model.pt")
+        m.save(path)
+        state = torch.load(path, weights_only=True)
+        state["dtype"] = "torch.float7"
+        torch.save(state, path)
+        with pytest.raises(ValueError, match="unsupported dtype"):
+            Store.load(path)

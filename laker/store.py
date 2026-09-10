@@ -19,6 +19,22 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_DTYPE_MAP = {
+    "torch.float16": torch.float16,
+    "torch.bfloat16": torch.bfloat16,
+    "torch.float32": torch.float32,
+    "torch.float64": torch.float64,
+}
+
+
+def _coerce_dtype(name: str) -> torch.dtype:
+    """Map a serialised ``str(torch.dtype)`` back to a torch.dtype."""
+    if name not in _DTYPE_MAP:
+        raise ValueError(
+            f"Store: unsupported dtype string {name!r}; expected one of {sorted(_DTYPE_MAP)}"
+        )
+    return _DTYPE_MAP[name]
+
 
 class Store:
     """Save and load LAKER models."""
@@ -88,15 +104,9 @@ class Store:
         from laker.model import Laker
 
         state = torch.load(path, weights_only=True)
-        dtype = torch.float32 if "float32" in state["dtype"] else torch.float64
+        dtype = _coerce_dtype(state["dtype"])
         edt = state.get("embed_dtype")
-        embed_dtype = (
-            torch.float32
-            if edt and "float32" in edt
-            else torch.float64
-            if edt and "float64" in edt
-            else None
-        )
+        embed_dtype = _coerce_dtype(edt) if edt else None
 
         model = Laker(
             embed_dim=state["embed_dim"],
