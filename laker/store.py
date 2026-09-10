@@ -101,9 +101,27 @@ class Store:
     @staticmethod
     def load(path: str) -> "Laker":
         """Deserialise a model from ``path``."""
+        import os
+
         from laker.model import Laker
 
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Store.load: no such file {path!r}")
         state = torch.load(path, weights_only=True)
+        if not isinstance(state, dict) or "format" not in state:
+            raise ValueError(
+                f"Store.load: {path!r} is not a LAKER model file (missing 'format' key)."
+            )
+        if state["format"] > 2:
+            raise ValueError(
+                f"Store.load: {path!r} was written by a newer LAKER version "
+                f"(format={state['format']}); please upgrade the package."
+            )
+        for required in ("dtype", "lam", "embed_dim"):
+            if required not in state:
+                raise KeyError(
+                    f"Store.load: {path!r} is missing required field {required!r}"
+                )
         dtype = _coerce_dtype(state["dtype"])
         edt = state.get("embed_dtype")
         embed_dtype = _coerce_dtype(edt) if edt else None
