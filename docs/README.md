@@ -111,9 +111,9 @@ Runnable examples.
   against the full UCF-50K corpus (the SOTA-positioning baseline).
 
 ### External
-- [GitHub repository](https://github.com/sachncs/learning-based-attention-kernel-regression)
+- [GitHub repository](https://github.com/sachncs/laker)
 - [Paper on arXiv](https://arxiv.org/abs/2604.25138)
-- [Issue tracker](https://github.com/sachncs/learning-based-attention-kernel-regression/issues)
+- [Issue tracker](https://github.com/sachncs/laker/issues)
 
 ## Project layout
 
