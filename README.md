@@ -224,7 +224,9 @@ exposes the building blocks under single-word names:
 | `laker.cli` | `CLI` |
 
 Per-module documentation lives under [docs/api/](docs/api/). Algorithm
-notes live under [docs/algorithms/](docs/algorithms/).
+notes live under [docs/algorithms/](docs/algorithms/). The full
+documentation site is published at
+<https://sachncs.github.io/laker/>.
 
 ---
 
