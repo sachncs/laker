@@ -516,8 +516,17 @@ class Laker:
         forget: float = 1.0,
         threshold: int = 100,
         seed: Optional[int] = None,
+        autofit: bool = True,
     ) -> "Laker":
-        return self.stream.update(self, x_new, y_new, forget=forget, threshold=threshold, seed=seed)
+        return self.stream.update(
+            self,
+            x_new,
+            y_new,
+            forget=forget,
+            threshold=threshold,
+            seed=seed,
+            autofit=autofit,
+        )
 
     def path(
         self,
