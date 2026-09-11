@@ -22,6 +22,23 @@ class TestUpdate:
         assert m.coef.shape[0] == n + 5
         assert m.embed.shape[0] == n + 5
 
+    def test_update_matches_fresh_fit_on_concatenated_data(self):
+        torch.manual_seed(0)
+        n = 20
+        x = torch.rand(n, 2, dtype=torch.float64) * 100
+        y = torch.sin(x[:, 0] / 50)
+        m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
+        m.fit(x, y)
+
+        x_new = torch.rand(5, 2, dtype=torch.float64) * 100
+        y_new = torch.sin(x_new[:, 0] / 50)
+        m.update(x_new, y_new, threshold=100, seed=0)
+
+        ref = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
+        ref.fit(torch.cat([x, x_new]), torch.cat([y, y_new]))
+        torch.testing.assert_close(m.coef, ref.coef, atol=1e-3, rtol=1e-3)
+        torch.testing.assert_close(m.y_train, torch.cat([y, y_new]))
+
     def test_update_rejects_unfitted(self):
         m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
         x = torch.rand(5, 2, dtype=torch.float64)
