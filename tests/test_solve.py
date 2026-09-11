@@ -100,7 +100,9 @@ class TestPCG:
         rhs = torch.randn(n, dtype=torch.float32)
         pcg = PCG(tol=1e-5, max_iter=500, verbose=False)
         _, status = pcg.solve(lambda v: A @ v, lambda v: v, rhs)
-        assert status.converged, f"float32 PCG failed: reason={status.reason}, res={status.residual}"
+        assert status.converged, (
+            f"float32 PCG failed: reason={status.reason}, res={status.residual}"
+        )
 
 
 class TestDescent:
