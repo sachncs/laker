@@ -192,7 +192,14 @@ class GP:
             lo = max(self.bounds[i, 0] * 0.1, 1e-12)
             hi = float(self.bounds[i, 1]) * 10.0
             z[:, i] = np.log10(np.clip(z[:, i], lo, hi))
-        z = (z - self.bounds[:, 0]) / (self.bounds[:, 1] - self.bounds[:, 0])
+            log_lo = np.log10(lo)
+            log_hi = np.log10(hi)
+            z[:, i] = (z[:, i] - log_lo) / (log_hi - log_lo)
+        non_log = [i for i in range(self.d) if i not in set(self.log)]
+        if non_log:
+            lo = self.bounds[non_log, 0]
+            hi = self.bounds[non_log, 1]
+            z[:, non_log] = (z[:, non_log] - lo) / (hi - lo)
         return np.clip(z, 0.0, 1.0)
 
     def kernel(self, x1: np.ndarray, x2: np.ndarray) -> np.ndarray:
