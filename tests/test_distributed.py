@@ -67,6 +67,8 @@ class TestSlicing:
             Exact(embeddings=e[: n // 2], lam=0.1, dtype=torch.float64),
             Exact(embeddings=e[n // 2 :], lam=0.1, dtype=torch.float64),
         ]
+        op.shards = [e[: n // 2], e[n // 2 :]]
+        op.slices = [(0, n // 2), (n // 2, n)]
         op.sizes = [n // 2, n - n // 2]
         v = torch.randn(n, dtype=torch.float64)
         out = op.matvec(v)
@@ -109,6 +111,8 @@ class TestMultiDeviceMocked:
             Exact(embeddings=e[:5], lam=0.1, dtype=torch.float64, device=torch.device("cpu")),
             Exact(embeddings=e[5:], lam=0.1, dtype=torch.float64, device=torch.device("cpu")),
         ]
+        op.shards = [e[:5], e[5:]]
+        op.slices = [(0, 5), (5, n)]
         op.sizes = [5, 5]
         v = torch.randn(n, dtype=torch.float64)
         out = op.matvec(v)
