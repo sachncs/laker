@@ -38,7 +38,19 @@ class TestUpdate:
         x_big = torch.rand(150, 2, dtype=torch.float64) * 100
         y_big = torch.sin(x_big[:, 0] / 50)
         with pytest.raises(RuntimeError, match="threshold"):
-            m.update(x_big, y_big, threshold=100)
+            m.update(x_big, y_big, threshold=100, autofit=False)
+
+    def test_update_autofits_when_threshold_exceeded(self):
+        torch.manual_seed(0)
+        x = torch.rand(20, 2, dtype=torch.float64) * 100
+        y = torch.sin(x[:, 0] / 50)
+        m = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
+        m.fit(x, y)
+        x_big = torch.rand(150, 2, dtype=torch.float64) * 100
+        y_big = torch.sin(x_big[:, 0] / 50)
+        m.update(x_big, y_big, threshold=100)
+        assert m.coef.shape[0] == 20 + 150
+        assert torch.isfinite(m.coef).all()
 
     def test_update_shape_validation(self):
         torch.manual_seed(0)

@@ -28,6 +28,7 @@ class Stream:
         forget: float = 1.0,
         threshold: int = 100,
         seed: Optional[int] = None,
+        autofit: bool = True,
     ) -> "Laker":
         """Append new observations and re-solve with a warm start.
 
@@ -36,8 +37,11 @@ class Stream:
             x_new: New inputs of shape ``(m, d)``.
             y_new: New targets of shape ``(m,)``.
             forget: Scalar in ``[0, 1]`` scaling the previous ``alpha``.
-            threshold: Max cumulative new points before forcing a refit.
+            threshold: Max cumulative new points before triggering a refit.
             seed: Optional seed for the preconditioner's random probes.
+            autofit: When ``True`` (default) and the threshold is exceeded,
+                automatically concatenate all known data and refit. When
+                ``False``, raise ``RuntimeError`` instead.
         """
         from laker.check import Check
 
@@ -51,10 +55,29 @@ class Stream:
         total = model.partial_count + m
 
         if total >= threshold:
-            model.partial_count = 0
-            raise RuntimeError(
-                "update threshold exceeded. Concatenate all data and call fit() for a full refit."
+            if not autofit:
+                model.partial_count = 0
+                raise RuntimeError(
+                    "update threshold exceeded. Concatenate all data and call fit() "
+                    "for a full refit."
+                )
+            all_x = (
+                torch.cat([model.x_train, x_new], dim=0)
+                if model.x_train is not None
+                else x_new
             )
+            all_y = (
+                torch.cat([model.y_train, y_new])
+                if model.y_train is not None
+                else y_new
+            )
+            warm_was = model.warm
+            model.warm = True
+            try:
+                model.fit(all_x, all_y, seed=seed)
+            finally:
+                model.warm = warm_was
+            return model
 
         model.partial_count = total
 
