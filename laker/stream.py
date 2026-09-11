@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Optional
 
+import numpy as np
 import torch
 
 if TYPE_CHECKING:
@@ -43,10 +44,18 @@ class Stream:
                 automatically concatenate all known data and refit. When
                 ``False``, raise ``RuntimeError`` instead.
         """
+        from laker.backend import Backend
         from laker.check import Check
+        from laker.math import Math
 
         if model.coef is None or model.embed is None:
             raise RuntimeError("Model has not been fitted. Call fit() before update().")
+
+        if seed is not None:
+            torch.manual_seed(int(seed))
+            np.random.seed(int(seed))
+            Math.seed_set(int(seed))
+            Backend.seed(int(seed))
 
         x_new = Check.x(Check.tensor(x_new, device=model.device, dtype=model.dtype), "x_new")
         y_new = Check.y(Check.tensor(y_new, device=model.device, dtype=model.dtype), "y_new")

@@ -52,6 +52,21 @@ class TestUpdate:
         assert m.coef.shape[0] == 20 + 150
         assert torch.isfinite(m.coef).all()
 
+    def test_update_reproducible_with_seed(self):
+        torch.manual_seed(0)
+        x = torch.rand(20, 2, dtype=torch.float64) * 100
+        y = torch.sin(x[:, 0] / 50)
+        m1 = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
+        m2 = Laker(embed_dim=4, dtype=torch.float64, verbose=False)
+        m1.fit(x, y)
+        m2.fit(x, y)
+        x_new = torch.rand(5, 2, dtype=torch.float64) * 100
+        y_new = torch.sin(x_new[:, 0] / 50)
+        m1.update(x_new, y_new, threshold=100, seed=42)
+        m2.update(x_new, y_new, threshold=100, seed=42)
+        torch.testing.assert_close(m1.coef, m2.coef)
+        assert m1.prec.iso == m2.prec.iso
+
     def test_update_shape_validation(self):
         torch.manual_seed(0)
         x = torch.rand(20, 2, dtype=torch.float64) * 100
