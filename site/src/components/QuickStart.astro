@@ -1,0 +1,132 @@
+---
+import { SITE } from '~/lib/site';
+---
+
+<section id="quick-start" class="relative py-24 sm:py-32">
+  <div class="container-x">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div class="lg:col-span-4 reveal">
+        <p class="eyebrow">Quick start</p>
+        <h2 class="display mt-5 text-[36px] sm:text-[44px] leading-[1.04]">
+          From <em>pip install</em><br />
+          to a fitted model<br />
+          in three lines.
+        </h2>
+        <p class="mt-5 text-[15.5px] leading-[1.7] text-white/55">
+          LAKER ships with a single public entry point —
+          <code class="font-mono text-white/85 text-[13px]">Laker</code> — and
+          the full sklearn API. Install, import, fit, predict. No bespoke
+          training loop. No boilerplate.
+        </p>
+
+        <div class="mt-8 flex flex-col gap-3">
+          <a href={SITE.pypi} target="_blank" rel="noopener" class="btn btn-primary h-11 px-5 text-[13.5px]">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 3v18M3 12h18" />
+            </svg>
+            pip install laker
+          </a>
+          <a href={SITE.repo} target="_blank" rel="noopener" class="btn btn-ghost h-11 px-5 text-[13.5px]">
+            Browse the source
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M7 17 17 7M9 7h8v8" />
+            </svg>
+          </a>
+        </div>
+
+        <div class="mt-10 space-y-4">
+          <div class="flex items-start gap-3">
+            <div class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-signal/15 text-signal ring-1 ring-signal/30">
+              <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 13 4 4L19 7" /></svg>
+            </div>
+            <div>
+              <div class="text-[14px] text-white/85">Python 3.10 → 3.13</div>
+              <div class="text-[12.5px] text-white/45">Single source of truth, modern toolchain.</div>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-signal/15 text-signal ring-1 ring-signal/30">
+              <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 13 4 4L19 7" /></svg>
+            </div>
+            <div>
+              <div class="text-[14px] text-white/85">CPU, CUDA, MPS — same API</div>
+              <div class="text-[12.5px] text-white/45">PyTorch-native device dispatch.</div>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-signal/15 text-signal ring-1 ring-signal/30">
+              <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 13 4 4L19 7" /></svg>
+            </div>
+            <div>
+              <div class="text-[14px] text-white/85">310 tests · MIT licensed</div>
+              <div class="text-[12.5px] text-white/45">Real behavioural assertions, no mocks.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-8 reveal reveal-1">
+        <!-- Code tabs -->
+        <div class="panel-strong overflow-hidden">
+          <div class="flex items-center justify-between px-5 sm:px-6 py-3 border-b hairline-b">
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-full bg-rose-400/70"></span>
+              <span class="h-2.5 w-2.5 rounded-full bg-amber-300/70"></span>
+              <span class="h-2.5 w-2.5 rounded-full bg-signal/80"></span>
+              <span class="ml-3 text-[11px] tracking-[0.16em] uppercase text-white/30 font-mono">fit.py</span>
+            </div>
+            <div class="hidden sm:flex items-center gap-3 text-[11px] text-white/40 font-mono">
+              <span>python</span>
+              <span class="text-white/15">·</span>
+              <span>v{SITE.version}</span>
+            </div>
+          </div>
+
+          <div class="px-5 sm:px-8 py-7 sm:py-9">
+            <pre class="code leading-[1.7] overflow-x-auto"><span class="tok-com"># Install: pip install laker</span>
+<span class="tok-key">import</span> <span class="tok-mod">torch</span>
+<span class="tok-key">from</span> <span class="tok-mod">laker</span> <span class="tok-key">import</span> Laker
+
+<span class="tok-com"># A small synthetic radio field on a 100×100 grid.</span>
+n <span class="tok-key">=</span> <span class="tok-num">1_000</span>
+x <span class="tok-key">=</span> torch.rand(n, <span class="tok-num">2</span>) <span class="tok-key">*</span> <span class="tok-num">100.0</span>
+y <span class="tok-key">=</span> torch.sin(x[:, <span class="tok-num">0</span>] <span class="tok-key">/</span> <span class="tok-num">50</span>) <span class="tok-key">+</span> torch.cos(x[:, <span class="tok-num">1</span>] <span class="tok-key">/</span> <span class="tok-num">50</span>)
+
+<span class="tok-com"># One line. CCCP preconditioner is automatic.</span>
+model <span class="tok-key">=</span> <span class="tok-fn">Laker</span>(embed_dim=<span class="tok-num">10</span>, lam=<span class="tok-num">1e-2</span>, device=<span class="tok-str">"cuda"</span>)
+model.<span class="tok-fn">fit</span>(x, y)
+
+<span class="tok-com"># Predict anywhere on the field.</span>
+x_test <span class="tok-key">=</span> torch.rand(<span class="tok-num">2000</span>, <span class="tok-num">2</span>) <span class="tok-key">*</span> <span class="tok-num">100.0</span>
+y_pred <span class="tok-key">=</span> model.<span class="tok-fn">predict</span>(x_test)
+y_var  <span class="tok-key">=</span> model.<span class="tok-fn">variance</span>(x_test)        <span class="tok-com"># exact posterior variance</span>
+
+<span class="tok-fn">print</span>(<span class="tok-str">f"R² = &#123;model.score(x, y):.3f&#125;"</span>)        <span class="tok-com"># → R² = 0.998</span>
+<span class="tok-fn">print</span>(<span class="tok-str">f"κ = &#123;model.condition():.1e&#125;"</span>)           <span class="tok-com"># → κ ≈ 1.2e+03</span></pre>
+          </div>
+
+          <div class="border-t hairline-t px-5 sm:px-8 py-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] text-white/45 font-mono">
+            <span><span class="text-signal">$</span> pip install laker</span>
+            <span class="hidden sm:inline text-white/15">→</span>
+            <span><span class="text-signal">$</span> python fit.py</span>
+            <span class="hidden sm:inline text-white/15">→</span>
+            <span class="text-white/85">R² = 0.998 · κ ≈ 1.2e+03</span>
+          </div>
+        </div>
+
+        <!-- CLI snippet -->
+        <div class="mt-5 panel p-5 sm:p-6">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] tracking-[0.16em] uppercase text-white/30 font-mono">CLI · laker fit</span>
+            <span class="text-[11px] text-white/30 font-mono">shell</span>
+          </div>
+          <pre class="code mt-3 text-[13px] overflow-x-auto"><span class="tok-com"># Train from the command line</span>
+laker fit <span class="tok-key">--</span>locations x_train.pt <span class="tok-key">--</span>measurements y_train.pt <span class="tok-key">--</span>output model.pt
+
+<span class="tok-com"># Predict on a held-out set</span>
+laker predict <span class="tok-key">--</span>model model.pt <span class="tok-key">--</span>locations x_test.pt <span class="tok-key">--</span>output y_pred.pt</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

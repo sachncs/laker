@@ -1,0 +1,126 @@
+---
+import { SITE } from '~/lib/site';
+import ConditionChart from './ConditionChart.astro';
+---
+
+<section id="overview" class="relative py-24 sm:py-32">
+  <div class="container-x">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div class="lg:col-span-5 reveal">
+        <p class="eyebrow">The problem</p>
+        <h2 class="display mt-5 text-[36px] sm:text-[48px] leading-[1.02]">
+          Attention is <em>expressive</em>.
+          <br />
+          <span class="text-white/55">Solving it is <em>expensive</em>.</span>
+        </h2>
+        <p class="mt-6 text-[16.5px] leading-[1.7] text-white/60 max-w-[44ch]">
+          Regularised attention-kernel regression problems look like a routine linear
+          system — and that is exactly the trap. The kernel
+          <span class="font-mono text-white/85">G = exp(E E<sup>T</sup>)</span>
+          explodes in condition number as the data grows, and vanilla PCG grinds
+          to a halt long before your model converges.
+        </p>
+        <p class="mt-4 text-[16.5px] leading-[1.7] text-white/60 max-w-[44ch]">
+          LAKER turns that linear system into a tractable one. A learned, data-dependent
+          preconditioner built by a shrinkage-regularised Convex-Concave Procedure
+          (CCCP) slashes <span class="font-mono text-white/85">κ(G + λI)</span> by up
+          to three orders of magnitude — and the convergence of PCG becomes
+          <span class="text-white">near size-independent</span>.
+        </p>
+
+        <div class="mt-8 flex flex-wrap items-center gap-3">
+          <a href="#architecture" class="btn btn-ghost h-10 px-4 text-[13px]">
+            See the architecture
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </a>
+          <a href={SITE.paper} target="_blank" rel="noopener" class="btn btn-ghost h-10 px-4 text-[13px]">
+            arXiv:2604.25138
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M7 17 17 7M9 7h8v8" />
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="lg:col-span-7 reveal reveal-1">
+        <!-- Problem card: conditioning curve comparison -->
+        <div class="panel-strong p-6 sm:p-8">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <div class="text-[11px] uppercase tracking-[0.18em] text-white/30">Figure 1</div>
+              <h3 class="mt-1 text-[18px] font-semibold tracking-tight">Condition number vs sample size</h3>
+            </div>
+            <div class="hidden sm:flex items-center gap-4 text-[11px] text-white/45">
+              <span class="inline-flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-rose-400/80"></span>Jacobi
+              </span>
+              <span class="inline-flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-signal"></span>LAKER (CCCP)
+              </span>
+            </div>
+          </div>
+
+          <ConditionChart />
+
+          <div class="mt-6 grid grid-cols-3 gap-6 pt-6 border-t hairline-t">
+            <div>
+              <div class="text-[22px] font-semibold grad-text">10⁶ → 10³</div>
+              <div class="mt-1 text-[12px] text-white/45">κ reduction on the UCF-50K kernel system at n = 50,000.</div>
+            </div>
+            <div>
+              <div class="text-[22px] font-semibold grad-text">~constant</div>
+              <div class="mt-1 text-[12px] text-white/45">PCG iterations to 1e-6 tolerance stay bounded as n grows.</div>
+            </div>
+            <div>
+              <div class="text-[22px] font-semibold grad-text">2 min</div>
+              <div class="mt-1 text-[12px] text-white/45">Reproduces the paper's Section V experiment end-to-end on CPU.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!--
+  Inline SVG chart: two curves (Jacobi steep, LAKER flat) with axes,
+  ticks, and labels. Hand-tuned to look cinematic, not spreadsheet-ish.
+-->
+<script>
+  // (no JS needed — pure SVG)
+</script>
+
+<style>
+  @keyframes drawLine1 {
+    from { stroke-dashoffset: 1200; }
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes drawLine2 {
+    from { stroke-dashoffset: 1200; }
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .cond-jacobi {
+    stroke-dasharray: 1200;
+    stroke-dashoffset: 1200;
+    animation: drawLine1 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+  }
+  .cond-laker {
+    stroke-dasharray: 1200;
+    stroke-dashoffset: 1200;
+    animation: drawLine2 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards;
+  }
+  .cond-dot {
+    opacity: 0;
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+  .cond-dot-1 { animation-delay: 2s; }
+  .cond-dot-2 { animation-delay: 2.2s; }
+</style>
+
+<!-- Chart goes here as inline so we can scope styles -->

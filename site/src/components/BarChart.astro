@@ -1,0 +1,100 @@
+---
+// BarChart — masked RMSE comparison across LAKER configurations
+// vs the per-scene mean baseline (UCF-50K validation).
+---
+
+<svg viewBox="0 0 720 290" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="Bar chart of masked RMSE across LAKER configurations on UCF-50K."
+     class="block w-full">
+  <defs>
+    <linearGradient id="bar-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(94,227,208,0.95)" />
+      <stop offset="100%" stop-color="rgba(94,227,208,0.35)" />
+    </linearGradient>
+    <linearGradient id="bar-grad-winner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(133,183,255,1)" />
+      <stop offset="100%" stop-color="rgba(133,183,255,0.45)" />
+    </linearGradient>
+    <linearGradient id="bar-grad-baseline" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(244,123,150,0.85)" />
+      <stop offset="100%" stop-color="rgba(244,123,150,0.25)" />
+    </linearGradient>
+  </defs>
+
+  <!-- Y-axis -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" fill="rgba(255,255,255,0.45)">
+    <line x1="120" y1="40"  x2="700" y2="40"  stroke="rgba(255,255,255,0.06)" />
+    <line x1="120" y1="90"  x2="700" y2="90"  stroke="rgba(255,255,255,0.06)" />
+    <line x1="120" y1="140" x2="700" y2="140" stroke="rgba(255,255,255,0.10)" />
+    <line x1="120" y1="190" x2="700" y2="190" stroke="rgba(255,255,255,0.06)" />
+    <line x1="120" y1="240" x2="700" y2="240" stroke="rgba(255,255,255,0.10)" />
+
+    <text x="110" y="44"  text-anchor="end">25 dB</text>
+    <text x="110" y="94"  text-anchor="end">20 dB</text>
+    <text x="110" y="144" text-anchor="end">15 dB</text>
+    <text x="110" y="194" text-anchor="end">10 dB</text>
+    <text x="110" y="244" text-anchor="end">5 dB</text>
+  </g>
+
+  <!-- X baseline -->
+  <line x1="120" y1="240" x2="700" y2="240" stroke="rgba(255,255,255,0.18)" />
+
+  <!--
+    Bars: from highest RMSE (baseline) to lowest.
+    Y mapping: 240 is the axis (y0). Scale = 200/25 = 8 per dB.
+    baseline (per-scene mean)   = 20.73 dB  → height = 165.8 → y = 74.2
+    cross-map stationary prior   = 20.73 dB  → height = 165.8 → y = 74.2
+    nystrom_m200                 = 14.10 dB  → height = 112.8 → y = 127.2
+    nystrom_m100                 = 10.38 dB  → height =  83.0 → y = 157.0  (winner)
+    exact (reference)            =  9.92 dB  → height =  79.4 → y = 160.6
+  -->
+
+  <!-- baseline 1 (per-scene mean) -->
+  <g>
+    <rect x="138" y="74" width="60" height="166" rx="6" fill="url(#bar-grad-baseline)" />
+    <text x="168" y="68"  text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#f47b96">20.73</text>
+    <text x="168" y="258" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9"  fill="rgba(255,255,255,0.55)">baseline</text>
+  </g>
+
+  <!-- baseline 2 (cross-map stationary) -->
+  <g>
+    <rect x="218" y="74" width="60" height="166" rx="6" fill="url(#bar-grad-baseline)" />
+    <text x="248" y="68"  text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="#f47b96">20.73</text>
+    <text x="248" y="258" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9"  fill="rgba(255,255,255,0.55)">cross-map</text>
+  </g>
+
+  <!-- nystrom_m200 -->
+  <g>
+    <rect x="298" y="127" width="60" height="113" rx="6" fill="url(#bar-grad)" />
+    <text x="328" y="121" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="rgba(255,255,255,0.85)">14.10</text>
+    <text x="328" y="258" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9"  fill="rgba(255,255,255,0.55)">nystrom-200</text>
+  </g>
+
+  <!-- nystrom_m100 (WINNER) -->
+  <g>
+    <rect x="378" y="157" width="60" height="83" rx="6" fill="url(#bar-grad-winner)" />
+    <rect x="378" y="157" width="60" height="83" rx="6" fill="none" stroke="rgba(133,183,255,0.7)" stroke-width="1" />
+    <text x="408" y="151" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#cfe1ff" font-weight="600">10.38</text>
+    <text x="408" y="258" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9"  fill="rgba(255,255,255,0.85)">nystrom-100</text>
+    <text x="408" y="270" text-anchor="middle" font-family="ui-monospace, monospace" font-size="8.5" fill="rgba(133,183,255,0.85)">λ = 1e-2</text>
+    <g>
+      <circle cx="408" cy="198" r="3.5" fill="#85b7ff" />
+      <rect x="416" y="186" width="84" height="22" rx="6" fill="rgba(0,0,0,0.5)" stroke="rgba(133,183,255,0.4)" />
+      <text x="458" y="200" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-size="10" fill="#cfe1ff">winner</text>
+    </g>
+  </g>
+
+  <!-- exact reference -->
+  <g>
+    <rect x="458" y="160" width="60" height="80" rx="6" fill="url(#bar-grad)" />
+    <text x="488" y="154" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="rgba(255,255,255,0.85)">9.92</text>
+    <text x="488" y="258" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9"  fill="rgba(255,255,255,0.55)">exact (ref)</text>
+  </g>
+
+  <!-- gap annotation -->
+  <g>
+    <line x1="168" y1="74" x2="408" y2="157" stroke="rgba(255,255,255,0.18)" stroke-dasharray="3 4" />
+    <rect x="226" y="100" width="120" height="22" rx="6" fill="rgba(0,0,0,0.55)" stroke="rgba(255,255,255,0.10)" />
+    <text x="286" y="115" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="rgba(255,255,255,0.85)">−10.4 dB vs baseline</text>
+  </g>
+</svg>

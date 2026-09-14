@@ -1,0 +1,48 @@
+---
+import { SITE } from '~/lib/site';
+
+const items = [
+  { label: 'arXiv', value: '2604.25138', href: SITE.paper, meta: 'Peer-reviewed' },
+  { label: 'License', value: 'MIT', href: 'https://opensource.org/licenses/MIT', meta: 'Open source' },
+  { label: 'Python', value: '3.10 → 3.13', href: SITE.pypi, meta: 'Modern toolchain' },
+  { label: 'Build', value: 'CI green', href: `${SITE.repo}/actions`, meta: 'Tested on Linux & macOS' },
+  { label: 'Reproducibility', value: 'paper · scalable', href: `${SITE.repo}#examples`, meta: 'Two end-to-end scripts' },
+];
+---
+
+<section class="relative border-y hairline-b border-white/[0.06] py-8">
+  <div class="container-x">
+    <div class="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-10">
+      <div class="flex items-center gap-3 shrink-0">
+        <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/[0.05] ring-1 ring-white/[0.08]">
+          <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-white/80" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M4 19V5a1 1 0 0 1 1-1h11l4 4v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" />
+            <path d="M16 4v4h4M8 13h8M8 17h5" />
+          </svg>
+        </span>
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.18em] text-white/35">Citation</div>
+          <div class="text-[13px] text-white/85 mt-0.5 font-mono">Tao &amp; Tan, 2026 · arXiv:2604.25138</div>
+        </div>
+      </div>
+
+      <div class="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-6 gap-y-3">
+        {
+          items.map((item) => (
+            <a
+              href={item.href}
+              target="_blank"
+              rel="noopener"
+              class="group flex items-center gap-2 text-white/55 hover:text-white transition-colors"
+            >
+              <span class="text-[10.5px] uppercase tracking-[0.18em] text-white/30 group-hover:text-white/55">
+                {item.label}
+              </span>
+              <span class="text-[13px] font-medium text-white/85">{item.value}</span>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</section>

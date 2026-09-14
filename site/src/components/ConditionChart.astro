@@ -1,0 +1,123 @@
+---
+// ConditionChart — log-scale conditioning curve, Jacobi vs LAKER (CCCP).
+// Pure SVG. No external deps. Cinematic, restrained.
+---
+
+<svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="Line chart comparing condition number growth: Jacobi preconditioner rises steeply with sample size while LAKER (CCCP) stays flat."
+     class="block w-full">
+  <defs>
+    <linearGradient id="jac-line" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f47b96" />
+      <stop offset="100%" stop-color="#f47b96" stop-opacity="0.4" />
+    </linearGradient>
+    <linearGradient id="lkr-line" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5ee3d0" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#5ee3d0" />
+    </linearGradient>
+
+    <linearGradient id="jac-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f47b96" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#f47b96" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="lkr-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5ee3d0" stop-opacity="0.22" />
+      <stop offset="100%" stop-color="#5ee3d0" stop-opacity="0" />
+    </linearGradient>
+
+    <pattern id="dots" width="6" height="6" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="0.6" fill="rgba(255,255,255,0.06)" />
+    </pattern>
+  </defs>
+
+  <!-- Background grid: faint dot grid for chart area -->
+  <rect x="80" y="40" width="650" height="260" fill="url(#dots)" />
+
+  <!-- Y-axis (log scale ticks) -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" fill="rgba(255,255,255,0.45)">
+    <line x1="80" y1="60"  x2="730" y2="60"  stroke="rgba(255,255,255,0.08)" />
+    <line x1="80" y1="120" x2="730" y2="120" stroke="rgba(255,255,255,0.08)" />
+    <line x1="80" y1="180" x2="730" y2="180" stroke="rgba(255,255,255,0.12)" />
+    <line x1="80" y1="240" x2="730" y2="240" stroke="rgba(255,255,255,0.08)" />
+    <line x1="80" y1="300" x2="730" y2="300" stroke="rgba(255,255,255,0.08)" />
+
+    <text x="68" y="64"  text-anchor="end">10⁹</text>
+    <text x="68" y="124" text-anchor="end">10⁶</text>
+    <text x="68" y="184" text-anchor="end">10³</text>
+    <text x="68" y="244" text-anchor="end">10⁰</text>
+    <text x="68" y="304" text-anchor="end">10⁻³</text>
+
+    <text x="20" y="170" transform="rotate(-90 20 170)" fill="rgba(255,255,255,0.3)" letter-spacing="0.15em">CONDITION NUMBER κ(G + λI)</text>
+  </g>
+
+  <!-- X-axis (sample size) -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" fill="rgba(255,255,255,0.45)">
+    <line x1="80" y1="300" x2="730" y2="300" stroke="rgba(255,255,255,0.16)" />
+
+    <text x="100" y="320">10²</text>
+    <text x="240" y="320">10³</text>
+    <text x="380" y="320">10⁴</text>
+    <text x="540" y="320">10⁵</text>
+    <text x="700" y="320">10⁶</text>
+
+    <text x="405" y="345" fill="rgba(255,255,255,0.3)" letter-spacing="0.15em">SAMPLE SIZE n</text>
+  </g>
+
+  <!-- Jacobi curve (steep growth) -->
+  <path
+    class="cond-jacobi"
+    d="M 100 250 C 180 245, 250 230, 320 200 S 450 130, 540 95 S 660 70, 720 60"
+    fill="none"
+    stroke="url(#jac-line)"
+    stroke-width="2.2"
+    stroke-linecap="round"
+  />
+  <!-- Fill below -->
+  <path
+    d="M 100 250 C 180 245, 250 230, 320 200 S 450 130, 540 95 S 660 70, 720 60 L 720 300 L 100 300 Z"
+    fill="url(#jac-fill)"
+    opacity="0.65"
+  />
+
+  <!-- LAKER curve (flat) -->
+  <path
+    class="cond-laker"
+    d="M 100 198 C 200 197, 320 192, 440 190 S 600 188, 720 188"
+    fill="none"
+    stroke="url(#lkr-line)"
+    stroke-width="2.4"
+    stroke-linecap="round"
+  />
+  <path
+    d="M 100 198 C 200 197, 320 192, 440 190 S 600 188, 720 188 L 720 300 L 100 300 Z"
+    fill="url(#lkr-fill)"
+    opacity="0.8"
+  />
+
+  <!-- End-point callouts -->
+  <g class="cond-dot cond-dot-1">
+    <circle cx="720" cy="60" r="4" fill="#f47b96" />
+    <circle cx="720" cy="60" r="9" fill="none" stroke="#f47b96" stroke-opacity="0.35" />
+    <text x="730" y="50" fill="rgba(255,255,255,0.75)" font-family="ui-monospace, monospace" font-size="10">~10⁹</text>
+  </g>
+  <g class="cond-dot cond-dot-2">
+    <circle cx="720" cy="188" r="4" fill="#5ee3d0" />
+    <circle cx="720" cy="188" r="9" fill="none" stroke="#5ee3d0" stroke-opacity="0.4" />
+    <text x="730" y="178" fill="rgba(255,255,255,0.75)" font-family="ui-monospace, monospace" font-size="10">~10³</text>
+  </g>
+
+  <!-- Arrow / annotation between the curves at n=10^4 -->
+  <g opacity="0.85">
+    <line x1="380" y1="120" x2="380" y2="195" stroke="rgba(255,255,255,0.18)" stroke-dasharray="3 4" />
+    <rect x="306" y="100" width="148" height="20" rx="6" fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.08)" />
+    <text x="380" y="114" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-family="ui-monospace, monospace" font-size="10">~1000× κ reduction</text>
+  </g>
+
+  <!-- Legend (chart-bottom) -->
+  <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" fill="rgba(255,255,255,0.55)">
+    <rect x="80" y="332" width="10" height="2" fill="#f47b96" />
+    <text x="98" y="336">Jacobi preconditioner</text>
+    <rect x="220" y="332" width="10" height="2" fill="#5ee3d0" />
+    <text x="238" y="336">LAKER · CCCP preconditioner</text>
+  </g>
+</svg>

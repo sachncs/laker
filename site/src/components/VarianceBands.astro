@@ -1,0 +1,50 @@
+---
+// VarianceBands — visualises mean prediction with a confidence ribbon.
+// Suggests calibrated uncertainty.
+---
+
+<svg viewBox="0 0 320 140" xmlns="http://www.w3.org/2000/svg" class="block w-full">
+  <defs>
+    <linearGradient id="band-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5ee3d0" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#5ee3d0" stop-opacity="0.04" />
+    </linearGradient>
+  </defs>
+
+  <!-- Axes -->
+  <g stroke="rgba(255,255,255,0.08)" stroke-width="1">
+    <line x1="0" y1="120" x2="320" y2="120" />
+  </g>
+
+  <!-- Confidence band -->
+  <path
+    d="M 6 80 Q 30 60, 60 65 T 130 50 T 200 70 T 270 55 T 314 60 L 314 100 Q 280 110, 240 95 T 160 110 T 90 100 T 30 105 L 6 95 Z"
+    fill="url(#band-grad)"
+  />
+
+  <!-- Band edge lines -->
+  <path d="M 6 80 Q 30 60, 60 65 T 130 50 T 200 70 T 270 55 T 314 60" fill="none" stroke="rgba(94,227,208,0.45)" stroke-width="1" />
+  <path d="M 6 95 Q 30 105, 60 95 T 130 110 T 200 95 T 270 105 T 314 95" fill="none" stroke="rgba(94,227,208,0.45)" stroke-width="1" />
+
+  <!-- Mean prediction -->
+  <path d="M 6 88 Q 30 78, 60 82 T 130 80 T 200 84 T 270 80 T 314 80" fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="1.6" />
+
+  <!-- Sample points -->
+  <g fill="rgba(255,255,255,0.85)">
+    <circle cx="30"  cy="76"  r="1.6" />
+    <circle cx="60"  cy="84"  r="1.6" />
+    <circle cx="100" cy="78"  r="1.6" />
+    <circle cx="150" cy="88"  r="1.6" />
+    <circle cx="200" cy="80"  r="1.6" />
+    <circle cx="250" cy="78"  r="1.6" />
+    <circle cx="290" cy="84"  r="1.6" />
+  </g>
+
+  <!-- Legend -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="8" fill="rgba(255,255,255,0.5)">
+    <rect x="200" y="14" width="10" height="2" fill="rgba(255,255,255,0.9)" />
+    <text x="216" y="18">μ(x)</text>
+    <rect x="252" y="14" width="10" height="6" fill="url(#band-grad)" stroke="rgba(94,227,208,0.45)" />
+    <text x="266" y="18">±2σ(x)</text>
+  </g>
+</svg>

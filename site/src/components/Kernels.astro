@@ -1,0 +1,102 @@
+---
+const regimes = [
+  {
+    range: 'n ≤ 5,000',
+    name: 'Exact',
+    kernel: 'exact',
+    accent: 'signal',
+    why: 'Memory ≈ 100 MB at float32; the exact path is fastest and most accurate.',
+  },
+  {
+    range: '5k < n ≤ 50k',
+    name: 'Nyström',
+    kernel: 'nystrom',
+    accent: 'violet',
+    why: 'Low-rank matvec; matches `exact` to within 5% relative error on UCF-50K.',
+    recommended: true,
+  },
+  {
+    range: 'n > 50,000',
+    name: 'Fourier',
+    kernel: 'fourier',
+    accent: 'amber',
+    why: 'Cheaper than Nyström at very large n; some accuracy loss on fast-growing exponential kernels.',
+  },
+  {
+    range: 'embed_dim ≤ 4',
+    name: 'Grid · SKI',
+    kernel: 'grid',
+    accent: 'cyan',
+    why: 'Product grid is only practical in low dimensions — use Nyström or RFF beyond that.',
+  },
+];
+
+const accentMap: Record<string, string> = {
+  signal: 'bg-signal/15 text-signal ring-signal/30',
+  violet: 'bg-glow-violet/15 text-glow-violet ring-glow-violet/30',
+  amber: 'bg-glow-amber/15 text-glow-amber ring-glow-amber/30',
+  cyan: 'bg-accent-300/15 text-accent-300 ring-accent-300/30',
+};
+---
+
+<section id="kernels" class="relative py-24 sm:py-32">
+  <div class="container-x">
+    <div class="max-w-[640px] reveal">
+      <p class="eyebrow">Choosing a kernel</p>
+      <h2 class="display mt-5 text-[36px] sm:text-[48px] leading-[1.02]">
+        Pick the <em>right</em> one.<br />
+        We pick it <em>automatically.</em>
+      </h2>
+      <p class="mt-5 text-[16.5px] leading-[1.7] text-white/55 max-w-[58ch]">
+        LAKER ships with seven kernel operators. The right one depends on the size
+        of <code class="font-mono text-white/85 text-[13px]">n</code>, the
+        embedding dimension, and the structure of the data. These thresholds come
+        from the UCF-50K sweep under <code class="font-mono text-white/85 text-[13px]">outputs/scalable/</code>.
+      </p>
+    </div>
+
+    <div class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      {
+        regimes.map((r, i) => (
+          <article class="ring-card p-6 sm:p-7 reveal relative overflow-hidden" style={`transition-delay: ${0.06 + i * 0.07}s`}>
+            {r.recommended && (
+              <div class="absolute top-4 right-4 pill pill-strong text-[10px]">
+                recommended
+              </div>
+            )}
+            <div class={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-mono ring-1 ${accentMap[r.accent]}`}>
+              {r.kernel}
+            </div>
+            <h3 class="mt-4 text-[24px] font-semibold tracking-tight leading-[1.15]">
+              {r.name}
+            </h3>
+            <div class="mt-1 text-[12px] text-white/40 font-mono">{r.range}</div>
+            <p class="mt-4 text-[13.5px] leading-[1.65] text-white/55">
+              {r.why}
+            </p>
+          </article>
+        ))
+      }
+    </div>
+
+    <!-- Table / code hybrid -->
+    <div class="mt-12 panel p-6 sm:p-8 reveal">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div class="max-w-[44ch]">
+          <h3 class="text-[20px] font-semibold tracking-tight">Switch kernels with one argument.</h3>
+          <p class="mt-2 text-[14px] leading-[1.6] text-white/55">
+            <code class="font-mono text-white/85">kernel_type</code> is the only knob.
+            Everything else — the encoder, the preconditioner, the solver — stays the same.
+          </p>
+        </div>
+        <div class="flex-1 max-w-[560px]">
+          <pre class="code leading-[1.7] text-[13px] overflow-x-auto"><span class="tok-com"># Try every kernel in a few lines</span>
+<span class="tok-key">for</span> k <span class="tok-key">in</span> [<span class="tok-str">"exact"</span>, <span class="tok-str">"nystrom"</span>, <span class="tok-str">"fourier"</span>, <span class="tok-str">"grid"</span>]:
+    m = <span class="tok-fn">Laker</span>(embed_dim=<span class="tok-num">10</span>, kernel_type=k, lam=<span class="tok-num">1e-2</span>)
+    m.<span class="tok-fn">fit</span>(x_train, y_train)
+    <span class="tok-fn">print</span>(<span class="tok-str">f"&#123;k:>8s&#125; · R² = &#123;m.score(x_test, y_test):.3f&#125;"</span>)</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

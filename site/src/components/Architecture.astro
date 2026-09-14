@@ -1,0 +1,106 @@
+---
+import { SITE } from '~/lib/site';
+import PipelineDiagram from './PipelineDiagram.astro';
+
+const stages = [
+  {
+    n: '01',
+    label: 'Encode',
+    title: 'Learned embeddings',
+    body:
+      'A small encoder maps raw inputs x ∈ ℝⁿˣᵈ into an embedding E ∈ ℝⁿˣᵏ. Drop in a custom torch module (CNN, transformer) — the rest of the pipeline does not care.',
+  },
+  {
+    n: '02',
+    label: 'Kernel',
+    title: 'Exponential attention',
+    body:
+      'The kernel matrix G = exp(E Eᵀ) is the heart of attention. We approximate it with seven operators — exact, Nyström, RFF, sparse k-NN, SKI, spectrum, hybrid — at O(n·r) cost.',
+  },
+  {
+    n: '03',
+    label: 'Precondition',
+    title: 'CCCP factored P',
+    body:
+      'A shrinkage-regularised Convex-Concave Procedure factorises P ≈ (G + λI)⁻¹. Cost is O(N_r³) per construction step and amortised across PCG iterations.',
+  },
+  {
+    n: '04',
+    label: 'Solve',
+    title: 'PCG, fast',
+    body:
+      'Preconditioned Conjugate Gradient converges in a near-constant number of iterations, regardless of n. Optionally batch across multiple right-hand sides.',
+  },
+  {
+    n: '05',
+    label: 'Predict',
+    title: 'Posterior + variance',
+    body:
+      'Recover α* = (G + λI)⁻¹ y, then form predictions and exact posterior variances — closed-form for RFF, batched PCG otherwise.',
+  },
+];
+---
+
+<section id="architecture" class="relative py-24 sm:py-32">
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 bg-radial-glow opacity-50"></div>
+
+  <div class="container-x">
+    <div class="max-w-[640px] reveal">
+      <p class="eyebrow">Architecture</p>
+      <h2 class="display mt-5 text-[36px] sm:text-[48px] leading-[1.02]">
+        One pipeline.
+        <br />
+        <em>Five</em> composable stages.
+      </h2>
+      <p class="mt-5 text-[16.5px] leading-[1.7] text-white/55 max-w-[58ch]">
+        LAKER is a single Python class with five named steps. Each step is independent,
+        inspectable, and replaceable. You can swap the kernel, swap the encoder, change
+        the preconditioner — and still ship the same sklearn-compatible
+        <code class="font-mono text-white/85 text-[14px]">Laker</code> estimator.
+      </p>
+    </div>
+
+    <!-- Pipeline visualization -->
+    <div class="mt-14 reveal reveal-1">
+      <div class="panel-strong p-6 sm:p-10 relative overflow-hidden">
+        <PipelineDiagram />
+      </div>
+    </div>
+
+    <!-- Stage breakdown -->
+    <div class="mt-14 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5">
+      {
+        stages.map((s, i) => (
+          <article class="ring-card p-6 sm:p-7 reveal" style={`transition-delay: ${0.05 + i * 0.07}s`}>
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">{s.n}</span>
+              <span class="text-[11px] text-white/40 font-mono">{s.label}</span>
+            </div>
+            <h3 class="mt-4 text-[17px] font-semibold tracking-tight leading-[1.2]">
+              {s.title}
+            </h3>
+            <p class="mt-2.5 text-[13.5px] leading-[1.65] text-white/55">
+              {s.body}
+            </p>
+          </article>
+        ))
+      }
+    </div>
+
+    <!-- Equation strip -->
+    <div class="mt-16 panel p-6 sm:p-8 reveal">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">Objective</div>
+          <div class="mt-2 text-[18px] sm:text-[22px] font-mono text-white/90">
+            min<sub class="text-white/55">α</sub> ‖G α − y‖² + λ α<sup>⊤</sup> G α
+          </div>
+        </div>
+        <div class="text-[12px] sm:text-[13px] text-white/45 max-w-[44ch] leading-[1.6]">
+          Solve with PCG. Speed it up with a learned preconditioner. Backprop through the kernel
+          to learn the encoder. <a href={SITE.paper} class="text-white/85 hover:text-white underline decoration-white/20 underline-offset-4">See the paper.</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

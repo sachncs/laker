@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sachncs.github.io/laker/sitemap-index.xml

@@ -1,0 +1,97 @@
+---
+import { SITE } from '~/lib/site';
+import SpectrumMap from './SpectrumMap.astro';
+---
+
+<section class="relative overflow-hidden" id="overview-top">
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 bg-hero-aurora opacity-90"></div>
+  <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[640px] bg-radial-glow" style="filter: blur(8px);"></div>
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 grid-bg mask-radial opacity-60"></div>
+
+  <div class="container-x relative pt-14 pb-10 sm:pt-20 sm:pb-16 lg:pt-24 lg:pb-20">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-y-14 gap-x-10 items-start">
+      <div class="lg:col-span-7 reveal">
+        <div class="flex items-center gap-3">
+          <span class="pill pill-strong">
+            <span class="relative flex h-1.5 w-1.5">
+              <span class="absolute inline-flex h-full w-full rounded-full bg-signal/60 animate-ping"></span>
+              <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-signal"></span>
+            </span>
+            v{SITE.version} · PyTorch
+          </span>
+          <span class="hidden sm:inline-flex pill">
+            <svg viewBox="0 0 24 24" class="h-3 w-3" fill="currentColor" aria-hidden="true">
+              <path d="M12 2 14.6 8.5 21.5 9 16.2 13.6 17.8 20.4 12 16.8 6.2 20.4 7.8 13.6 2.5 9 9.4 8.5Z" />
+            </svg>
+            Featured release
+          </span>
+        </div>
+
+        <h1 class="display mt-6 text-[44px] sm:text-[60px] lg:text-[78px] leading-[0.96]">
+          Attention kernels,
+          <br class="hidden sm:inline" />
+          <em>solved</em><span class="grad-text-accent"> at scale.</span>
+        </h1>
+
+        <p class="lede mt-7 max-w-[58ch] text-white/65">
+          LAKER is a PyTorch library for regularised attention-kernel regression with a
+          <span class="text-white">learned preconditioner</span>. It reduces kernel-system
+          condition numbers by up to three orders of magnitude and converges in a near
+          size-independent number of PCG iterations — turning expensive spectrum-cartography
+          fits into something you can run in seconds.
+        </p>
+
+        <div class="mt-9 flex flex-wrap items-center gap-3">
+          <a href="#quick-start" class="btn btn-primary h-11 px-5 text-[14px]">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7Z" />
+            </svg>
+            Get started
+          </a>
+          <a href={SITE.paper} target="_blank" rel="noopener" class="btn btn-ghost h-11 px-5 text-[14px]">
+            Read the paper
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M7 17 17 7M9 7h8v8" />
+            </svg>
+          </a>
+          <a href={SITE.repo} target="_blank" rel="noopener" class="btn btn-ghost h-11 px-5 text-[14px]">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor" aria-hidden="true">
+              <path d="M12 .5C5.73.5.66 5.58.66 11.85c0 4.99 3.23 9.22 7.72 10.71.56.1.77-.24.77-.55v-2.1c-3.14.68-3.8-1.34-3.8-1.34-.51-1.31-1.25-1.66-1.25-1.66-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.22.71-1.5-2.5-.28-5.13-1.25-5.13-5.57 0-1.23.44-2.24 1.16-3.03-.12-.29-.5-1.45.11-3.02 0 0 .95-.31 3.1 1.16a10.7 10.7 0 0 1 5.65 0c2.15-1.47 3.1-1.16 3.1-1.16.61 1.57.23 2.73.11 3.02.72.79 1.16 1.8 1.16 3.03 0 4.33-2.63 5.29-5.14 5.57.4.34.76 1.02.76 2.07v3.07c0 .31.21.66.78.55 4.49-1.49 7.72-5.72 7.72-10.71C23.34 5.58 18.27.5 12 .5Z" />
+            </svg>
+            View source
+          </a>
+        </div>
+
+        <div class="mt-12 grid grid-cols-3 gap-6 max-w-[560px] reveal reveal-1">
+          <div>
+            <div class="text-[28px] sm:text-[34px] font-semibold tracking-tight grad-text">1000<span class="text-white/55 text-[18px] align-top ml-1">×</span></div>
+            <div class="mt-1 text-[12px] text-white/45 leading-snug">condition-number reduction<br />vs Jacobi preconditioner</div>
+          </div>
+          <div>
+            <div class="text-[28px] sm:text-[34px] font-semibold tracking-tight grad-text">100<span class="text-white/55 text-[18px] align-top ml-1">k+</span></div>
+            <div class="mt-1 text-[12px] text-white/45 leading-snug">samples, single node<br />GPU-accelerated PCG</div>
+          </div>
+          <div>
+            <div class="text-[28px] sm:text-[34px] font-semibold tracking-tight grad-text">10.38<span class="text-white/55 text-[18px] align-top ml-1">dB</span></div>
+            <div class="mt-1 text-[12px] text-white/45 leading-snug">masked RMSE on UCF-50K<br /><span class="text-white/30">vs 20.73 baseline</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-5 reveal reveal-2">
+        <div class="relative">
+          <div class="absolute -inset-6 -z-10 bg-radial-glow-soft blur-2xl opacity-80"></div>
+          <div class="panel overflow-hidden">
+            <div class="relative aspect-[600/460]">
+              <SpectrumMap />
+            </div>
+          </div>
+          <div class="mt-3 flex items-center justify-between text-[11px] tracking-[0.16em] uppercase text-white/30 font-mono">
+            <span>Reconstructed RF field · 256×256 grid</span>
+            <span>LAKER · Nyström-100</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

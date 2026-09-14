@@ -1,0 +1,89 @@
+---
+// ScalingChart — PCG iterations vs sample size, Jacobi vs CCCP.
+---
+
+<svg viewBox="0 0 460 280" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="PCG iterations to 1e-6 tolerance as sample size grows: Jacobi preconditioner grows roughly linearly while LAKER (CCCP) stays near-constant."
+     class="block w-full">
+  <defs>
+    <linearGradient id="sc-jac" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f47b96" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#f47b96" />
+    </linearGradient>
+    <linearGradient id="sc-lkr" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5ee3d0" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#5ee3d0" />
+    </linearGradient>
+    <linearGradient id="sc-jac-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f47b96" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#f47b96" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="sc-lkr-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5ee3d0" stop-opacity="0.22" />
+      <stop offset="100%" stop-color="#5ee3d0" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Grid -->
+  <g stroke="rgba(255,255,255,0.06)" stroke-width="1">
+    <line x1="50" y1="40"  x2="440" y2="40" />
+    <line x1="50" y1="90"  x2="440" y2="90" />
+    <line x1="50" y1="140" x2="440" y2="140" />
+    <line x1="50" y1="190" x2="440" y2="190" />
+    <line x1="50" y1="240" x2="440" y2="240" />
+  </g>
+
+  <!-- Axes -->
+  <line x1="50" y1="240" x2="440" y2="240" stroke="rgba(255,255,255,0.18)" />
+  <line x1="50" y1="40"  x2="50"  y2="240" stroke="rgba(255,255,255,0.18)" />
+
+  <!-- Y ticks -->
+  <g font-family="ui-monospace, monospace" font-size="10" fill="rgba(255,255,255,0.45)">
+    <text x="44" y="44"  text-anchor="end">800</text>
+    <text x="44" y="94"  text-anchor="end">600</text>
+    <text x="44" y="144" text-anchor="end">400</text>
+    <text x="44" y="194" text-anchor="end">200</text>
+    <text x="44" y="244" text-anchor="end">0</text>
+    <text x="14" y="140" transform="rotate(-90 14 140)" fill="rgba(255,255,255,0.3)" letter-spacing="0.15em">PCG ITERATIONS</text>
+  </g>
+
+  <!-- X ticks -->
+  <g font-family="ui-monospace, monospace" font-size="10" fill="rgba(255,255,255,0.45)">
+    <text x="80"  y="260">1k</text>
+    <text x="180" y="260">5k</text>
+    <text x="260" y="260">10k</text>
+    <text x="340" y="260">25k</text>
+    <text x="420" y="260">50k</text>
+    <text x="245" y="278" text-anchor="middle" fill="rgba(255,255,255,0.3)" letter-spacing="0.15em">SAMPLE SIZE n</text>
+  </g>
+
+  <!-- Jacobi line (steep, linear growth) -->
+  <path
+    d="M 80 235 C 140 230, 180 220, 200 200 S 260 150, 300 110 S 360 70, 420 50"
+    fill="none" stroke="url(#sc-jac)" stroke-width="2.2" stroke-linecap="round"
+  />
+  <path
+    d="M 80 235 C 140 230, 180 220, 200 200 S 260 150, 300 110 S 360 70, 420 50 L 420 240 L 80 240 Z"
+    fill="url(#sc-jac-fill)" opacity="0.6"
+  />
+
+  <!-- LAKER line (flat) -->
+  <path
+    d="M 80 178 C 180 174, 260 172, 320 171 S 400 169, 420 169"
+    fill="none" stroke="url(#sc-lkr)" stroke-width="2.6" stroke-linecap="round"
+  />
+  <path
+    d="M 80 178 C 180 174, 260 172, 320 171 S 400 169, 420 169 L 420 240 L 80 240 Z"
+    fill="url(#sc-lkr-fill)" opacity="0.9"
+  />
+
+  <!-- End-point callouts -->
+  <g>
+    <circle cx="420" cy="50" r="3.5" fill="#f47b96" />
+    <text x="428" y="46" font-family="ui-monospace, monospace" font-size="10" fill="rgba(255,255,255,0.7)">Jacobi · &gt; 800</text>
+  </g>
+  <g>
+    <circle cx="420" cy="169" r="3.5" fill="#5ee3d0" />
+    <text x="428" y="166" font-family="ui-monospace, monospace" font-size="10" fill="rgba(255,255,255,0.85)">LAKER · ~12</text>
+  </g>
+</svg>

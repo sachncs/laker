@@ -1,0 +1,65 @@
+---
+import { SITE } from '~/lib/site';
+---
+
+<section class="relative py-24 sm:py-32">
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 bg-hero-aurora opacity-70"></div>
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 grid-bg mask-radial opacity-50"></div>
+
+  <div class="container-x">
+    <div class="panel-strong relative overflow-hidden p-8 sm:p-14 lg:p-20 reveal">
+      <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10"
+           style="background: radial-gradient(ellipse 60% 80% at 50% 0%, rgba(94,227,208,0.10), transparent 60%), radial-gradient(ellipse 60% 80% at 50% 100%, rgba(133,183,255,0.10), transparent 60%);"></div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+        <div class="lg:col-span-7">
+          <p class="eyebrow">Get started</p>
+          <h2 class="display mt-5 text-[36px] sm:text-[52px] leading-[1.02]">
+            Fit your first <em>attention</em>
+            <br />
+            kernel regression in
+            <span class="grad-text-accent"> five minutes.</span>
+          </h2>
+          <p class="lede mt-6 max-w-[58ch] text-white/55">
+            Install from PyPI, read the paper, browse the source. The library is
+            MIT-licensed and the benchmarks are reproducible end-to-end.
+          </p>
+          <div class="mt-8 flex flex-wrap items-center gap-3">
+            <a href={SITE.pypi} target="_blank" rel="noopener" class="btn btn-primary h-12 px-6 text-[14.5px]">
+              pip install laker
+            </a>
+            <a href={SITE.paper} target="_blank" rel="noopener" class="btn btn-ghost h-12 px-6 text-[14.5px]">
+              Read the paper
+              <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M7 17 17 7M9 7h8v8" />
+              </svg>
+            </a>
+            <a href={`${SITE.repo}#examples`} target="_blank" rel="noopener" class="btn btn-ghost h-12 px-6 text-[14.5px]">
+              Examples
+            </a>
+          </div>
+        </div>
+
+        <div class="lg:col-span-5">
+          <div class="panel-inset p-5 sm:p-6">
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-[11px] tracking-[0.16em] uppercase text-white/30 font-mono">your_first_fit.py</span>
+              <span class="pill pill-strong">3 lines</span>
+            </div>
+            <pre class="code leading-[1.7] text-[13px]"><span class="tok-key">from</span> <span class="tok-mod">laker</span> <span class="tok-key">import</span> Laker
+<span class="tok-key">import</span> <span class="tok-mod">torch</span>
+
+model <span class="tok-key">=</span> <span class="tok-fn">Laker</span>(embed_dim=<span class="tok-num">10</span>)
+model.<span class="tok-fn">fit</span>(x_train, y_train)
+
+<span class="tok-fn">print</span>(model.<span class="tok-fn">predict</span>(x_test))</pre>
+            <div class="mt-4 pt-4 border-t hairline-t text-[12px] text-white/45 font-mono">
+              <span class="text-signal">$</span> python your_first_fit.py
+              <span class="ml-2 text-white/85">tensor([0.314, -0.812, …])</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,74 @@
+---
+// PCGDiagram — convergence curve comparison: Jacobi-PCG (slow) vs LAKER-PCG (fast).
+---
+
+<svg viewBox="0 0 460 200" xmlns="http://www.w3.org/2000/svg" class="block w-full">
+  <defs>
+    <linearGradient id="pcg-jac" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f47b96" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#f47b96" />
+    </linearGradient>
+    <linearGradient id="pcg-lkr" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5ee3d0" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#5ee3d0" />
+    </linearGradient>
+    <linearGradient id="pcg-jac-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f47b96" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#f47b96" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="pcg-lkr-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5ee3d0" stop-opacity="0.22" />
+      <stop offset="100%" stop-color="#5ee3d0" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Grid -->
+  <g stroke="rgba(255,255,255,0.06)" stroke-width="1">
+    <line x1="40" y1="30"  x2="440" y2="30" />
+    <line x1="40" y1="70"  x2="440" y2="70" />
+    <line x1="40" y1="110" x2="440" y2="110" />
+    <line x1="40" y1="150" x2="440" y2="150" />
+  </g>
+
+  <!-- Axes -->
+  <line x1="40" y1="170" x2="440" y2="170" stroke="rgba(255,255,255,0.18)" />
+  <line x1="40" y1="30"  x2="40"  y2="170" stroke="rgba(255,255,255,0.18)" />
+
+  <!-- Jacobi-PCG (slow descent, many iterations) -->
+  <path
+    d="M 40 38 C 80 90, 130 130, 170 148 S 260 162, 320 167 S 410 169, 440 170"
+    fill="none" stroke="url(#pcg-jac)" stroke-width="2" stroke-linecap="round" stroke-dasharray="0"
+  />
+  <path
+    d="M 40 38 C 80 90, 130 130, 170 148 S 260 162, 320 167 S 410 169, 440 170 L 440 170 L 40 170 Z"
+    fill="url(#pcg-jac-fill)"
+    opacity="0.5"
+  />
+
+  <!-- LAKER-PCG (rapid descent, near-constant) -->
+  <path
+    d="M 40 38 C 70 130, 110 158, 140 165 S 200 169, 260 169"
+    fill="none" stroke="url(#pcg-lkr)" stroke-width="2.4" stroke-linecap="round"
+  />
+  <path
+    d="M 40 38 C 70 130, 110 158, 140 165 S 200 169, 260 169 L 260 170 L 40 170 Z"
+    fill="url(#pcg-lkr-fill)"
+    opacity="0.85"
+  />
+
+  <!-- Tolerance threshold -->
+  <line x1="40" y1="135" x2="440" y2="135" stroke="rgba(255,255,255,0.18)" stroke-dasharray="3 4" />
+  <text x="446" y="138" font-family="ui-monospace, monospace" font-size="9" fill="rgba(255,255,255,0.45)">10⁻⁶ tol</text>
+
+  <!-- Convergence points -->
+  <circle cx="146" cy="158" r="3.5" fill="#5ee3d0" />
+  <text x="153" y="156" font-family="ui-monospace, monospace" font-size="10" fill="rgba(255,255,255,0.75)">LAKER · 14 iters</text>
+
+  <circle cx="380" cy="167" r="3.5" fill="#f47b96" />
+  <text x="290" y="186" font-family="ui-monospace, monospace" font-size="10" fill="rgba(255,255,255,0.55)">Jacobi · &gt;300 iters</text>
+
+  <!-- Y-axis label -->
+  <text x="14" y="100" transform="rotate(-90 14 100)" font-family="ui-monospace, monospace" font-size="9" fill="rgba(255,255,255,0.35)" letter-spacing="0.15em">‖r‖/‖r₀‖</text>
+  <!-- X-axis label -->
+  <text x="240" y="195" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" fill="rgba(255,255,255,0.35)" letter-spacing="0.15em">PCG ITERATION</text>
+</svg>

@@ -1,0 +1,194 @@
+---
+import PrecDiagram from './PrecDiagram.astro';
+import PCGDiagram from './PCGDiagram.astro';
+import KernelMatrix from './KernelMatrix.astro';
+import EncoderLoop from './EncoderLoop.astro';
+import VarianceBands from './VarianceBands.astro';
+
+const features = [
+  {
+    badge: '01',
+    title: 'Learned CCCP preconditioner',
+    body:
+      'A factored, shrinkage-regularised Convex–Concave Procedure builds a data-dependent preconditioner in O(N_r³) — independent of problem size.',
+    visual: 'prec',
+  },
+  {
+    badge: '02',
+    title: 'Size-independent PCG',
+    body:
+      'Preconditioned Conjugate Gradient converges in a near-constant number of iterations as n grows. No more O(n³) blow-ups.',
+    visual: 'pcg',
+  },
+  {
+    badge: '03',
+    title: 'Seven kernel operators',
+    body:
+      'Exact, Nyström, Fourier, sparse k-NN, SKI grid, spectrum shaping, and a two-scale hybrid. Matvec drops from O(n²) to O(n·r).',
+    visual: 'kernels',
+  },
+  {
+    badge: '04',
+    title: 'End-to-end learning',
+    body:
+      'Learn the encoder end-to-end via backprop through the kernel operator. Bilevel hyperparameter learning via implicit differentiation.',
+    visual: 'learn',
+  },
+  {
+    badge: '05',
+    title: 'Predictive variance',
+    body:
+      'Exact posterior variance via batched PCG; closed-form for Fourier features via the Woodbury identity. Calibrate with NLL + a calibration penalty.',
+    visual: 'var',
+  },
+  {
+    badge: '06',
+    title: 'sklearn-compatible',
+    body:
+      'fit / predict / score · get_params / set_params · __sklearn_clone__. Drop into scikit-learn pipelines and meta-estimators with no glue code.',
+    visual: 'sklearn',
+  },
+];
+
+const [primary, ...rest] = features;
+---
+
+<section id="features" class="relative py-24 sm:py-32">
+  <div class="container-x">
+    <div class="max-w-[640px] reveal">
+      <p class="eyebrow">Capabilities</p>
+      <h2 class="display mt-5 text-[36px] sm:text-[48px] leading-[1.02]">
+        A <em>complete</em> toolkit
+        <br />
+        for attention-kernel
+        <br />
+        <span class="grad-text-accent">regression.</span>
+      </h2>
+      <p class="mt-5 text-[16.5px] leading-[1.7] text-white/55 max-w-[58ch]">
+        Every primitive you need — kernel approximation, learned embeddings,
+        streaming updates, hyperparameter search — composes into a single
+        coherent estimator. No glue code. No compromises.
+      </p>
+    </div>
+
+    <!-- Bento-style grid -->
+    <div class="mt-14 grid grid-cols-1 md:grid-cols-6 gap-4 sm:gap-5">
+      <!-- Primary large card -->
+      <article class="ring-card md:col-span-3 p-7 sm:p-9 relative overflow-hidden reveal">
+        <div class="absolute inset-0 -z-10 opacity-90"
+             style="background: radial-gradient(ellipse 60% 80% at 0% 0%, rgba(94,227,208,0.10), transparent 60%);"></div>
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">{primary.badge}</span>
+          <span class="pill pill-strong">flagship</span>
+        </div>
+        <h3 class="mt-5 text-[26px] sm:text-[30px] font-semibold tracking-tight leading-[1.1]">
+          {primary.title}
+        </h3>
+        <p class="mt-3 text-[14.5px] leading-[1.65] text-white/55 max-w-[44ch]">
+          {primary.body}
+        </p>
+        <div class="mt-7 panel-inset p-4 sm:p-5">
+          <PrecDiagram />
+        </div>
+      </article>
+
+      <!-- Secondary: PCG -->
+      <article class="ring-card md:col-span-3 p-7 sm:p-9 relative overflow-hidden reveal reveal-1">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">{rest[0].badge}</span>
+          <span class="pill">solver</span>
+        </div>
+        <h3 class="mt-5 text-[24px] sm:text-[28px] font-semibold tracking-tight leading-[1.1]">
+          {rest[0].title}
+        </h3>
+        <p class="mt-3 text-[14.5px] leading-[1.65] text-white/55 max-w-[44ch]">
+          {rest[0].body}
+        </p>
+        <div class="mt-7">
+          <PCGDiagram />
+        </div>
+      </article>
+
+      <!-- Kernels -->
+      <article class="ring-card md:col-span-2 p-7 sm:p-8 relative overflow-hidden reveal reveal-2">
+        <span class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">{rest[1].badge}</span>
+        <h3 class="mt-4 text-[20px] font-semibold tracking-tight leading-[1.15]">
+          {rest[1].title}
+        </h3>
+        <p class="mt-2.5 text-[13.5px] leading-[1.65] text-white/50">
+          {rest[1].body}
+        </p>
+        <div class="mt-5">
+          <KernelMatrix />
+        </div>
+      </article>
+
+      <!-- Learning -->
+      <article class="ring-card md:col-span-2 p-7 sm:p-8 relative overflow-hidden reveal reveal-3">
+        <span class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">{rest[2].badge}</span>
+        <h3 class="mt-4 text-[20px] font-semibold tracking-tight leading-[1.15]">
+          {rest[2].title}
+        </h3>
+        <p class="mt-2.5 text-[13.5px] leading-[1.65] text-white/50">
+          {rest[2].body}
+        </p>
+        <div class="mt-5 panel-inset p-4">
+          <EncoderLoop />
+        </div>
+      </article>
+
+      <!-- Variance -->
+      <article class="ring-card md:col-span-2 p-7 sm:p-8 relative overflow-hidden reveal reveal-4">
+        <span class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">{rest[3].badge}</span>
+        <h3 class="mt-4 text-[20px] font-semibold tracking-tight leading-[1.15]">
+          {rest[3].title}
+        </h3>
+        <p class="mt-2.5 text-[13.5px] leading-[1.65] text-white/50">
+          {rest[3].body}
+        </p>
+        <div class="mt-5">
+          <VarianceBands />
+        </div>
+      </article>
+
+      <!-- sklearn -->
+      <article class="ring-card md:col-span-6 p-7 sm:p-9 relative overflow-hidden reveal reveal-5">
+        <div class="absolute inset-0 -z-10 opacity-90"
+             style="background: radial-gradient(ellipse 60% 80% at 100% 100%, rgba(133,183,255,0.10), transparent 60%);"></div>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+          <div class="md:col-span-7">
+            <span class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">{rest[4].badge}</span>
+            <h3 class="mt-4 text-[24px] sm:text-[30px] font-semibold tracking-tight leading-[1.1]">
+              {rest[4].title}
+            </h3>
+            <p class="mt-3 text-[14.5px] leading-[1.65] text-white/55 max-w-[52ch]">
+              {rest[4].body}
+            </p>
+            <div class="mt-6 flex flex-wrap gap-2">
+              <span class="pill">fit · predict · score</span>
+              <span class="pill">get_params · set_params</span>
+              <span class="pill">__sklearn_clone__</span>
+              <span class="pill">Pipelines</span>
+              <span class="pill">GridSearchCV</span>
+            </div>
+          </div>
+          <div class="md:col-span-5">
+            <div class="panel-inset p-5">
+              <pre class="code leading-relaxed text-[12.5px]"><span class="tok-com"># Compose with scikit-learn out of the box</span>
+<span class="tok-key">from</span> <span class="tok-mod">sklearn.pipeline</span> <span class="tok-key">import</span> Pipeline
+<span class="tok-key">from</span> <span class="tok-mod">laker</span> <span class="tok-key">import</span> Laker
+
+pipe = Pipeline([
+    (<span class="tok-str">"scaler"</span>, StandardScaler()),
+    (<span class="tok-str">"laker"</span>, Laker(embed_dim=<span class="tok-num">10</span>, lam=<span class="tok-num">1e-2</span>)),
+])
+
+pipe.fit(X_train, y_train)
+y_pred = pipe.predict(X_test)</pre>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>

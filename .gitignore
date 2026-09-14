@@ -56,3 +56,9 @@ benchmarks/results/
 *.hdf5
 *.pkl
 *.npz
+
+# Site (Astro + Tailwind) — see site/.gitignore for the canonical ignores.
+# This block keeps site build artifacts and install state out of the repo.
+site/node_modules/
+site/dist/
+site/.astro/

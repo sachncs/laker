@@ -1,8 +1,0 @@
-title: "laker"
-description: "Learning-based Attention Kernel Regression for scalable spectrum cartography."
-theme: minima
-logo: /assets/logo.svg
-show_downloads: false
-permalink: /:title/
-plugins:
-  - jekyll-feed

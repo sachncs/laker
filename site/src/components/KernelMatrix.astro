@@ -1,0 +1,113 @@
+---
+// KernelMatrix — 7x7 grid of kernel "tiles" representing the seven kernel operators.
+// Each tile is a small graphic hint at what the kernel does.
+---
+
+<svg viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" class="block w-full">
+  <defs>
+    <linearGradient id="tile-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.05)" />
+      <stop offset="100%" stop-color="rgba(255,255,255,0.01)" />
+    </linearGradient>
+  </defs>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="8.5" fill="rgba(255,255,255,0.6)">
+    <!-- Row 1 -->
+    <g>
+      <rect x="0" y="0" width="80" height="56" rx="8" fill="url(#tile-grad)" stroke="rgba(255,255,255,0.08)" />
+      <!-- "Exact" — full grid pattern -->
+      <g transform="translate(8,8)">
+        <rect width="64" height="38" fill="none" stroke="rgba(133,183,255,0.45)" />
+        <line x1="16" y1="0" x2="16" y2="38" stroke="rgba(133,183,255,0.25)" />
+        <line x1="32" y1="0" x2="32" y2="38" stroke="rgba(133,183,255,0.25)" />
+        <line x1="48" y1="0" x2="48" y2="38" stroke="rgba(133,183,255,0.25)" />
+        <line x1="0" y1="13" x2="64" y2="13" stroke="rgba(133,183,255,0.25)" />
+        <line x1="0" y1="26" x2="64" y2="26" stroke="rgba(133,183,255,0.25)" />
+      </g>
+      <text x="40" y="68" text-anchor="middle" fill="rgba(255,255,255,0.85)">exact</text>
+    </g>
+
+    <g>
+      <rect x="100" y="0" width="80" height="56" rx="8" fill="url(#tile-grad)" stroke="rgba(255,255,255,0.08)" />
+      <!-- "Nystrom" — low rank columns -->
+      <g transform="translate(108,8)" stroke="rgba(94,227,208,0.55)">
+        <rect x="2"  y="0" width="6" height="38" fill="rgba(94,227,208,0.35)" />
+        <rect x="14" y="0" width="6" height="38" fill="rgba(94,227,208,0.35)" />
+        <rect x="26" y="0" width="6" height="38" fill="rgba(94,227,208,0.35)" />
+        <rect x="38" y="0" width="6" height="38" fill="rgba(94,227,208,0.35)" />
+        <rect x="50" y="0" width="6" height="38" fill="rgba(94,227,208,0.35)" />
+      </g>
+      <text x="140" y="68" text-anchor="middle" fill="rgba(255,255,255,0.85)">nystrom</text>
+    </g>
+
+    <g>
+      <rect x="200" y="0" width="80" height="56" rx="8" fill="url(#tile-grad)" stroke="rgba(255,255,255,0.08)" />
+      <!-- "Fourier" — sin waves -->
+      <g transform="translate(208,8)" stroke="rgba(196,181,255,0.7)" fill="none" stroke-width="1">
+        <path d="M0 22 Q 8 6, 16 22 T 32 22 T 48 22 T 64 22" />
+        <path d="M0 30 Q 8 14, 16 30 T 32 30 T 48 30 T 64 30" opacity="0.6" />
+        <path d="M0 14 Q 8 30, 16 14 T 32 14 T 48 14 T 64 14" opacity="0.45" />
+      </g>
+      <text x="240" y="68" text-anchor="middle" fill="rgba(255,255,255,0.85)">fourier</text>
+    </g>
+
+    <!-- Row 2 -->
+    <g>
+      <rect x="0" y="90" width="80" height="56" rx="8" fill="url(#tile-grad)" stroke="rgba(255,255,255,0.08)" />
+      <!-- "neighbors" — sparse edges -->
+      <g transform="translate(8,98)" stroke="rgba(245,194,119,0.55)" fill="rgba(245,194,119,0.9)">
+        <circle cx="14" cy="10" r="2" />
+        <circle cx="36" cy="14" r="2" />
+        <circle cx="58" cy="9" r="2" />
+        <circle cx="20" cy="32" r="2" />
+        <circle cx="46" cy="34" r="2" />
+        <line x1="14" y1="10" x2="36" y2="14" stroke-width="0.8" />
+        <line x1="36" y1="14" x2="58" y2="9" stroke-width="0.8" />
+        <line x1="14" y1="10" x2="20" y2="32" stroke-width="0.8" />
+        <line x1="20" y1="32" x2="46" y2="34" stroke-width="0.8" />
+        <line x1="46" y1="34" x2="36" y2="14" stroke-width="0.8" />
+      </g>
+      <text x="40" y="158" text-anchor="middle" fill="rgba(255,255,255,0.85)">neighbors</text>
+    </g>
+
+    <g>
+      <rect x="100" y="90" width="80" height="56" rx="8" fill="url(#tile-grad)" stroke="rgba(255,255,255,0.08)" />
+      <!-- "grid" — product grid -->
+      <g transform="translate(108,98)" stroke="rgba(133,183,255,0.5)">
+        <rect x="0" y="0" width="64" height="38" fill="none" />
+        <line x1="0" y1="9.5"  x2="64" y2="9.5"  stroke-opacity="0.6" />
+        <line x1="0" y1="19"   x2="64" y2="19"   stroke-opacity="0.6" />
+        <line x1="0" y1="28.5" x2="64" y2="28.5" stroke-opacity="0.6" />
+        <line x1="16" y1="0" x2="16" y2="38" stroke-opacity="0.6" />
+        <line x1="32" y1="0" x2="32" y2="38" stroke-opacity="0.6" />
+        <line x1="48" y1="0" x2="48" y2="38" stroke-opacity="0.6" />
+        <circle cx="8"  cy="4.75" r="1.4" fill="rgba(133,183,255,0.85)" stroke="none" />
+        <circle cx="40" cy="14.25" r="1.4" fill="rgba(133,183,255,0.85)" stroke="none" />
+        <circle cx="56" cy="23.75" r="1.4" fill="rgba(133,183,255,0.85)" stroke="none" />
+        <circle cx="24" cy="33.25" r="1.4" fill="rgba(133,183,255,0.85)" stroke="none" />
+      </g>
+      <text x="140" y="158" text-anchor="middle" fill="rgba(255,255,255,0.85)">grid · SKI</text>
+    </g>
+
+    <g>
+      <rect x="200" y="90" width="80" height="56" rx="8" fill="url(#tile-grad)" stroke="rgba(255,255,255,0.08)" />
+      <!-- "spectrum" — spectrum bars -->
+      <g transform="translate(208,98)" fill="rgba(94,227,208,0.8)">
+        <rect x="2"  y="22" width="5" height="16" rx="1" />
+        <rect x="10" y="14" width="5" height="24" rx="1" />
+        <rect x="18" y="6"  width="5" height="32" rx="1" />
+        <rect x="26" y="10" width="5" height="28" rx="1" />
+        <rect x="34" y="18" width="5" height="20" rx="1" />
+        <rect x="42" y="22" width="5" height="16" rx="1" />
+        <rect x="50" y="14" width="5" height="24" rx="1" />
+      </g>
+      <text x="240" y="158" text-anchor="middle" fill="rgba(255,255,255,0.85)">spectrum</text>
+    </g>
+
+    <!-- Hybrid (spans wider, full bottom) -->
+    <g>
+      <rect x="0" y="166" width="280" height="22" rx="8" fill="rgba(94,227,208,0.06)" stroke="rgba(94,227,208,0.4)" />
+      <text x="140" y="180" text-anchor="middle" fill="rgba(255,255,255,0.85)">hybrid · two-scale Nyström × Fourier blend</text>
+    </g>
+  </g>
+</svg>

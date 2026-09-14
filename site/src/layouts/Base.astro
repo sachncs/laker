@@ -1,0 +1,153 @@
+---
+import '~/styles/global.css';
+import { SITE } from '~/lib/site';
+
+export interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+  canonical?: string;
+  bodyClass?: string;
+}
+
+const {
+  title = SITE.title,
+  description = SITE.description,
+  image = '/og.svg',
+  canonical,
+  bodyClass = '',
+} = Astro.props as Props;
+
+const canonicalUrl =
+  canonical ?? new URL(Astro.url.pathname, Astro.site ?? SITE.url).toString();
+const ogImage = new URL(image, Astro.site ?? SITE.url).toString();
+---
+
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#07080a" />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:site_name" content={SITE.name} />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://rsms.me/" />
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+
+    <!-- JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap"
+    />
+
+    <!-- JSON-LD: SoftwareSourceCode -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareSourceCode',
+      name: SITE.name,
+      alternateName: 'LAKER',
+      description: SITE.description,
+      url: SITE.url,
+      codeRepository: SITE.repo,
+      programmingLanguage: ['Python', 'PyTorch'],
+      license: 'https://opensource.org/licenses/MIT',
+      author: {
+        '@type': 'Person',
+        name: 'Liping Tao',
+      },
+      citation: 'https://arxiv.org/abs/2604.25138',
+    })} />
+
+    <style is:inline>
+      /* Prevent flash of unstyled content for fonts */
+      html { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+      @supports (font-variation-settings: normal) {
+        html { font-family: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif; }
+      }
+    </style>
+  </head>
+  <body class={bodyClass}>
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:text-black"
+    >
+      Skip to content
+    </a>
+    <slot />
+    <script>
+      // Mark JS-on so the CSS reveal layer can hide content safely.
+      document.documentElement.classList.add('js');
+
+      // Reveal on scroll — lightweight IO with a safety net.
+      (() => {
+        const els = document.querySelectorAll('.reveal');
+        const revealAll = () =>
+          els.forEach((el) => el.classList.add('in'));
+
+        if (!('IntersectionObserver' in window) || !els.length) {
+          revealAll();
+          return;
+        }
+
+        // Immediately reveal anything currently in viewport on load.
+        const vh = window.innerHeight || 0;
+        const docH = document.documentElement.scrollHeight || 0;
+        const isShortPage = docH <= vh + 32;
+        if (isShortPage) {
+          revealAll();
+        } else {
+          els.forEach((el) => {
+            const r = el.getBoundingClientRect();
+            if (r.top < vh && r.bottom > 0) el.classList.add('in');
+          });
+        }
+
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('in');
+                io.unobserve(entry.target);
+              }
+            }
+          },
+          { rootMargin: '0px 0px -6% 0px', threshold: 0.04 }
+        );
+        els.forEach((el) => {
+          if (!el.classList.contains('in')) io.observe(el);
+        });
+
+        // Safety: reveal anything still hidden after a short delay.
+        // This covers long pages where users don't scroll (or full-page
+        // screenshots taken by crawlers / preview tools).
+        window.setTimeout(revealAll, 600);
+      })();
+    </script>
+  </body>
+</html>

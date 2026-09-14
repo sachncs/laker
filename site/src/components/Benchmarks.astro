@@ -1,0 +1,119 @@
+---
+import { SITE } from '~/lib/site';
+import BarChart from './BarChart.astro';
+import ScalingChart from './ScalingChart.astro';
+---
+
+<section id="benchmarks" class="relative py-24 sm:py-32">
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 bg-radial-glow-soft opacity-50"></div>
+
+  <div class="container-x">
+    <div class="max-w-[640px] reveal">
+      <p class="eyebrow">Benchmarks</p>
+      <h2 class="display mt-5 text-[36px] sm:text-[48px] leading-[1.02]">
+        Numbers that <em>earn</em> their place.
+      </h2>
+      <p class="mt-5 text-[16.5px] leading-[1.7] text-white/55 max-w-[58ch]">
+        LAKER is evaluated on the paper's synthetic scene and on the full
+        <span class="text-white/85">UCF-50K</span> corpus — 50,000 ray-traced radio maps
+        with the complete masked 256×256 grid. Reproducible end-to-end via
+        <code class="font-mono text-white/85 text-[13px]">examples.scalable</code>.
+      </p>
+    </div>
+
+    <!-- Headline KPIs -->
+    <div class="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 reveal reveal-1">
+      <div class="panel p-6 sm:p-8">
+        <div class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">Headline RMSE</div>
+        <div class="mt-3 text-[40px] sm:text-[48px] font-semibold tracking-tight grad-text leading-none">
+          10.38<span class="text-[18px] text-white/45 ml-1 align-top">dB</span>
+        </div>
+        <div class="mt-3 text-[12.5px] text-white/45 leading-[1.55]">
+          Masked RMSE on UCF-50K — nyström-100, λ = 1e-2.
+        </div>
+        <div class="mt-3 text-[11.5px] text-signal/85 font-mono">vs 20.73 dB baseline</div>
+      </div>
+
+      <div class="panel p-6 sm:p-8">
+        <div class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">Maps validated</div>
+        <div class="mt-3 text-[40px] sm:text-[48px] font-semibold tracking-tight grad-text leading-none">
+          50,000
+        </div>
+        <div class="mt-3 text-[12.5px] text-white/45 leading-[1.55]">
+          Full corpus, complete masked 256×256 grid, resumable run.
+        </div>
+        <div class="mt-3 text-[11.5px] text-signal/85 font-mono">20260801T114917Z</div>
+      </div>
+
+      <div class="panel p-6 sm:p-8">
+        <div class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">κ reduction</div>
+        <div class="mt-3 text-[40px] sm:text-[48px] font-semibold tracking-tight grad-text leading-none">
+          1000<span class="text-[18px] text-white/45 ml-1 align-top">×</span>
+        </div>
+        <div class="mt-3 text-[12.5px] text-white/45 leading-[1.55]">
+          CCCP preconditioner vs Jacobi on the LAKER kernel system.
+        </div>
+        <div class="mt-3 text-[11.5px] text-signal/85 font-mono">10⁶ → 10³</div>
+      </div>
+
+      <div class="panel p-6 sm:p-8">
+        <div class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">Paper experiment</div>
+        <div class="mt-3 text-[40px] sm:text-[48px] font-semibold tracking-tight grad-text leading-none">
+          ~2<span class="text-[18px] text-white/45 ml-1 align-top">min</span>
+        </div>
+        <div class="mt-3 text-[12.5px] text-white/45 leading-[1.55]">
+          <code class="font-mono">examples.paper</code> on a CPU; reproduces Section V.
+        </div>
+        <div class="mt-3 text-[11.5px] text-signal/85 font-mono">arXiv:2604.25138</div>
+      </div>
+    </div>
+
+    <!-- Two charts: bar comparison + scaling -->
+    <div class="mt-10 grid grid-cols-1 lg:grid-cols-12 gap-5 reveal reveal-2">
+      <!-- RMSE bar chart -->
+      <div class="panel-strong p-6 sm:p-8 lg:col-span-7">
+        <div class="flex items-start justify-between mb-5">
+          <div>
+            <div class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">Figure 2</div>
+            <h3 class="mt-1 text-[18px] font-semibold tracking-tight">Masked RMSE on UCF-50K</h3>
+            <p class="text-[12.5px] text-white/45 mt-1">Lower is better · validation on the complete masked 256×256 grid</p>
+          </div>
+          <span class="hidden sm:inline pill">Full corpus</span>
+        </div>
+        <BarChart />
+        <div class="mt-5 text-[12px] text-white/40 leading-[1.6]">
+          The CCCP-preconditioned Nyström-100 fit lands at <span class="text-white/85">10.38 dB</span>,
+          ~50% below the per-scene mean baseline of <span class="text-white/85">20.73 dB</span>,
+          and within ~5% of the exact dense reference solve.
+        </div>
+      </div>
+
+      <!-- Scaling line chart -->
+      <div class="panel-strong p-6 sm:p-8 lg:col-span-5">
+        <div class="flex items-start justify-between mb-5">
+          <div>
+            <div class="text-[11px] uppercase tracking-[0.18em] text-white/30 font-mono">Figure 3</div>
+            <h3 class="mt-1 text-[18px] font-semibold tracking-tight">PCG iterations vs n</h3>
+            <p class="text-[12.5px] text-white/45 mt-1">Tolerance 1e-6 · n up to 50k</p>
+          </div>
+          <span class="hidden sm:inline pill">Solver</span>
+        </div>
+        <ScalingChart />
+        <div class="mt-5 text-[12px] text-white/40 leading-[1.6]">
+          Iterations to <span class="text-white/85">1e-6</span> tolerance stay
+          <span class="text-white/85">near-constant</span> with the CCCP preconditioner
+          — they grow roughly linearly without it.
+        </div>
+      </div>
+    </div>
+
+    <!-- Footnote -->
+    <div class="mt-8 text-[12px] text-white/40 max-w-[64ch] reveal">
+      All numbers produced by the pinned snapshots under
+      <a href={`${SITE.repo}/tree/master/benchmarks`} class="text-white/85 hover:text-white underline decoration-white/20 underline-offset-4">benchmarks/</a>
+      and
+      <a href={`${SITE.repo}/tree/master/examples`} class="text-white/85 hover:text-white underline decoration-white/20 underline-offset-4">examples/</a>.
+      Run <code class="font-mono">python -m benchmarks.reproducible</code> to regenerate.
+    </div>
+  </div>
+</section>

@@ -1,0 +1,60 @@
+---
+import { NAV, SITE } from '~/lib/site';
+---
+
+<header class="sticky top-0 z-40 shell">
+  <div
+    class="absolute inset-0 -z-10 backdrop-blur-md"
+    style="background: rgba(7,8,10,0.55); mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);"
+  ></div>
+  <div class="container-x flex h-[60px] items-center justify-between gap-6">
+    <a href="/" class="flex items-center gap-2.5 group">
+      <span
+        class="relative inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/[0.04] ring-1 ring-white/[0.08]"
+      >
+        <span
+          class="absolute inset-0 rounded-md bg-gradient-to-br from-[#5ee3d0]/30 via-[#85b7ff]/20 to-[#c4b5ff]/30 opacity-70 group-hover:opacity-100 transition-opacity"
+        ></span>
+        <svg viewBox="0 0 24 24" class="relative h-4 w-4 text-white/90" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M3 12c2.5-7 6-10 9-10s6.5 3 9 10c-2.5 7-6 10-9 10s-6.5-3-9-10Z" />
+          <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none" />
+        </svg>
+      </span>
+      <span class="font-semibold tracking-tight text-[15px] text-white">LAKER</span>
+      <span class="hidden sm:inline-block text-[11px] uppercase tracking-[0.16em] text-white/30 ml-1">v{SITE.version}</span>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-7">
+      {
+        NAV.map((item) => (
+            <a
+              href={item.href}
+              class="text-[13.5px] text-white/55 hover:text-white transition-colors duration-200"
+            >
+              {item.label}
+            </a>
+          ))
+        }
+    </nav>
+
+    <div class="flex items-center gap-2">
+      <a
+        href={SITE.repo}
+        target="_blank"
+        rel="noopener"
+        class="hidden sm:inline-flex btn btn-ghost h-9 px-3 text-[13px]"
+        aria-label="View on GitHub"
+      >
+        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor" aria-hidden="true">
+          <path d="M12 .5C5.73.5.66 5.58.66 11.85c0 4.99 3.23 9.22 7.72 10.71.56.1.77-.24.77-.55v-2.1c-3.14.68-3.8-1.34-3.8-1.34-.51-1.31-1.25-1.66-1.25-1.66-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.73.39-1.22.71-1.5-2.5-.28-5.13-1.25-5.13-5.57 0-1.23.44-2.24 1.16-3.03-.12-.29-.5-1.45.11-3.02 0 0 .95-.31 3.1 1.16a10.7 10.7 0 0 1 5.65 0c2.15-1.47 3.1-1.16 3.1-1.16.61 1.57.23 2.73.11 3.02.72.79 1.16 1.8 1.16 3.03 0 4.33-2.63 5.29-5.14 5.57.4.34.76 1.02.76 2.07v3.07c0 .31.21.66.78.55 4.49-1.49 7.72-5.72 7.72-10.71C23.34 5.58 18.27.5 12 .5Z" />
+        </svg>
+        <span>Star</span>
+      </a>
+      <a href={SITE.pypi} target="_blank" rel="noopener" class="btn btn-primary h-9 px-4 text-[13px]">
+        <span class="hidden sm:inline">Install ·</span>
+        <span>pip install laker</span>
+      </a>
+    </div>
+  </div>
+  <div class="hairline-b"></div>
+</header>
